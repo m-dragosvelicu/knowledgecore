@@ -1,10 +1,12 @@
-import { Container, Typography } from "@mui/material";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { getOrCreateActiveIntent, nextWizardRoute } from "@/lib/journey/state";
 
-export default function HomePage() {
-  return (
-    <Container>
-      <Typography variant="h1">KnowledgeCore</Typography>
-      <Typography variant="body1">Stage: L0 design — scaffold up.</Typography>
-    </Container>
-  );
+export default async function HomePage() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    redirect("/signin");
+  }
+  const intent = await getOrCreateActiveIntent(session.user.id);
+  redirect(nextWizardRoute(intent) as never);
 }

@@ -7,14 +7,19 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// =====================================================================
+// Auth.js v5 models
+// =====================================================================
+
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
+  id              String           @id @default(cuid())
+  name            String?
+  email           String?          @unique
+  emailVerified   DateTime?
+  image           String?
+  accounts        Account[]
+  sessions        Session[]
+  learningIntents LearningIntent[]
 }
 
 model Account {
@@ -50,4 +55,164 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// =====================================================================
+// L0 — Learning Mechanic models
+// =====================================================================
+
+enum JourneyStatus {
+  created
+  goal_assessed
+  outcome_assessed
+  knowledge_assessed
+  path_outlined
+  in_progress
+  paused
+  complete
+  abandoned
+}
+
+enum Motivation {
+  curiosity
+  fun
+  school
+  work
+  other
+}
+
+enum GoalpostStatus {
+  pending
+  in_progress
+  complete
+  skipped
+}
+
+enum StepType {
+  information
+  experience_socratic
+  experience_applied_problem
+  experience_mini_project
+}
+
+enum Decision {
+  advance
+  repeat
+  adjust_plan
+}
+
+model LearningIntent {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawText   String
+  status    JourneyStatus @default(created)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  subject    Subject?
+  goal       LearningGoal?
+  outcome    ExpectedOutcome?
+  assessment KnowledgeAssessment?
+  path       LearningPath?
+}
+
+model Subject {
+  id            String         @id @default(cuid())
+  intentId      String         @unique
+  intent        LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  canonicalName String
+  scopeNote     String
+}
+
+model LearningGoal {
+  id          String         @id @default(cuid())
+  intentId    String         @unique
+  intent      LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  motivation  Motivation
+  elaboration String
+  timeHorizon String?
+}
+
+/// `canDoStatements` is a JSON array of `{ text: string; bloomLevel: string }`
+model ExpectedOutcome {
+  id              String         @id @default(cuid())
+  intentId        String         @unique
+  intent          LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  canDoStatements Json
+}
+
+/// `competencies` is a JSON array of `{ competency: string; estimatedLevel: 0..4; confidence: 0..1 }`
+model KnowledgeAssessment {
+  id           String         @id @default(cuid())
+  intentId     String         @unique
+  intent       LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  competencies Json
+}
+
+model LearningPath {
+  id         String         @id @default(cuid())
+  intentId   String         @unique
+  intent     LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  acceptedAt DateTime?
+  goalposts  Goalpost[]
+  revisions  PathRevision[]
+}
+
+model Goalpost {
+  id               String                 @id @default(cuid())
+  pathId           String
+  path             LearningPath           @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String
+  objective        String
+  estimatedMinutes Int
+  status           GoalpostStatus         @default(pending)
+  steps            Step[]
+  evaluations      CheckpointEvaluation[]
+
+  @@unique([pathId, order])
+}
+
+/// `payload` shape varies by `type`:
+/// - `information`: `{ content: string; sourceIds?: string[] }`
+/// - `experience_*`: `{ prompt: string; rubricFocus?: string[] }`
+model Step {
+  id           String    @id @default(cuid())
+  goalpostId   String
+  goalpost     Goalpost  @relation(fields: [goalpostId], references: [id], onDelete: Cascade)
+  order        Int
+  type         StepType
+  payload      Json
+  userArtifact String?
+  completedAt  DateTime?
+
+  @@unique([goalpostId, order])
+}
+
+/// `scores` is `{ recall, application, conceptual, transfer, communication, coverage }: 0..4`.
+/// `evidence` is an array of `{ dimension: string; quote: string }`.
+model CheckpointEvaluation {
+  id         String   @id @default(cuid())
+  goalpostId String
+  goalpost   Goalpost @relation(fields: [goalpostId], references: [id], onDelete: Cascade)
+  attempt    Int
+  scores     Json
+  evidence   Json
+  decision   Decision
+  rationale  String
+  createdAt  DateTime @default(now())
+
+  triggeredRevision PathRevision?
+}
+
+/// `changes` records the diff applied to remaining goalposts.
+model PathRevision {
+  id              String                @id @default(cuid())
+  pathId          String
+  path            LearningPath          @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  triggerEvalId   String?               @unique
+  triggerEval     CheckpointEvaluation? @relation(fields: [triggerEvalId], references: [id], onDelete: SetNull)
+  changes         Json
+  createdAt       DateTime              @default(now())
 }
