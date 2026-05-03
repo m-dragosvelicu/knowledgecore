@@ -10,7 +10,12 @@ import Typography from "@mui/material/Typography";
 import { signIn } from "@/auth";
 
 export default function SignInPage() {
-  const showDevCredentials = process.env.NODE_ENV !== "production";
+  const showDevCredentials =
+    process.env.NODE_ENV !== "production" ||
+    process.env.ALLOW_DEMO_AUTH === "true";
+  const isProdDemo =
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_DEMO_AUTH === "true";
 
   return (
     <Box
@@ -46,9 +51,9 @@ export default function SignInPage() {
                 <Stack spacing={2}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Typography variant="subtitle1">
-                      Dev sign-in (no OAuth required)
+                      {isProdDemo ? "Demo sign-in (no password)" : "Dev sign-in (no OAuth required)"}
                     </Typography>
-                    <Chip label="DEV ONLY" color="warning" size="small" />
+                    <Chip label={isProdDemo ? "DEMO" : "DEV ONLY"} color="warning" size="small" />
                   </Stack>
                   <form
                     action={async (formData: FormData) => {
