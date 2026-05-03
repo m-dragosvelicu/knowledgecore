@@ -2,11 +2,12 @@ import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 
-const isProd = process.env.NODE_ENV === "production";
-
-// Dev-only credentials provider: skips OAuth so local development does not need
-// real Google secrets. Lazy-imports prisma so this file stays edge-safe for
-// middleware.
+// Credentials provider is available in development by default, and in production
+// only if ALLOW_DEMO_AUTH=true (used for the public thesis demo). Lazy-imports
+// prisma so this file stays edge-safe for middleware.
+const allowCredentials =
+  process.env.NODE_ENV !== "production" ||
+  process.env.ALLOW_DEMO_AUTH === "true";
 const devCredentials = Credentials({
   id: "credentials",
   name: "Dev sign-in",
@@ -28,7 +29,7 @@ const devCredentials = Credentials({
 });
 
 export const authConfig = {
-  providers: isProd ? [Google] : [Google, devCredentials],
+  providers: allowCredentials ? [Google, devCredentials] : [Google],
   pages: {
     signIn: "/signin",
   },
