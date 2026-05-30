@@ -16,5 +16,7 @@ export { GeminiClient } from "./gemini";
 export { ParalonClient } from "./paralon";
 
 export function getDefaultClient(): LLMClient {
-  return new AnthropicClient();
+  // Live L0 services run on Google Gemini (gemini-3.5-flash). The Anthropic and
+  // Paralon clients remain available for other call sites but are not the default.
+  return new GeminiClient();
 }
