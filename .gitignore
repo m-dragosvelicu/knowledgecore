@@ -37,3 +37,4 @@ prisma/*.db-journal
 .docker-data
 .vercel
 .env.production.local
+.claude/
