@@ -9,7 +9,7 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Divider from "@mui/material/Divider";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import {
   acceptPathAction,
@@ -27,7 +27,7 @@ const STEP_TYPE_LABEL: Record<StepType, string> = {
 };
 
 export default async function PathPage() {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");

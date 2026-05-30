@@ -4,12 +4,12 @@ import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/journey/state";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 
 export default async function CompletePage() {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
 
   // Find the most recently completed (or in-progress that just transitioned) journey.

@@ -8,7 +8,7 @@ import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
 import Chip from "@mui/material/Chip";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import {
   getCurrentGoalpost,
   getOrCreateActiveIntent,
@@ -51,7 +51,7 @@ const DECISION_LABELS: Record<Decision, string> = {
 };
 
 export default async function GoalpostPage() {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");

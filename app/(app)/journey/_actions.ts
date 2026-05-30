@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { prisma, getOrCreateActiveIntent, getCurrentGoalpost } from "@/lib/journey/state";
 import { getServices } from "@/lib/services";
 import type {
@@ -14,7 +14,7 @@ import type {
 import { Motivation, StepType, GoalpostStatus, JourneyStatus } from "@prisma/client";
 
 async function requireUserId(): Promise<string> {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) {
     redirect("/signin");
   }

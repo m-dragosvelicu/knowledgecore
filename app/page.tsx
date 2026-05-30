@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, nextWizardRoute } from "@/lib/journey/state";
 
 export default async function HomePage() {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) {
     redirect("/signin");
   }
