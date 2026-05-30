@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { auth, signOut } from "@/auth";
+import { auth, getCurrentSession } from "@/lib/auth";
+import { headers } from "next/headers";
 import { getOrCreateActiveIntent } from "@/lib/journey/state";
 import { getServices } from "@/lib/services";
 import AppBar from "@mui/material/AppBar";
@@ -31,7 +32,7 @@ function statusToStep(status: JourneyStatus | undefined): number {
 }
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) {
     redirect("/signin");
   }
@@ -53,7 +54,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <form
               action={async () => {
                 "use server";
-                await signOut({ redirectTo: "/signin" });
+                await auth.api.signOut({ headers: await headers() });
+              redirect("/signin");
               }}
             >
               <Button type="submit" size="small" variant="outlined">

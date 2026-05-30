@@ -10,7 +10,7 @@ import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import { submitOutcomeAction } from "@/app/(app)/journey/_actions";
 
@@ -23,7 +23,7 @@ const MOTIVATIONS: Array<{ value: string; label: string }> = [
 ];
 
 export default async function OutcomePage() {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");

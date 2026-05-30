@@ -3,12 +3,12 @@ import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import { submitIntentAction } from "@/app/(app)/journey/_actions";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getOrCreateActiveIntent } from "@/lib/journey/state";
 
 export default async function IntentPage() {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   const intent = await getOrCreateActiveIntent(session.user.id);
 

@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { auth } from "@/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import { getServices } from "@/lib/services";
 import type { CanDoStatement } from "@/lib/services/types";
 import ProbeClient from "./ProbeClient";
 
 export default async function ProbePage() {
-  const session = await auth();
+  const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");
