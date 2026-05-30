@@ -63,8 +63,16 @@ export class LiveKnowledgeProbe implements KnowledgeProbe {
       schema: probeQuestionsResultSchema,
       schemaName: "ProbeQuestions",
     });
-    this.lastQuestions = result.questions;
-    return result.questions;
+    // Normalize to the ProbeQuestion shape (options: string[] | undefined).
+    const questions: ProbeQuestion[] = result.questions.map((q) => ({
+      id: q.id,
+      prompt: q.prompt,
+      kind: q.kind,
+      competencyTag: q.competencyTag,
+      options: q.options ?? undefined,
+    }));
+    this.lastQuestions = questions;
+    return questions;
   }
 
   async score(answers: ProbeAnswer[]): Promise<Competency[]> {

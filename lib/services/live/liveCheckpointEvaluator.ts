@@ -218,10 +218,11 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
     artifact: string,
     evidence: EvidenceQuote[],
   ): { evidence: EvidenceQuote[]; unverifiedDimensions: string[] } {
+    type Dimension = EvidenceQuote["dimension"];
     // Preserve first-seen dimension order.
-    const order: string[] = [];
-    const resolved = new Map<string, EvidenceQuote>(); // dimension -> verified entry
-    const fallback = new Map<string, string>(); // dimension -> first raw quote
+    const order: Dimension[] = [];
+    const resolved = new Map<Dimension, EvidenceQuote>(); // dimension -> verified entry
+    const fallback = new Map<Dimension, string>(); // dimension -> first raw quote
 
     for (const e of evidence) {
       if (!order.includes(e.dimension)) order.push(e.dimension);
