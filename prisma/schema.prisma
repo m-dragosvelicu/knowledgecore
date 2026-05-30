@@ -101,6 +101,30 @@ enum Decision {
   adjust_plan
 }
 
+/// L0 §4 `LearningPath.status` — tracks lifecycle of the generated path independently of
+/// `LearningIntent.status`. Wizard transitions: `draft` (just generated) -> `accepted`
+/// (user confirmed) -> `in_progress` (first goalpost started) -> `complete` / `abandoned`.
+enum PathStatus {
+  draft
+  accepted
+  in_progress
+  complete
+  abandoned
+}
+
+/// L0 §9 — purpose of an LLM call, used for cost-cap accounting and observability.
+/// Mirrors the five service interfaces in `lib/services/types.ts` plus an `other` bucket
+/// for ad-hoc utility calls (e.g. summarisation outside the wizard).
+enum LlmCallPurpose {
+  intent_parse
+  goal_interview
+  knowledge_probe_questions
+  knowledge_probe_score
+  path_outline
+  checkpoint_evaluate
+  other
+}
+
 model LearningIntent {
   id        String        @id @default(cuid())
   userId    String
@@ -115,6 +139,8 @@ model LearningIntent {
   outcome    ExpectedOutcome?
   assessment KnowledgeAssessment?
   path       LearningPath?
+
+  @@index([userId, status])
 }
 
 model Subject {
@@ -151,12 +177,16 @@ model KnowledgeAssessment {
 }
 
 model LearningPath {
-  id         String         @id @default(cuid())
-  intentId   String         @unique
-  intent     LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
-  acceptedAt DateTime?
-  goalposts  Goalpost[]
-  revisions  PathRevision[]
+  id            String         @id @default(cuid())
+  intentId      String         @unique
+  intent        LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  acceptedAt    DateTime?
+  /// L0 §4 — explicit lifecycle status; previously inferred from `LearningIntent.status`.
+  status        PathStatus     @default(draft)
+  /// L0 §4 — counts how many times §7 calibration loop produced a `PathRevision`.
+  revisionCount Int            @default(0)
+  goalposts     Goalpost[]
+  revisions     PathRevision[]
 }
 
 model Goalpost {
@@ -172,6 +202,7 @@ model Goalpost {
   evaluations      CheckpointEvaluation[]
 
   @@unique([pathId, order])
+  @@index([pathId, status])
 }
 
 /// `payload` shape varies by `type`:
@@ -202,8 +233,15 @@ model CheckpointEvaluation {
   decision   Decision
   rationale  String
   createdAt  DateTime @default(now())
+  /// L0 §4 — when the user overrides the model's decision (e.g. forces `advance` despite
+  /// `repeat`). NULL means no override. Captured for §7 calibration loop and thesis claims
+  /// about agency. Free-text rationale optional but recommended.
+  userOverride Json?
+  llmCalls   LlmCall[]
 
   triggeredRevision PathRevision?
+
+  @@unique([goalpostId, attempt])
 }
 
 /// `changes` records the diff applied to remaining goalposts.
@@ -215,4 +253,40 @@ model PathRevision {
   triggerEval     CheckpointEvaluation? @relation(fields: [triggerEvalId], references: [id], onDelete: SetNull)
   changes         Json
   createdAt       DateTime              @default(now())
+}
+
+/// Per-call LLM telemetry. Written as a side effect by every live service implementation
+/// (see `lib/services/`). Required for L0 §9.7 cost caps and thesis-defence claims about
+/// model behaviour. The optional FK to `CheckpointEvaluation` lets us attribute spend
+/// when the call belongs to a checkpoint; non-evaluator calls leave it NULL.
+///
+/// `request` and `response` are kept opaque (Json) to avoid coupling to any one SDK
+/// shape; the live impl decides what subset to persist (prompt, tool calls, system
+/// fingerprint, etc.). Truncate large payloads before persisting if needed.
+model LlmCall {
+  id           String         @id @default(cuid())
+  createdAt    DateTime       @default(now())
+  purpose      LlmCallPurpose
+  /// Model identifier as reported by the provider (e.g. `claude-opus-4-7`,
+  /// `gemini-2.5-pro`). Free-text to avoid an enum churn every model release.
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  /// USD cost estimate computed from the live pricing table at request time.
+  /// Stored as decimal microdollars (i.e. multiply USD by 1_000_000) to avoid
+  /// float drift; consumers divide for display.
+  costMicroUsd Int
+  latencyMs    Int
+  success      Boolean
+  errorMessage String?
+  /// Optional opaque payloads — see model docstring.
+  request      Json?
+  response     Json?
+
+  evaluationId String?
+  evaluation   CheckpointEvaluation? @relation(fields: [evaluationId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([purpose, createdAt])
+  @@index([evaluationId])
 }
