@@ -3,8 +3,8 @@
  * against real Gemini (gemini-3.5-flash). Run with:
  *   bun run scripts/verify-live.ts
  *
- * Loads .env, builds the LIVE registry, and exercises every service end to end:
- *   intent -> goal -> probe (questions + score) -> path -> checkpoint eval.
+ * Loads .env, builds the LIVE services directly, and exercises every service end
+ * to end: intent -> goal -> probe (questions + score) -> path -> checkpoint eval.
  * Prints real outputs including the per-dimension scores and the verbatim
  * evidence quotes, and asserts the quotes are genuine substrings of the artifact.
  */

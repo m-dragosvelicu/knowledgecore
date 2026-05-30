@@ -207,56 +207,54 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
   }
 
   /**
-   * Replaces each evidence quote with the verbatim original-text span when it
-   * matches; otherwise flags it as unverified by prefixing "[unverified] ".
-   * De-duplicates by dimension, keeping the first verified hit per dimension.
+   * Produces exactly ONE evidence entry per dimension. For each dimension we
+   * prefer the first quote that verifies as a verbatim substring (returning the
+   * original-text span); a legitimate "(no evidence in artifact)" also counts as
+   * resolved. If no occurrence of a dimension verifies, we emit a single
+   * best-effort quote flagged "[unverified] " and report the dimension as
+   * unverified so the caller can log/degrade gracefully.
    */
   private verifyEvidence(
     artifact: string,
     evidence: EvidenceQuote[],
   ): { evidence: EvidenceQuote[]; unverifiedDimensions: string[] } {
-    const out: EvidenceQuote[] = [];
-    const seen = new Set<string>();
-    const unverified = new Set<string>();
+    // Preserve first-seen dimension order.
+    const order: string[] = [];
+    const resolved = new Map<string, EvidenceQuote>(); // dimension -> verified entry
+    const fallback = new Map<string, string>(); // dimension -> first raw quote
 
     for (const e of evidence) {
-      if (seen.has(e.dimension)) continue;
+      if (!order.includes(e.dimension)) order.push(e.dimension);
+      if (resolved.has(e.dimension)) continue; // already verified; ignore extras
+
+      const trimmed = e.quote.trim();
 
       // A model may legitimately report no evidence.
-      if (e.quote.trim() === NO_EVIDENCE || e.quote.trim().length === 0) {
-        out.push({ dimension: e.dimension, quote: NO_EVIDENCE });
-        seen.add(e.dimension);
+      if (trimmed === NO_EVIDENCE || trimmed.length === 0) {
+        resolved.set(e.dimension, { dimension: e.dimension, quote: NO_EVIDENCE });
         continue;
       }
 
       const verbatim = findVerbatim(artifact, e.quote);
       if (verbatim) {
-        out.push({ dimension: e.dimension, quote: verbatim });
-        seen.add(e.dimension);
+        resolved.set(e.dimension, { dimension: e.dimension, quote: verbatim });
+      } else if (!fallback.has(e.dimension)) {
+        fallback.set(e.dimension, trimmed);
+      }
+    }
+
+    const out: EvidenceQuote[] = [];
+    const unverifiedDimensions: string[] = [];
+    for (const dim of order) {
+      const hit = resolved.get(dim);
+      if (hit) {
+        out.push(hit);
       } else {
-        // Don't mark seen yet — a later (repaired) quote for the same dimension
-        // might verify. Track as a candidate but flag.
-        unverified.add(e.dimension);
+        out.push({ dimension: dim, quote: `[unverified] ${fallback.get(dim) ?? ""}` });
+        unverifiedDimensions.push(dim);
       }
     }
 
-    // For dimensions that never verified, emit the flagged (best-effort) quote.
-    for (const e of evidence) {
-      if (seen.has(e.dimension)) continue;
-      if (unverified.has(e.dimension)) {
-        out.push({
-          dimension: e.dimension,
-          quote: `[unverified] ${e.quote.trim()}`,
-        });
-        seen.add(e.dimension);
-      }
-    }
-
-    return {
-      evidence: out,
-      unverifiedDimensions: [...unverified].filter(
-        (d) => !out.some((o) => o.dimension === d && !o.quote.startsWith("[unverified]")),
-      ),
-    };
+    return { evidence: out, unverifiedDimensions };
   }
 }
