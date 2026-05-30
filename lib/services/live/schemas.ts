@@ -40,13 +40,20 @@ export const goalInterviewResultSchema = z.object({
   canDoStatements: z.array(canDoStatementSchema).min(1),
 });
 
-export const probeQuestionSchema = z.object({
-  id: z.string().min(1),
-  prompt: z.string().min(1),
-  kind: z.enum(["open", "multiple_choice"]),
-  options: z.array(z.string()).optional(),
-  competencyTag: z.string().min(1),
-});
+export const probeQuestionSchema = z
+  .object({
+    id: z.string().min(1),
+    prompt: z.string().min(1),
+    kind: z.enum(["open", "multiple_choice"]),
+    // Gemini emits the field even for open questions, returning null. Accept
+    // null/missing and normalize to undefined so it matches ProbeQuestion.
+    options: z.array(z.string()).nullish(),
+    competencyTag: z.string().min(1),
+  })
+  .transform((q) => ({
+    ...q,
+    options: q.options ?? undefined,
+  }));
 
 export const probeQuestionsResultSchema = z.object({
   questions: z.array(probeQuestionSchema).min(1),

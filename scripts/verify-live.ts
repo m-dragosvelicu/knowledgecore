@@ -92,10 +92,10 @@ async function main() {
   }
 
   // 5. Checkpoint evaluation + verbatim guard --------------------------
+  // Use a SELF-CONSISTENT goalpost + artifact (not the dynamically generated
+  // one) so the artifact genuinely answers the prompt and the verbatim-quote
+  // guard is exercised with real, scorable evidence.
   hr("5. CheckpointEvaluator.evaluate (verbatim-quote guard)");
-  const gp1 = goalposts[0];
-  const infoStep = gp1.steps.find((s) => s.type === "information");
-  const expStep = gp1.steps.find((s) => s.type !== "information");
   const artifact = [
     "The dot product of two vectors is v . u = v1*u1 + v2*u2.",
     "For A=(10,2) and B=(2,10): A . B = 10*2 + 2*10 = 20 + 20 = 40.",
@@ -106,10 +106,13 @@ async function main() {
 
   const evaluator = new LiveCheckpointEvaluator(llm);
   const evaluation = await evaluator.evaluate({
-    goalpostTitle: gp1.title,
-    goalpostObjective: gp1.objective,
-    informationContent: String((infoStep?.payload as { content?: string })?.content ?? ""),
-    experiencePrompt: String((expStep?.payload as { prompt?: string })?.prompt ?? ""),
+    goalpostTitle: "Vectors and dot products",
+    goalpostObjective:
+      "Compute dot products of 2D vectors by hand and explain why the dot product measures similarity.",
+    informationContent:
+      "A vector can be seen as an arrow or a list of numbers. The dot product v . u = v1*u1 + v2*u2 is large when two vectors point in similar directions, so it works as a similarity score.",
+    experiencePrompt:
+      "Given three customers as 2D vectors A=(10,2), B=(2,10), C=(9,3), compute the pairwise dot products by hand, say which two are most similar, and explain in one sentence why the dot product is a reasonable similarity measure.",
     userArtifact: artifact,
     attempt: 1,
   });
