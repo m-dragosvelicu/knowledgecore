@@ -1,24 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-// NOTE: This is an OPTIMISTIC cookie-presence check only — it does NOT validate
-// the session against the database. It exists purely for the redirect UX (bounce
-// unauthenticated navigations to /signin). The real auth gate lives in the server
-// components / server actions, which all call `getCurrentSession()` /
-// `auth.api.getSession()` and enforce identity. Do not treat this as the security
-// boundary. (Next 15.1.x has no Node middleware runtime, so a DB-backed check in
-// middleware is not available without bumping to >=15.2.)
+// Edge-safe middleware: this is an OPTIMISTIC cookie-presence check only — it
+// must not import the Prisma-backed `auth` instance (Node APIs are unavailable
+// in the Edge runtime). The authoritative session check runs in server
+// components / actions via getCurrentSession(); middleware is just a fast UX
+// redirect to keep unauthenticated users out of app routes.
 export function middleware(request: NextRequest) {
+  const hasSession = !!getSessionCookie(request);
   const { pathname } = request.nextUrl;
+  const isAuthRoute = pathname === "/signin" || pathname.startsWith("/api/auth");
 
-  if (pathname === "/signin" || pathname.startsWith("/api/auth")) {
-    return NextResponse.next();
+  if (!hasSession && !isAuthRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/signin";
+    return NextResponse.redirect(url);
   }
-
-  const sessionCookie = getSessionCookie(request);
-  if (!sessionCookie) {
-    const url = new URL("/signin", request.nextUrl.origin);
-    url.searchParams.set("callbackUrl", request.nextUrl.href);
+  if (hasSession && pathname === "/signin") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
@@ -26,7 +27,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
-  ],
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
 };
