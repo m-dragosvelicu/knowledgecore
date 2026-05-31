@@ -52,7 +52,9 @@ export async function getCurrentGoalpost(
   });
   if (!path) return null;
   return prisma.goalpost.findFirst({
-    where: { pathId: path.id, status: { not: "complete" } },
+    // Serve the lowest-order goalpost that is not done. "skipped" goalposts
+    // (dropped by a path revision) are terminal like "complete".
+    where: { pathId: path.id, status: { notIn: ["complete", "skipped"] } },
     orderBy: { order: "asc" },
     include: { steps: { orderBy: { order: "asc" } } },
   });

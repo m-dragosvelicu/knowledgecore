@@ -11,7 +11,9 @@ import type {
   ProbeAnswer,
   ProbeQuestion,
 } from "@/lib/services/types";
-import { Motivation, StepType, GoalpostStatus, JourneyStatus } from "@prisma/client";
+import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision } from "@prisma/client";
+import { deriveDecision } from "@/lib/journey/decision";
+import type { RubricScores } from "@/lib/services/types";
 
 async function requireUserId(): Promise<string> {
   const session = await getCurrentSession();
@@ -345,6 +347,7 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     where: { goalpostId: step.goalpostId },
   });
 
+  const attempt = previousAttempts + 1;
   const services = getServices();
   const evaluation = await services.checkpointEvaluator.evaluate({
     goalpostTitle: step.goalpost.title,
@@ -352,16 +355,21 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     informationContent,
     experiencePrompt,
     userArtifact: parsed.userArtifact,
-    attempt: previousAttempts + 1,
+    attempt,
   });
+
+  // The evaluator's own `decision` is advisory. The authoritative branch is
+  // derived deterministically from the rubric scores per L0.md §8, which also
+  // enforces the §9.6 repeat cap independently of model behaviour.
+  const decision = deriveDecision(evaluation.scores, attempt);
 
   await prisma.checkpointEvaluation.create({
     data: {
       goalpostId: step.goalpostId,
-      attempt: previousAttempts + 1,
+      attempt,
       scores: evaluation.scores as unknown as object,
       evidence: evaluation.evidence as unknown as object,
-      decision: evaluation.decision,
+      decision,
       rationale: evaluation.rationale,
     },
   });
@@ -372,6 +380,49 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
 
 const goalpostIdSchema = z.object({ goalpostId: z.string() });
 
+// Goalpost statuses that mean "done, do not serve again".
+const TERMINAL_GOALPOST_STATUSES = [
+  GoalpostStatus.complete,
+  GoalpostStatus.skipped,
+];
+
+// Shared advance core: complete the given goalpost, then either activate the
+// next non-terminal goalpost or finish the journey. Returns the redirect target
+// (the caller performs the redirect outside any try/catch).
+async function doAdvance(intentId: string, goalpostId: string): Promise<string> {
+  await prisma.goalpost.update({
+    where: { id: goalpostId },
+    data: { status: GoalpostStatus.complete },
+  });
+  const completed = await prisma.goalpost.findUnique({
+    where: { id: goalpostId },
+    select: { pathId: true, order: true },
+  });
+  if (!completed) return "/journey/goalpost";
+
+  const next = await prisma.goalpost.findFirst({
+    where: {
+      pathId: completed.pathId,
+      order: { gt: completed.order },
+      status: { notIn: TERMINAL_GOALPOST_STATUSES },
+    },
+    orderBy: { order: "asc" },
+  });
+  if (next) {
+    await prisma.goalpost.update({
+      where: { id: next.id },
+      data: { status: GoalpostStatus.in_progress },
+    });
+    return "/journey/goalpost";
+  }
+
+  await prisma.learningIntent.update({
+    where: { id: intentId },
+    data: { status: JourneyStatus.complete },
+  });
+  return "/journey/complete";
+}
+
 export async function advanceGoalpostAction(formData: FormData): Promise<void> {
   const userId = await requireUserId();
   const intentId = await requireActiveIntentId(userId);
@@ -379,41 +430,60 @@ export async function advanceGoalpostAction(formData: FormData): Promise<void> {
     goalpostId: formData.get("goalpostId"),
   });
 
-  await prisma.goalpost.update({
-    where: { id: goalpostId },
-    data: { status: GoalpostStatus.complete },
+  // Server-side guard (defense in depth): only advance if the latest evaluation
+  // actually says advance, or the learner has explicitly overridden it.
+  const latestEval = await prisma.checkpointEvaluation.findFirst({
+    where: { goalpostId },
+    orderBy: { createdAt: "desc" },
   });
-
-  // Find the next pending goalpost in the same path.
-  const completed = await prisma.goalpost.findUnique({
-    where: { id: goalpostId },
-    select: { pathId: true, order: true },
-  });
-  if (!completed) {
-    redirect("/journey/goalpost");
-  }
-  const next = await prisma.goalpost.findFirst({
-    where: {
-      pathId: completed!.pathId,
-      order: { gt: completed!.order },
-      status: { not: GoalpostStatus.complete },
-    },
-    orderBy: { order: "asc" },
-  });
-
-  if (next) {
-    await prisma.goalpost.update({
-      where: { id: next.id },
-      data: { status: GoalpostStatus.in_progress },
-    });
+  if (latestEval && latestEval.decision !== Decision.advance && !latestEval.userOverride) {
     redirect("/journey/goalpost");
   }
 
-  await prisma.learningIntent.update({
-    where: { id: intentId },
-    data: { status: JourneyStatus.complete },
-  });
-  redirect("/journey/complete");
+  const target = await doAdvance(intentId, goalpostId);
+  redirect(target);
+}
+
+// --- repeat: swap the experience for a Socratic retry on the weakest dimension
+
+const DIMENSION_FOCUS: Record<keyof RubricScores, string> = {
+  recall: "the key facts and terms involved",
+  application: "how you would actually carry out the procedure, step by step",
+  conceptual: "what is really going on underneath, explained in your own words",
+  transfer: "how this idea would apply to a slightly different situation",
+  communication: "your reasoning, laid out clearly enough that someone else could follow it",
+  coverage: "how this connects back to the goalpost's objective",
+};
+
+// Lowest-scoring dimension excluding coverage (coverage drives adjust_plan, not repeat).
+function weakestDimension(scores: RubricScores): keyof RubricScores {
+  const dims: (keyof RubricScores)[] = [
+    "recall",
+    "application",
+    "conceptual",
+    "transfer",
+    "communication",
+  ];
+  let weakest = dims[0];
+  for (const d of dims) {
+    if (scores[d] < scores[weakest]) weakest = d;
+  }
+  return weakest;
+}
+
+function buildSocraticRetryPrompt(
+  objective: string,
+  weakest: keyof RubricScores,
+): string {
+  const focus = DIMENSION_FOCUS[weakest];
+  const obj = objective.replace(/\.$/, "");
+  return [
+    `Let's try this from a different angle. Instead of another exercise, talk me through your thinking.`,
+    ``,
+    `Focusing on ${focus}: in your own words, explain ${obj}.`,
+    ``,
+    `Go step by step and don't worry about being formal - I want to follow how you're reasoning about it.`,
+  ].join("\n");
 }
 
 export async function repeatGoalpostAction(formData: FormData): Promise<void> {
@@ -422,32 +492,244 @@ export async function repeatGoalpostAction(formData: FormData): Promise<void> {
     goalpostId: formData.get("goalpostId"),
   });
 
-  // Reset the experience step in this goalpost so the user can retry.
   const goalpost = await prisma.goalpost.findUnique({
     where: { id: goalpostId },
     include: { steps: { orderBy: { order: "asc" } } },
   });
   if (!goalpost) redirect("/journey/goalpost");
+
+  // Per L0.md §7: on repeat, swap the experience step for a Socratic one
+  // focused on interpretation of the weakest rubric dimension, rather than
+  // re-serving the same exercise. The information step stays completed.
+  const latestEval = await prisma.checkpointEvaluation.findFirst({
+    where: { goalpostId },
+    orderBy: { createdAt: "desc" },
+  });
   const experience = goalpost!.steps.find((s) => s.type !== StepType.information);
   if (experience) {
+    const resetData: {
+      userArtifact: null;
+      completedAt: null;
+      type?: StepType;
+      payload?: object;
+    } = { userArtifact: null, completedAt: null };
+
+    if (latestEval) {
+      const scores = latestEval.scores as unknown as RubricScores;
+      const weak = weakestDimension(scores);
+      resetData.type = StepType.experience_socratic;
+      resetData.payload = {
+        prompt: buildSocraticRetryPrompt(goalpost!.objective, weak),
+        rubricFocus: [weak],
+      };
+    }
+
     await prisma.step.update({
       where: { id: experience.id },
-      data: { userArtifact: null, completedAt: null },
+      data: resetData,
     });
   }
   redirect("/journey/goalpost");
 }
 
+// --- adjust_plan: minimal-edit revision of the remaining path (live PathAdjuster)
+
 export async function adjustPlanAction(formData: FormData): Promise<void> {
-  // Path adjuster not implemented in mock mode — end the journey gracefully.
   const userId = await requireUserId();
   const intentId = await requireActiveIntentId(userId);
-  void formData;
-  await prisma.learningIntent.update({
-    where: { id: intentId },
-    data: { status: JourneyStatus.complete },
+  const { goalpostId } = goalpostIdSchema.parse({
+    goalpostId: formData.get("goalpostId"),
   });
-  redirect("/journey/complete");
+
+  const goalpost = await prisma.goalpost.findUnique({ where: { id: goalpostId } });
+  if (!goalpost) redirect("/journey/goalpost");
+  const pathId = goalpost!.pathId;
+  const currentOrder = goalpost!.order;
+
+  const [latestEval, subject, goal, outcome, assessment, remaining] =
+    await Promise.all([
+      prisma.checkpointEvaluation.findFirst({
+        where: { goalpostId },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.subject.findUnique({ where: { intentId } }),
+      prisma.learningGoal.findUnique({ where: { intentId } }),
+      prisma.expectedOutcome.findUnique({ where: { intentId } }),
+      prisma.knowledgeAssessment.findUnique({ where: { intentId } }),
+      prisma.goalpost.findMany({
+        where: {
+          pathId,
+          order: { gt: currentOrder },
+          status: { notIn: TERMINAL_GOALPOST_STATUSES },
+        },
+        orderBy: { order: "asc" },
+      }),
+    ]);
+
+  // Without full context (or an evaluation) we cannot adjust honestly — fall
+  // back to completing the journey rather than fabricating a revision.
+  if (!latestEval || !subject || !goal || !outcome || !assessment) {
+    await prisma.learningIntent.update({
+      where: { id: intentId },
+      data: { status: JourneyStatus.complete },
+    });
+    redirect("/journey/complete");
+  }
+
+  const services = getServices();
+  const adjustment = await services.pathAdjuster.adjust({
+    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+    motivation: goal!.motivation,
+    outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
+    assessment: assessment!.competencies as unknown as Competency[],
+    currentGoalpost: {
+      order: currentOrder,
+      title: goalpost!.title,
+      objective: goalpost!.objective,
+    },
+    triggerScores: latestEval!.scores as unknown as RubricScores,
+    triggerRationale: latestEval!.rationale,
+    remainingGoalposts: remaining.map((g) => ({
+      order: g.order,
+      title: g.title,
+      objective: g.objective,
+      estimatedMinutes: g.estimatedMinutes,
+    })),
+  });
+
+  await prisma.$transaction(async (tx) => {
+    // adjust_plan acknowledges the PLAN was wrong, not the learner: complete the
+    // current goalpost and move them into the inserted remediation.
+    await tx.goalpost.update({
+      where: { id: goalpostId },
+      data: { status: GoalpostStatus.complete },
+    });
+
+    if (adjustment.removedOrders.length) {
+      await tx.goalpost.updateMany({
+        where: { pathId, order: { in: adjustment.removedOrders } },
+        data: { status: GoalpostStatus.skipped },
+      });
+    }
+
+    for (const m of adjustment.modifiedGoalposts) {
+      await tx.goalpost.updateMany({
+        where: { pathId, order: m.order },
+        data: {
+          ...(m.title !== undefined ? { title: m.title } : {}),
+          ...(m.objective !== undefined ? { objective: m.objective } : {}),
+          ...(m.estimatedMinutes !== undefined
+            ? { estimatedMinutes: m.estimatedMinutes }
+            : {}),
+        },
+      });
+    }
+
+    if (adjustment.insertedGoalposts.length) {
+      // Respect @@unique([pathId, order]): vacate the range after the current
+      // goalpost by bumping later goalposts out by a large offset, insert the
+      // new goalposts contiguously at currentOrder+1, then renumber the bumped
+      // ones to follow.
+      const OFFSET = 100000;
+      const later = await tx.goalpost.findMany({
+        where: { pathId, order: { gt: currentOrder } },
+        orderBy: { order: "asc" },
+      });
+      for (const g of later) {
+        await tx.goalpost.update({
+          where: { id: g.id },
+          data: { order: g.order + OFFSET },
+        });
+      }
+      let nextOrder = currentOrder + 1;
+      for (const gp of adjustment.insertedGoalposts) {
+        await tx.goalpost.create({
+          data: {
+            pathId,
+            order: nextOrder,
+            title: gp.title,
+            objective: gp.objective,
+            estimatedMinutes: gp.estimatedMinutes,
+            status: GoalpostStatus.pending,
+            steps: {
+              create: gp.steps.map((s) => ({
+                order: s.order,
+                type: s.type,
+                payload: s.payload as object,
+              })),
+            },
+          },
+        });
+        nextOrder += 1;
+      }
+      const bumped = await tx.goalpost.findMany({
+        where: { pathId, order: { gte: OFFSET } },
+        orderBy: { order: "asc" },
+      });
+      for (const g of bumped) {
+        await tx.goalpost.update({
+          where: { id: g.id },
+          data: { order: nextOrder },
+        });
+        nextOrder += 1;
+      }
+    }
+
+    await tx.pathRevision.create({
+      data: {
+        pathId,
+        triggerEvalId: latestEval!.id,
+        changes: adjustment as unknown as object,
+      },
+    });
+    await tx.learningPath.update({
+      where: { id: pathId },
+      data: { revisionCount: { increment: 1 } },
+    });
+  });
+
+  redirect("/journey/goalpost");
+}
+
+// --- user override of an evaluator decision (L0.md §7 / §4 userOverride) -----
+
+const overrideSchema = z.object({
+  goalpostId: z.string(),
+  newDecision: z.nativeEnum(Decision),
+  reason: z.string().optional(),
+});
+
+export async function overrideDecisionAction(formData: FormData): Promise<void> {
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
+  const parsed = overrideSchema.parse({
+    goalpostId: formData.get("goalpostId"),
+    newDecision: formData.get("newDecision"),
+    reason: formData.get("reason") || undefined,
+  });
+
+  const latestEval = await prisma.checkpointEvaluation.findFirst({
+    where: { goalpostId: parsed.goalpostId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!latestEval) redirect("/journey/goalpost");
+
+  // Record the override as a calibration signal (L0.md §7: recorded, not hidden).
+  await prisma.checkpointEvaluation.update({
+    where: { id: latestEval!.id },
+    data: {
+      userOverride: {
+        newDecision: parsed.newDecision,
+        reason: parsed.reason ?? null,
+      } as object,
+    },
+  });
+
+  if (parsed.newDecision === Decision.advance) {
+    const target = await doAdvance(intentId, parsed.goalpostId);
+    redirect(target);
+  }
+  redirect("/journey/goalpost");
 }
 
 // ---------------------------------------------------------------------------

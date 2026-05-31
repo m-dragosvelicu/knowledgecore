@@ -17,9 +17,11 @@ import type { RubricScores } from "@/lib/services/types";
 // Mismatch fires (user demonstrates a gap the goalpost did not target)."
 // =====================================================================
 
-// §9.6: at most this many attempts on a goalpost before a failing checkpoint
-// is escalated to adjust_plan instead of grinding on repeat.
-export const MAX_ATTEMPTS_BEFORE_ADJUST = 2;
+// §9.6 ("2 repeats then mandatory adjustment, to avoid grinding"): the initial
+// submission is attempt 1; two further repeats are attempts 2 and 3. So on the
+// 3rd attempt a still-failing checkpoint escalates to adjust_plan rather than
+// offering a third repeat.
+export const MAX_ATTEMPTS_BEFORE_ADJUST = 3;
 
 const ADVANCE_MIN_LEVEL = 2; // no dimension may sit below "proficient"
 const ADVANCE_ADVANCED_LEVEL = 3; // "advanced" or better
