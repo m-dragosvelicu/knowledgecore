@@ -26,9 +26,16 @@ export const rubricLevelSchema = z.union([
   z.literal(4),
 ]);
 
+// L0.md §3 Stage 2 ambiguity surfacing. Gemini emits the ambiguity fields even
+// when unambiguous (false / null), so accept null/missing here. This stays a
+// plain object (no top-level .transform) because a transformed schema passed
+// directly to completeStructured<T> unifies T to the pre-transform input type;
+// liveIntentParser normalizes the nullish fields to undefined after parsing.
 export const parsedSubjectSchema = z.object({
   canonicalName: z.string().min(1),
   scopeNote: z.string().min(1),
+  ambiguous: z.boolean().nullish(),
+  clarification: z.string().nullish(),
 });
 
 export const canDoStatementSchema = z.object({

@@ -3,6 +3,13 @@ import type { Decision, Motivation, StepType } from "@prisma/client";
 export type ParsedSubject = {
   canonicalName: string;
   scopeNote: string;
+  // L0.md §3 Stage 2: the parser must surface ambiguity back to the learner
+  // rather than silently narrowing. Set when the raw input is too vague, too
+  // broad, or carries two intents in one. Transient (not persisted) — used to
+  // drive the confirm/refine step in the intent wizard.
+  ambiguous?: boolean;
+  // A short clarification question/note shown to the learner when `ambiguous`.
+  clarification?: string;
 };
 
 export type CanDoStatement = {

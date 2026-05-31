@@ -93,6 +93,28 @@ export async function submitIntentAction(formData: FormData): Promise<void> {
     },
   });
 
+  // L0.md §3 Stage 2: do NOT silently narrow an ambiguous intent. When the
+  // parser flagged the input as too vague / too broad / two-intents-in-one, send
+  // the learner back to the intent page in a confirm/refine sub-view (the
+  // clarification is transient, so it rides along on the query string). A clear,
+  // singular intent flows straight through to the outcome interview as before.
+  if (subject.ambiguous) {
+    const params = new URLSearchParams({ confirm: "1" });
+    if (subject.clarification) params.set("note", subject.clarification);
+    redirect(`/journey/intent?${params.toString()}`);
+  }
+
+  redirect("/journey/outcome");
+}
+
+// Confirm an ambiguous intent as-is and proceed to the outcome interview. The
+// subject was already persisted by submitIntentAction; this just acknowledges
+// the learner accepted the parser's best interpretation.
+export async function confirmIntentAction(): Promise<void> {
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
+  const subject = await prisma.subject.findUnique({ where: { intentId } });
+  if (!subject) redirect("/journey/intent");
   redirect("/journey/outcome");
 }
 
@@ -500,6 +522,47 @@ async function doAdvance(intentId: string, goalpostId: string): Promise<string> 
     data: { status: JourneyStatus.complete },
   });
   return "/journey/complete";
+}
+
+// --- skip-with-confirm (L0.md §9.2; CEO override: allow skip with confirmation,
+// "you'll be assessed on prerequisites later"). Marks the current goalpost
+// `skipped` (NOT `complete`, unlike doAdvance) and then runs doAdvance's
+// "activate next or finish" tail. getCurrentGoalpost already excludes skipped
+// goalposts, so the next non-terminal goalpost becomes the active one.
+export async function skipGoalpostAction(formData: FormData): Promise<void> {
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
+  const { goalpostId } = goalpostIdSchema.parse({
+    goalpostId: formData.get("goalpostId"),
+  });
+
+  const skipped = await prisma.goalpost.update({
+    where: { id: goalpostId },
+    data: { status: GoalpostStatus.skipped },
+    select: { pathId: true, order: true },
+  });
+
+  const next = await prisma.goalpost.findFirst({
+    where: {
+      pathId: skipped.pathId,
+      order: { gt: skipped.order },
+      status: { notIn: TERMINAL_GOALPOST_STATUSES },
+    },
+    orderBy: { order: "asc" },
+  });
+  if (next) {
+    await prisma.goalpost.update({
+      where: { id: next.id },
+      data: { status: GoalpostStatus.in_progress },
+    });
+    redirect("/journey/goalpost");
+  }
+
+  await prisma.learningIntent.update({
+    where: { id: intentId },
+    data: { status: JourneyStatus.complete },
+  });
+  redirect("/journey/complete");
 }
 
 export async function advanceGoalpostAction(formData: FormData): Promise<void> {

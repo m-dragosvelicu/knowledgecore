@@ -18,6 +18,7 @@ import {
   completeInformationStepAction,
   overrideDecisionAction,
   repeatGoalpostAction,
+  skipGoalpostAction,
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
 import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
@@ -25,6 +26,7 @@ import SubmitButton from "@/components/journey/SubmitButton";
 import ExperienceForm from "@/components/journey/ExperienceForm";
 import InformationView from "@/components/journey/InformationView";
 import OverrideControl from "@/components/journey/OverrideControl";
+import SkipControl from "@/components/journey/SkipControl";
 import ThresholdView from "@/components/journey/ThresholdView";
 import ReviewView from "@/components/journey/ReviewView";
 import Markdown from "@/components/Markdown";
@@ -201,6 +203,8 @@ export default async function GoalpostPage({
           action={completeInformationStepAction}
           content={<Markdown>{content}</Markdown>}
         />
+        {/* §9.2 skip-with-confirm: available during the information phase. */}
+        <SkipControl goalpostId={goalpost!.id} action={skipGoalpostAction} />
       </Stack>
     );
   }
@@ -231,6 +235,8 @@ export default async function GoalpostPage({
             />
           </CardContent>
         </Card>
+        {/* §9.2 skip-with-confirm: available during the experience phase. */}
+        <SkipControl goalpostId={goalpost!.id} action={skipGoalpostAction} />
       </Stack>
     );
   }
