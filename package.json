@@ -18,7 +18,8 @@
     "prisma:studio": "prisma studio",
     "smoke": "bun run scripts/smoke.ts",
     "verify:path-confirmation": "bun run scripts/verify-path-confirmation.ts",
-    "verify:stt": "bun run scripts/verify-stt.ts"
+    "verify:stt": "bun run scripts/verify-stt.ts",
+    "verify:visual-media": "bun run scripts/verify-visual-media.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",

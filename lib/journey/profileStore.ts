@@ -27,6 +27,7 @@ import {
   applyMasteryEvidence,
   decisionToMasteryEvidence,
   emptyProfileState,
+  incrementVisualNotHelpful,
   type ConceptMasteryMap,
   type DerivedSignals,
   type LearnerProfileState,
@@ -298,6 +299,32 @@ export async function recordRetry(
     };
     await writeLiveRow(tx, profileId, next);
     await writeSnapshot(tx, profileId, next, "retry", { conceptKey });
+  });
+}
+
+/**
+ * L1 Slice 4 — record a learner marking a VISUAL as "not helpful".
+ *
+ * Increments the `visualNotHelpfulCount` signal in the profile signal vector and
+ * writes a new append-only `visual_not_helpful` snapshot (consistent with Slice
+ * 1: every update is a fresh snapshot, never an overwrite). This is a content +
+ * feedback driven modality signal — NOT a VARK / learner-type label. L1 captures
+ * it; the in-experience adaptation that consumes it lands per the roadmap.
+ * Best-effort at the call site (feedback must never break the learner's flow).
+ */
+export async function recordVisualNotHelpful(
+  intentId: string,
+  userId: string,
+  visualId: string,
+): Promise<void> {
+  const profileId = await ensureProfile(intentId, userId);
+  await prisma.$transaction(async (tx) => {
+    const row = await tx.learnerProfile.findUnique({ where: { id: profileId } });
+    if (!row) return;
+    const state = rowToState(row);
+    const next = incrementVisualNotHelpful(state);
+    await writeLiveRow(tx, profileId, next);
+    await writeSnapshot(tx, profileId, next, "visual_not_helpful", { visualId });
   });
 }
 

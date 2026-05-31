@@ -237,6 +237,25 @@ export function applyMasteryEvidence(
 }
 
 /**
+ * L1 Slice 4 — fold a "visual not helpful" event into the profile, returning a
+ * NEW state (the input is never mutated). It bumps ONLY the signal-vector
+ * counter; it is NOT mastery evidence and never touches the mastery core. Pure so
+ * the store (recordVisualNotHelpful) stays thin and the increment is unit-testable
+ * without a DB.
+ */
+export function incrementVisualNotHelpful(
+  state: LearnerProfileState,
+): LearnerProfileState {
+  return {
+    ...state,
+    signals: {
+      ...state.signals,
+      visualNotHelpfulCount: state.signals.visualNotHelpfulCount + 1,
+    },
+  };
+}
+
+/**
  * Map a checkpoint decision onto BKT evidence. `advance` is "correct";
  * `repeat` is "incorrect". `adjust_plan` is NOT mastery evidence about the
  * learner (it means the PLAN targeted the wrong thing — Coverage Mismatch), so

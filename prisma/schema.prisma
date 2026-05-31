@@ -154,8 +154,11 @@ enum LlmCallPurpose {
   // Recorded learner speech in, clean transcript out. The audio is discarded after
   // transcription (never persisted); only this telemetry row + the transcript live on.
   stt_transcribe
-  // NOTE: `visual_generate` (Slice 4 SVG generation) is intentionally NOT added
-  // here yet — it is deferred to Slice 4 per the L1 checklist.
+  // L1 Slice 4 — visual media: the content-generating LLM call that emits a
+  // diagram-type visual as SVG code (the visualKind=diagram route of the gate).
+  // Closes the documented enum debt; the SVG is sanitized on its own dedicated
+  // render path before display (never the markdown sanitizer).
+  visual_generate
   other
 }
 

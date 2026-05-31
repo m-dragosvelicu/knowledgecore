@@ -17,6 +17,7 @@ import {
   adjustPlanAction,
   advanceGoalpostAction,
   completeInformationStepAction,
+  markVisualNotHelpfulAction,
   overrideDecisionAction,
   prepareGoalpostContentAction,
   repeatGoalpostAction,
@@ -24,6 +25,10 @@ import {
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
 import { isLessonContentReady } from "@/lib/journey/lessonGeneration";
+import { getVisualResolvers } from "@/lib/services";
+import { routeVisuals } from "@/lib/services/visual/gate";
+import type { VisualNeed } from "@/lib/services/visualMedia";
+import VisualMedia from "@/components/journey/VisualMedia";
 import GettingReady from "@/components/journey/GettingReady";
 import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
 import SubmitButton from "@/components/journey/SubmitButton";
@@ -216,7 +221,20 @@ export default async function GoalpostPage({
         </Stack>
       );
     }
-    const content = (informationStep.payload as { content?: string } | null)?.content ?? "";
+    const infoPayload = informationStep.payload as
+      | { content?: string; visuals?: VisualNeed[] }
+      | null;
+    const content = infoPayload?.content ?? "";
+    // L1 Slice 4 — resolve the lesson's visual NEEDS through the gate, server-side:
+    // each visualKind routes to a safe medium (SVG sanitized on its OWN dedicated
+    // path, image sourced license-clean with attribution, video as a reference
+    // embed). The SVG NEVER passes through the markdown sanitizer. `none` results
+    // (no license-clean image, empty SVG after sanitization) render nothing.
+    const visualNeeds = Array.isArray(infoPayload?.visuals) ? infoPayload!.visuals : [];
+    const resolvedVisuals =
+      visualNeeds.length > 0
+        ? await routeVisuals(visualNeeds, getVisualResolvers())
+        : [];
     // L1 presenter seam: ask the active strategy how to render this step, then
     // apply the directives at the render boundary. The learner profile is not
     // yet persisted (Backend owns that schema), so we pass null — the default
@@ -233,7 +251,22 @@ export default async function GoalpostPage({
         <InformationView
           stepId={informationStep.id}
           action={completeInformationStepAction}
-          content={<Markdown>{content}</Markdown>}
+          content={
+            <>
+              <Markdown>{content}</Markdown>
+              {resolvedVisuals.length > 0 && (
+                <Stack spacing={2} sx={{ mt: 3 }}>
+                  {resolvedVisuals.map((v) => (
+                    <VisualMedia
+                      key={v.id}
+                      visual={v}
+                      onNotHelpful={markVisualNotHelpfulAction}
+                    />
+                  ))}
+                </Stack>
+              )}
+            </>
+          }
           dwellSeconds={dwellSeconds}
         />
         {/* §9.2 skip-with-confirm: available during the information phase. */}

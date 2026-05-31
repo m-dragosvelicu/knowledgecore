@@ -150,11 +150,37 @@ export const pathResultSchema = z.object({
   goalposts: z.array(goalpostPlanSchema).min(1),
 });
 
-// L1 Slice 1 — Call B (lesson-content) output. The generator returns ONLY the
-// markdown information content for one goalpost; structure already exists from
-// Call A. A single closed string field keeps the structured call cheap/reliable.
+// L1 Slice 4 — a single VISUAL NEED the lesson generator emits, tagged with the
+// closed `visualKind` set the gate switches on. `svgSource` carries inline SVG
+// the model authored (diagram route only); `query` is a search string (image /
+// video routes). Both are nullish so Gemini can emit the field uniformly. The
+// kinds mirror lib/services/visualMedia.ts VISUAL_KINDS exactly.
+export const visualKindSchema = z.enum([
+  "diagram",
+  "structural",
+  "quantitative",
+  "photographic",
+  "real_world",
+  "human",
+  "situational",
+  "process",
+  "motion",
+]);
+
+export const visualNeedSchema = z.object({
+  id: z.string().min(1),
+  visualKind: visualKindSchema,
+  caption: z.string().min(1),
+  query: z.string().nullish(),
+  svgSource: z.string().nullish(),
+});
+
+// L1 Slice 1 + 4 — Call B (lesson-content) output. The generator returns the
+// markdown information content for one goalpost PLUS its visual needs (each a
+// structured visualKind the gate routes). Structure already exists from Call A.
 export const lessonContentResultSchema = z.object({
   content: z.string().min(1),
+  visuals: z.array(visualNeedSchema).nullish(),
 });
 
 export const rubricScoresSchema = z.object({

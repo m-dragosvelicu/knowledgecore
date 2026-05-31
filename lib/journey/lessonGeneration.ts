@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { getLessonContentGenerator } from "@/lib/services";
 import { readOrCreateProfile } from "./profileStore";
 import type { Competency } from "@/lib/services/types";
+import type { VisualNeed } from "@/lib/services/visualMedia";
 
 /** Shape we read off / write to the information step's JSON payload. */
 type InfoPayload = {
@@ -26,6 +27,13 @@ type InfoPayload = {
   contentGeneratedAt?: string;
   supportLevel?: string;
   workedExamples?: number;
+  /**
+   * L1 Slice 4 — the visual NEEDS the generator emitted for this lesson (each
+   * tagged with a structured visualKind). Stored raw (UNRESOLVED) here; the gate
+   * resolves them at render time (SVG sanitized on its dedicated path, image /
+   * video sourced server-side). Kept as plain JSON to match the payload pattern.
+   */
+  visuals?: VisualNeed[];
 };
 
 /** True if the goalpost's information step already has Call-B-generated content. */
@@ -120,6 +128,7 @@ export async function ensureLessonContent(
       contentGeneratedAt: new Date().toISOString(),
       supportLevel: lesson.supportLevel,
       workedExamples: lesson.workedExamples,
+      visuals: lesson.visuals ?? [],
     };
     await prisma.step.update({
       where: { id: infoStep.id },

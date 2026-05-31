@@ -23,6 +23,11 @@ import type { Transcriber } from "@/lib/services/transcription";
 import { LiveTranscriber } from "@/lib/services/live/liveTranscriber";
 import { MockTranscriber } from "@/lib/services/mock/mockTranscriber";
 import { getDefaultTranscriptionClient } from "@/lib/llm";
+import type { ImageSource, VideoSource } from "@/lib/services/visualMedia";
+import { LiveOpenverseImageSource } from "@/lib/services/live/liveOpenverseImageSource";
+import { MockImageSource } from "@/lib/services/mock/mockImageSource";
+import { LiveYouTubeVideoSource } from "@/lib/services/live/liveYouTubeVideoSource";
+import { MockVideoSource } from "@/lib/services/mock/mockVideoSource";
 
 export * from "@/lib/services/types";
 export type { LessonContentGenerator } from "@/lib/services/lessonContent";
@@ -37,6 +42,15 @@ export type {
   TranscribeInput,
   TranscribeResult,
 } from "@/lib/services/transcription";
+export type {
+  ImageSource,
+  VideoSource,
+  VisualKind,
+  VisualMedium,
+  VisualNeed,
+  ResolvedVisual,
+  ImageAttribution,
+} from "@/lib/services/visualMedia";
 
 /**
  * Service registry.
@@ -403,4 +417,72 @@ export function getTranscriber(): Transcriber {
     );
   }
   return new MockTranscriber();
+}
+
+// ---------------------------------------------------------------------------
+// L1 Slice 4 — visual-media SOURCES (the image + video halves of the gate).
+//
+// Unlike the LLM-backed services, these sources do NOT need GOOGLE_GENAI_API_KEY:
+// Openverse anonymous search and YouTube oEmbed are keyless. So the gating is an
+// explicit OPT-OUT to mock for deterministic / offline runs: a source is LIVE by
+// default and falls back to mock only when its flag is set to "false" (or
+// NODE_ENV=test, so the verify script + unit tests never hit the network). The
+// SVG half of the gate is pure (the model authors it; it is sanitized locally),
+// so it has no source selector.
+// ---------------------------------------------------------------------------
+
+const LIVE_IMAGE_SOURCE_FLAG = "LIVE_IMAGE_SOURCE";
+const LIVE_VIDEO_SOURCE_FLAG = "LIVE_VIDEO_SOURCE";
+
+function wantsLiveSource(flag: string): boolean {
+  if (process.env.NODE_ENV === "test") return false;
+  return process.env[flag] !== "false";
+}
+
+export function getImageSource(): ImageSource {
+  if (wantsLiveSource(LIVE_IMAGE_SOURCE_FLAG)) {
+    try {
+      return new LiveOpenverseImageSource();
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "service_registry.fallback_to_mock",
+          service: "imageSource",
+          reason: "build_failed",
+          envFlag: LIVE_IMAGE_SOURCE_FLAG,
+          hint: "Live Openverse image source failed to construct; fell back to mock.",
+        }),
+      );
+    }
+  }
+  return new MockImageSource();
+}
+
+export function getVideoSource(): VideoSource {
+  if (wantsLiveSource(LIVE_VIDEO_SOURCE_FLAG)) {
+    try {
+      return new LiveYouTubeVideoSource();
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "service_registry.fallback_to_mock",
+          service: "videoSource",
+          reason: "build_failed",
+          envFlag: LIVE_VIDEO_SOURCE_FLAG,
+          hint: "Live YouTube video source failed to construct; fell back to mock.",
+        }),
+      );
+    }
+  }
+  return new MockVideoSource();
+}
+
+/** Convenience: the resolver pair the gate (routeVisual) consumes. */
+export function getVisualResolvers(): {
+  imageSource: ImageSource;
+  videoSource: VideoSource;
+} {
+  return { imageSource: getImageSource(), videoSource: getVideoSource() };
 }

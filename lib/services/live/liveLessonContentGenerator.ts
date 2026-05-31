@@ -10,6 +10,8 @@ import type {
   LessonContentGenerator,
   LessonContentInput,
 } from "@/lib/services/lessonContent";
+import type { VisualNeed } from "@/lib/services/visualMedia";
+import { mediumForKind } from "@/lib/services/visual/gate";
 import type { z } from "zod";
 import { lessonContentResultSchema } from "./schemas";
 
@@ -41,8 +43,26 @@ TREAT THE DIRECTIVE AS BINDING:
   level" to the learner. Adaptation is SILENT: just write the better-fitting
   lesson.
 
-Output ONLY the markdown content for the information step (no title heading is
-required; the goalpost title is shown separately).`;
+Output the markdown content for the information step (no title heading is
+required; the goalpost title is shown separately).
+
+VISUAL AIDS (optional): alongside the markdown, you MAY propose 0-2 visual aids
+that genuinely help THIS concept. Each visual carries a structured "visualKind"
+that decides how it is realised — a thin code gate routes it, you do NOT pick the
+medium:
+- diagram | structural | quantitative: a schematic the concept needs (a flow, a
+  structure, a labelled chart). For these you MUST author the SVG inline in
+  "svgSource" — plain, static SVG only: shapes, paths, lines, text. NEVER include
+  <script>, event handlers (onload/onclick/...), <foreignObject>, <image>, <use>,
+  external href/src, or <style>. (Any such content is stripped before display.)
+- photographic | real_world | human | situational: a real-world PHOTO. Do NOT
+  draw it; instead give a short "query" describing the photo to source.
+- process | motion: a step-by-step or dynamic concept best shown as a reference
+  VIDEO. Give a "query" (a concrete YouTube watch URL or video id if you know a
+  good one).
+Choose a visualKind by what the CONCEPT needs, never by a learner "type". Set
+"visuals" to [] when no visual genuinely helps. Always give each visual a stable
+"id" and a one-line "caption" usable as alt text.`;
 
 type TelemetrySnapshot = {
   latencyMs: number;
@@ -55,14 +75,17 @@ type TelemetrySnapshot = {
 export class LiveLessonContentGenerator implements LessonContentGenerator {
   constructor(private readonly llm: LLMClient) {}
 
-  private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
+  private async recordLlmCall(
+    snapshot: TelemetrySnapshot,
+    purpose: "lesson_content" | "visual_generate" = "lesson_content",
+  ): Promise<void> {
     try {
       const model = snapshot.model ?? TELEMETRY_MODEL;
       const inputTokens = snapshot.usage?.inputTokens ?? 0;
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
       await prisma.llmCall.create({
         data: {
-          purpose: "lesson_content",
+          purpose,
           model,
           inputTokens,
           outputTokens,
@@ -161,10 +184,43 @@ export class LiveLessonContentGenerator implements LessonContentGenerator {
       model: usageModel,
     });
 
+    // L1 Slice 4 — normalize the emitted visual needs. Each carries a structured
+    // visualKind the gate later routes. We keep ONLY the route-appropriate
+    // payload (svgSource for SVG-route kinds, query for image/video routes) so a
+    // mis-tagged blob can't smuggle an unexpected field downstream. The SVG is
+    // still UNTRUSTED here — it is sanitized on its dedicated path at render time.
+    const visuals: VisualNeed[] = (result.visuals ?? []).map((v) => {
+      const medium = mediumForKind(v.visualKind);
+      return {
+        id: v.id,
+        visualKind: v.visualKind,
+        caption: v.caption,
+        query: medium === "svg" ? undefined : v.query ?? undefined,
+        svgSource: medium === "svg" ? v.svgSource ?? undefined : undefined,
+      };
+    });
+
+    // When the lesson produced any diagram-route (SVG) visual, record the
+    // dedicated `visual_generate` telemetry row (the SVG-authoring half of this
+    // call). Best-effort, same as the lesson_content row above.
+    if (visuals.some((v) => mediumForKind(v.visualKind) === "svg")) {
+      await this.recordLlmCall(
+        {
+          latencyMs: Date.now() - startedAt,
+          success: true,
+          errorMessage: null,
+          usage,
+          model: usageModel,
+        },
+        "visual_generate",
+      );
+    }
+
     return {
       content: result.content,
       supportLevel: plan.supportLevel,
       workedExamples: plan.workedExamples,
+      visuals,
     };
   }
 }

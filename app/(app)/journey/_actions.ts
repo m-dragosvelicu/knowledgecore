@@ -22,7 +22,11 @@ import {
 } from "@/lib/journey/pathRevision";
 import type { RubricScores } from "@/lib/services/types";
 import type { PathConfirmationStep } from "@/lib/services";
-import { applyCheckpointEvidence, recordRetry } from "@/lib/journey/profileStore";
+import {
+  applyCheckpointEvidence,
+  recordRetry,
+  recordVisualNotHelpful,
+} from "@/lib/journey/profileStore";
 import { ensureLessonContent } from "@/lib/journey/lessonGeneration";
 
 async function requireUserId(): Promise<string> {
@@ -1057,6 +1061,30 @@ export async function prepareGoalpostContentAction(goalpostId: string): Promise<
   const intentId = await requireActiveIntentId(userId);
   const parsed = goalpostIdSchema.parse({ goalpostId });
   await ensureLessonContent(intentId, userId, parsed.goalpostId);
+}
+
+// ---------------------------------------------------------------------------
+// L1 Slice 4 — "not helpful" feedback on a visual.
+//
+// The lightweight feedback control on a VisualMedia calls this. It increments the
+// journey profile's `visualNotHelpfulCount` signal and writes an append-only
+// snapshot. Best-effort: feedback must never break the learner's flow, so a
+// failure is swallowed. It is a content+feedback modality signal, NOT a learner
+// "type". (The parked image-search escape hatch that rides on this signal is
+// explicitly deferred — out of L1.)
+// ---------------------------------------------------------------------------
+
+const visualFeedbackSchema = z.object({ visualId: z.string().min(1) });
+
+export async function markVisualNotHelpfulAction(visualId: string): Promise<void> {
+  try {
+    const userId = await requireUserId();
+    const intentId = await requireActiveIntentId(userId);
+    const parsed = visualFeedbackSchema.parse({ visualId });
+    await recordVisualNotHelpful(intentId, userId, parsed.visualId);
+  } catch {
+    // non-critical telemetry — never surface to the learner
+  }
 }
 
 // ---------------------------------------------------------------------------

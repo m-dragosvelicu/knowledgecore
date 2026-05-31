@@ -17,6 +17,7 @@
 
 import type { LearnerProfileState } from "@/lib/journey/learnerProfile";
 import type { Competency } from "@/lib/services/types";
+import type { VisualNeed } from "@/lib/services/visualMedia";
 
 /** What Call B needs to author the information content for one goalpost. */
 export type LessonContentInput = {
@@ -47,6 +48,14 @@ export type LessonContent = {
   supportLevel: "minimal" | "standard" | "extended";
   /** The number of worked examples requested (audit / telemetry). */
   workedExamples: number;
+  /**
+   * L1 Slice 4 — the VISUAL NEEDS the generator emits for this lesson, each
+   * tagged with a structured `visualKind`. The gate (lib/services/visual/gate.ts)
+   * routes each one to a concrete safe medium (sanitized SVG | sourced image |
+   * reference video). May be empty when no visual aids the concept. Additive: a
+   * generator that does not emit visuals simply returns [].
+   */
+  visuals: VisualNeed[];
 };
 
 export interface LessonContentGenerator {
