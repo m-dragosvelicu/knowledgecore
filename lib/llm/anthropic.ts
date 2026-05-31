@@ -103,6 +103,19 @@ export class AnthropicClient implements LLMClient {
       ],
       tool_choice: { type: "tool", name: opts.schemaName },
     });
+    if (opts.onUsage) {
+      try {
+        opts.onUsage(
+          {
+            inputTokens: response.usage.input_tokens,
+            outputTokens: response.usage.output_tokens,
+          },
+          response.model,
+        );
+      } catch {
+        // Telemetry extraction must never break the user path.
+      }
+    }
     const block = response.content.find((b) => b.type === "tool_use");
     if (!block || block.type !== "tool_use") {
       throw new Error("Anthropic response did not include a tool_use block");

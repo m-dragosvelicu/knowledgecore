@@ -8,8 +8,11 @@ export type {
   CompletionOptions,
   CompletionResult,
   StructuredOptions,
+  UsageCallback,
   LLMClient,
 } from "./types";
+
+export { computeCostMicroUsd } from "./pricing";
 
 export { AnthropicClient } from "./anthropic";
 export { GeminiClient } from "./gemini";

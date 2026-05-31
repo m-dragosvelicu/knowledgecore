@@ -1,4 +1,7 @@
-import type { LLMClient } from "@/lib/llm";
+import type { z } from "zod";
+import type { CompletionResult, LLMClient } from "@/lib/llm";
+import { computeCostMicroUsd } from "@/lib/llm";
+import { prisma } from "@/lib/db";
 import type {
   CanDoStatement,
   KnowledgeProbe,
@@ -49,31 +52,113 @@ Produce two things:
    their knowledge (e.g. "Correctly solved the linear equation, showing solid
    algebra fluency." or "Selected 'I'm not sure', so no eigenvalue intuition yet.").`;
 
+// gemini-3.5-flash is the live default for L0 services. Token usage is surfaced
+// from completeStructured via the optional onUsage callback (lib/llm/types.ts);
+// this constant is the fallback model id for telemetry when a failure
+// short-circuits the call before any usage callback fires.
+const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+
+type ProbePurpose = "knowledge_probe_questions" | "knowledge_probe_score";
+
+type TelemetrySnapshot = {
+  purpose: ProbePurpose;
+  latencyMs: number;
+  success: boolean;
+  errorMessage: string | null;
+  // Real token usage captured from the LLM client's onUsage callback. Absent
+  // only when the call failed before the provider returned usage metadata.
+  usage?: CompletionResult["usage"];
+  // Provider-reported model id from the same callback; falls back to
+  // TELEMETRY_MODEL when usage never fired.
+  model?: string;
+};
+
 export class LiveKnowledgeProbe implements KnowledgeProbe {
   constructor(private readonly llm: LLMClient) {}
+
+  /**
+   * Best-effort per-call telemetry. Wrapped in try/catch so a logging failure
+   * can never break probe question generation or scoring.
+   */
+  private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
+    try {
+      const model = snapshot.model ?? TELEMETRY_MODEL;
+      const inputTokens = snapshot.usage?.inputTokens ?? 0;
+      const outputTokens = snapshot.usage?.outputTokens ?? 0;
+      await prisma.llmCall.create({
+        data: {
+          purpose: snapshot.purpose,
+          model,
+          inputTokens,
+          outputTokens,
+          // 0 only when the model is absent from the pricing table; tokens stay real.
+          costMicroUsd: computeCostMicroUsd(model, inputTokens, outputTokens),
+          latencyMs: snapshot.latencyMs,
+          success: snapshot.success,
+          errorMessage: snapshot.errorMessage,
+          evaluationId: null,
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[llm-telemetry] failed to persist ${snapshot.purpose} row: ${
+          (err as Error).message
+        }`,
+      );
+    }
+  }
 
   async questions(
     subject: ParsedSubject,
     outcome: CanDoStatement[],
   ): Promise<ProbeQuestion[]> {
-    const result = await this.llm.completeStructured({
-      system: QUESTIONS_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: [
-            `Subject: ${subject.canonicalName}`,
-            `Scope: ${subject.scopeNote}`,
-            `Target outcomes the learner wants to reach:`,
-            ...outcome.map((o) => `- (${o.bloomLevel}) ${o.text}`),
-            ``,
-            `Generate the probe questions.`,
-          ].join("\n"),
+    const startedAt = Date.now();
+    let usage: CompletionResult["usage"] | undefined;
+    let usageModel: string | undefined;
+    let result: z.input<typeof probeQuestionsResultSchema>;
+    try {
+      result = await this.llm.completeStructured({
+        system: QUESTIONS_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: [
+              `Subject: ${subject.canonicalName}`,
+              `Scope: ${subject.scopeNote}`,
+              `Target outcomes the learner wants to reach:`,
+              ...outcome.map((o) => `- (${o.bloomLevel}) ${o.text}`),
+              ``,
+              `Generate the probe questions.`,
+            ].join("\n"),
+          },
+        ],
+        temperature: 0.4,
+        schema: probeQuestionsResultSchema,
+        schemaName: "ProbeQuestions",
+        onUsage: (u, m) => {
+          usage = u;
+          usageModel = m;
         },
-      ],
-      temperature: 0.4,
-      schema: probeQuestionsResultSchema,
-      schemaName: "ProbeQuestions",
+      });
+    } catch (err) {
+      await this.recordLlmCall({
+        purpose: "knowledge_probe_questions",
+        latencyMs: Date.now() - startedAt,
+        success: false,
+        errorMessage: (err as Error).message,
+        usage,
+        model: usageModel,
+      });
+      throw err;
+    }
+    await this.recordLlmCall({
+      purpose: "knowledge_probe_questions",
+      latencyMs: Date.now() - startedAt,
+      success: true,
+      errorMessage: null,
+      usage,
+      model: usageModel,
     });
     // Normalize to the ProbeQuestion shape (options: string[] | undefined).
     return result.questions.map((q) => ({
@@ -113,23 +198,51 @@ export class LiveKnowledgeProbe implements KnowledgeProbe {
       ].join("\n");
     });
 
-    const result = await this.llm.completeStructured({
-      system: SCORE_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: [
-            `Probe questions the learner was asked, paired with their answers:`,
-            ``,
-            annotated.join("\n\n"),
-            ``,
-            `Produce the competency profile and one judgement per question id above.`,
-          ].join("\n"),
+    const startedAt = Date.now();
+    let usage: CompletionResult["usage"] | undefined;
+    let usageModel: string | undefined;
+    let result: z.input<typeof competenciesResultSchema>;
+    try {
+      result = await this.llm.completeStructured({
+        system: SCORE_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: [
+              `Probe questions the learner was asked, paired with their answers:`,
+              ``,
+              annotated.join("\n\n"),
+              ``,
+              `Produce the competency profile and one judgement per question id above.`,
+            ].join("\n"),
+          },
+        ],
+        temperature: 0.3,
+        schema: competenciesResultSchema,
+        schemaName: "Competencies",
+        onUsage: (u, m) => {
+          usage = u;
+          usageModel = m;
         },
-      ],
-      temperature: 0.3,
-      schema: competenciesResultSchema,
-      schemaName: "Competencies",
+      });
+    } catch (err) {
+      await this.recordLlmCall({
+        purpose: "knowledge_probe_score",
+        latencyMs: Date.now() - startedAt,
+        success: false,
+        errorMessage: (err as Error).message,
+        usage,
+        model: usageModel,
+      });
+      throw err;
+    }
+    await this.recordLlmCall({
+      purpose: "knowledge_probe_score",
+      latencyMs: Date.now() - startedAt,
+      success: true,
+      errorMessage: null,
+      usage,
+      model: usageModel,
     });
 
     // Assemble the transcript in code from the authoritative questions/answers,

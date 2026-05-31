@@ -49,6 +49,32 @@ type GenerateContentConfigWithThinking = GenerateContentConfig & {
 // large EvaluationResult (rationale + 6 verbatim evidence quotes) needs room.
 const STRUCTURED_OUTPUT_TOKEN_FLOOR = 4096;
 
+/**
+ * Best-effort token-usage extraction from a Gemini response. @google/genai@0.7.0
+ * exposes usageMetadata.promptTokenCount / candidatesTokenCount. Reads them and
+ * invokes opts.onUsage (if provided) with the resolved model id. Wrapped so a
+ * malformed/absent usageMetadata can NEVER break the call; falls back to 0s.
+ */
+function reportUsage(
+  response: GenerateContentResponse,
+  model: string,
+  onUsage: ((usage: { inputTokens: number; outputTokens: number }, model: string) => void) | undefined,
+): void {
+  if (!onUsage) return;
+  try {
+    const usage = response.usageMetadata;
+    onUsage(
+      {
+        inputTokens: usage?.promptTokenCount ?? 0,
+        outputTokens: usage?.candidatesTokenCount ?? 0,
+      },
+      model,
+    );
+  } catch {
+    // Telemetry extraction must never break the user path.
+  }
+}
+
 // =====================================================================
 // Zod -> Gemini responseSchema converter
 //
@@ -266,6 +292,7 @@ export class GeminiClient implements LLMClient {
     });
     const text = response.text ?? "";
     const usage = response.usageMetadata;
+    reportUsage(response, model, opts.onUsage);
     return {
       text,
       usage: {
@@ -307,11 +334,14 @@ export class GeminiClient implements LLMClient {
       });
       const { text, truncated } = extractText(response, opts.schemaName);
       if (truncated) {
+        // Report usage even on truncation: the tokens were still consumed.
+        reportUsage(response, model, opts.onUsage);
         throw new GeminiEmptyError(
           `Gemini truncated the JSON for ${opts.schemaName} (finishReason=MAX_TOKENS, ` +
             `maxOutputTokens=${maxOutputTokens}); output is incomplete.`,
         );
       }
+      reportUsage(response, model, opts.onUsage);
       return text;
     };
 

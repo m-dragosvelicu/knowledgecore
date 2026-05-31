@@ -68,6 +68,14 @@ export default async function GoalpostPage({
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");
 
+  // §9.5 multi-session continuity: a journey that lazily transitioned to
+  // `paused` (>7d idle, see lib/journey/state.ts) gets a warm-up recap BEFORE
+  // being dropped back into the goalpost. The review sub-view below is exempt
+  // so a paused journey can still be browsed read-only from the path trail.
+  if (intent.status === "paused" && !params.review) {
+    redirect("/journey/resume");
+  }
+
   // -----------------------------------------------------------------------
   // Read-only review of a completed goalpost (B.6 §5.1, linked from the path
   // trail). Handled before the in_progress redirect so a finished journey can

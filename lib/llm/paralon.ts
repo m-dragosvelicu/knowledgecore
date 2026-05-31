@@ -162,6 +162,19 @@ export class ParalonClient implements LLMClient {
         function: { name: opts.schemaName },
       },
     });
+    if (opts.onUsage) {
+      try {
+        opts.onUsage(
+          {
+            inputTokens: response.usage?.prompt_tokens ?? 0,
+            outputTokens: response.usage?.completion_tokens ?? 0,
+          },
+          response.model,
+        );
+      } catch {
+        // Telemetry extraction must never break the user path.
+      }
+    }
     const call = response.choices[0]?.message.tool_calls?.[0];
     if (!call) {
       throw new Error("Paralon response did not include a tool_call");

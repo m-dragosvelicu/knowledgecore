@@ -1,4 +1,5 @@
 import type { CompletionResult, LLMClient } from "@/lib/llm";
+import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   CheckpointEvaluator,
@@ -8,9 +9,10 @@ import type {
 } from "@/lib/services/types";
 import { evaluationResultSchema } from "./schemas";
 
-// gemini-3.5-flash is the live default for L0 services. completeStructured only
-// returns the parsed object (not a CompletionResult), so token usage is not
-// surfaced here; we record the model name we dispatch on for telemetry.
+// gemini-3.5-flash is the live default for L0 services. Token usage is now
+// surfaced from completeStructured via the optional onUsage callback (see
+// lib/llm/types.ts); this constant is the fallback model id for telemetry when a
+// failure short-circuits the call before any usage callback fires.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
 const SYSTEM = `You are the checkpoint evaluator of an AI learning platform. A
@@ -167,9 +169,12 @@ type TelemetrySnapshot = {
   latencyMs: number;
   success: boolean;
   errorMessage: string | null;
-  // completeStructured returns only the parsed object, so token usage from the
-  // underlying CompletionResult is not available at this call site.
+  // Real token usage captured from the LLM client's onUsage callback. Absent
+  // only when the call failed before the provider returned usage metadata.
   usage?: CompletionResult["usage"];
+  // Provider-reported model id from the same callback; falls back to
+  // TELEMETRY_MODEL when usage never fired.
+  model?: string;
 };
 
 export class LiveCheckpointEvaluator implements CheckpointEvaluator {
@@ -182,14 +187,17 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
    */
   private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
     try {
+      const model = snapshot.model ?? TELEMETRY_MODEL;
+      const inputTokens = snapshot.usage?.inputTokens ?? 0;
+      const outputTokens = snapshot.usage?.outputTokens ?? 0;
       await prisma.llmCall.create({
         data: {
           purpose: "checkpoint_evaluate",
-          model: TELEMETRY_MODEL,
-          inputTokens: snapshot.usage?.inputTokens ?? 0,
-          outputTokens: snapshot.usage?.outputTokens ?? 0,
-          // TODO: no pricing table yet — cost left at 0 until one exists.
-          costMicroUsd: 0,
+          model,
+          inputTokens,
+          outputTokens,
+          // 0 only when the model is absent from the pricing table; tokens stay real.
+          costMicroUsd: computeCostMicroUsd(model, inputTokens, outputTokens),
           latencyMs: snapshot.latencyMs,
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
@@ -231,6 +239,8 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
     const artifact = input.userArtifact ?? "";
 
     const startedAt = Date.now();
+    let usage: CompletionResult["usage"] | undefined;
+    let usageModel: string | undefined;
     let result: EvaluationResult;
     try {
       result = await this.llm.completeStructured({
@@ -240,12 +250,18 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
         maxTokens: 2048,
         schema: evaluationResultSchema,
         schemaName: "EvaluationResult",
+        onUsage: (u, m) => {
+          usage = u;
+          usageModel = m;
+        },
       });
     } catch (err) {
       await this.recordLlmCall({
         latencyMs: Date.now() - startedAt,
         success: false,
         errorMessage: (err as Error).message,
+        usage,
+        model: usageModel,
       });
       throw err;
     }
@@ -253,6 +269,8 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
       latencyMs: Date.now() - startedAt,
       success: true,
       errorMessage: null,
+      usage,
+      model: usageModel,
     });
 
     const verified = this.verifyEvidence(artifact, result.evidence);
@@ -272,6 +290,8 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
 
     let repaired: EvaluationResult | null = null;
     const repairStartedAt = Date.now();
+    let repairUsage: CompletionResult["usage"] | undefined;
+    let repairUsageModel: string | undefined;
     try {
       repaired = await this.llm.completeStructured({
         system: SYSTEM,
@@ -280,17 +300,25 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
         maxTokens: 2048,
         schema: evaluationResultSchema,
         schemaName: "EvaluationResult",
+        onUsage: (u, m) => {
+          repairUsage = u;
+          repairUsageModel = m;
+        },
       });
       await this.recordLlmCall({
         latencyMs: Date.now() - repairStartedAt,
         success: true,
         errorMessage: null,
+        usage: repairUsage,
+        model: repairUsageModel,
       });
     } catch (err) {
       await this.recordLlmCall({
         latencyMs: Date.now() - repairStartedAt,
         success: false,
         errorMessage: (err as Error).message,
+        usage: repairUsage,
+        model: repairUsageModel,
       });
       // eslint-disable-next-line no-console
       console.warn(

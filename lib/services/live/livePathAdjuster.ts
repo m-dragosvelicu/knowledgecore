@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
+import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   PathAdjuster,
@@ -7,9 +8,10 @@ import type {
   PathAdjustment,
 } from "@/lib/services/types";
 
-// gemini-3.5-flash is the live default for L0 services. completeStructured only
-// returns the parsed object (not a CompletionResult), so token usage is not
-// surfaced here; we record the model name we dispatch on for telemetry.
+// gemini-3.5-flash is the live default for L0 services. Token usage is now
+// surfaced from completeStructured via the optional onUsage callback (see
+// lib/llm/types.ts); this constant is the fallback model id for telemetry when a
+// failure short-circuits the call before any usage callback fires.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
 // =====================================================================
@@ -152,9 +154,12 @@ type TelemetrySnapshot = {
   latencyMs: number;
   success: boolean;
   errorMessage: string | null;
-  // completeStructured returns only the parsed object, so token usage from the
-  // underlying CompletionResult is not available at this call site.
+  // Real token usage captured from the LLM client's onUsage callback. Absent
+  // only when the call failed before the provider returned usage metadata.
   usage?: CompletionResult["usage"];
+  // Provider-reported model id from the same callback; falls back to
+  // TELEMETRY_MODEL when usage never fired.
+  model?: string;
 };
 
 export class LivePathAdjuster implements PathAdjuster {
@@ -166,16 +171,19 @@ export class LivePathAdjuster implements PathAdjuster {
    */
   private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
     try {
+      const model = snapshot.model ?? TELEMETRY_MODEL;
+      const inputTokens = snapshot.usage?.inputTokens ?? 0;
+      const outputTokens = snapshot.usage?.outputTokens ?? 0;
       await prisma.llmCall.create({
         data: {
           // TODO: LlmCallPurpose has no `path_adjust` value yet; using `other`.
           // A dedicated enum value could be added later for cleaner accounting.
           purpose: "other",
-          model: TELEMETRY_MODEL,
-          inputTokens: snapshot.usage?.inputTokens ?? 0,
-          outputTokens: snapshot.usage?.outputTokens ?? 0,
-          // TODO: no pricing table yet — cost left at 0 until one exists.
-          costMicroUsd: 0,
+          model,
+          inputTokens,
+          outputTokens,
+          // 0 only when the model is absent from the pricing table; tokens stay real.
+          costMicroUsd: computeCostMicroUsd(model, inputTokens, outputTokens),
           latencyMs: snapshot.latencyMs,
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
@@ -289,6 +297,8 @@ export class LivePathAdjuster implements PathAdjuster {
 
   async adjust(input: PathAdjusterInput): Promise<PathAdjustment> {
     const startedAt = Date.now();
+    let usage: CompletionResult["usage"] | undefined;
+    let usageModel: string | undefined;
     let parsed: ParsedPathAdjustment;
     try {
       parsed = await this.llm.completeStructured({
@@ -298,12 +308,18 @@ export class LivePathAdjuster implements PathAdjuster {
         maxTokens: 4096,
         schema: pathAdjustmentSchema,
         schemaName: "PathAdjustment",
+        onUsage: (u, m) => {
+          usage = u;
+          usageModel = m;
+        },
       });
     } catch (err) {
       await this.recordLlmCall({
         latencyMs: Date.now() - startedAt,
         success: false,
         errorMessage: (err as Error).message,
+        usage,
+        model: usageModel,
       });
       throw err;
     }
@@ -311,6 +327,8 @@ export class LivePathAdjuster implements PathAdjuster {
       latencyMs: Date.now() - startedAt,
       success: true,
       errorMessage: null,
+      usage,
+      model: usageModel,
     });
 
     return this.toPathAdjustment(parsed);
