@@ -25,6 +25,8 @@ import SubmitButton from "@/components/journey/SubmitButton";
 import ExperienceForm from "@/components/journey/ExperienceForm";
 import InformationView from "@/components/journey/InformationView";
 import OverrideControl from "@/components/journey/OverrideControl";
+import ThresholdView from "@/components/journey/ThresholdView";
+import ReviewView from "@/components/journey/ReviewView";
 import Markdown from "@/components/Markdown";
 import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
@@ -41,11 +43,71 @@ const DECISION_LABELS: Record<Decision, string> = {
   adjust_plan: "Adjust the plan",
 };
 
-export default async function GoalpostPage() {
+// Human-readable label for the experience type a goalpost ends with.
+const EXPERIENCE_LABELS: Record<StepType, string> = {
+  information: "a review",
+  experience_socratic: "a Socratic dialogue",
+  experience_applied_problem: "an applied problem",
+  experience_mini_project: "a mini-project",
+};
+
+type SearchParams = Promise<{
+  phase?: string;
+  begin?: string;
+  review?: string;
+}>;
+
+export default async function GoalpostPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
+  const params = (await searchParams) ?? {};
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");
+
+  // -----------------------------------------------------------------------
+  // Read-only review of a completed goalpost (B.6 §5.1, linked from the path
+  // trail). Handled before the in_progress redirect so a finished journey can
+  // still be reviewed from the dashboard.
+  // -----------------------------------------------------------------------
+  if (params.review) {
+    const reviewed = await prisma.goalpost.findUnique({
+      where: { id: params.review },
+      include: {
+        steps: { orderBy: { order: "asc" } },
+        path: { select: { intent: { select: { userId: true } } } },
+        evaluations: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+    });
+    // Ownership guard: only the journey's own learner can review its goalposts.
+    if (reviewed && reviewed.path.intent.userId === session.user.id) {
+      const infoStep = reviewed.steps.find((s) => s.type === StepType.information);
+      const expStep = reviewed.steps.find((s) => s.type !== StepType.information);
+      const infoContent =
+        (infoStep?.payload as { content?: string } | null)?.content ?? "";
+      const promptContent =
+        (expStep?.payload as { prompt?: string } | null)?.prompt ?? "";
+      const latest = reviewed.evaluations[0];
+      return (
+        <ReviewView
+          order={reviewed.order}
+          title={reviewed.title}
+          objective={reviewed.objective}
+          information={infoContent ? <Markdown>{infoContent}</Markdown> : null}
+          prompt={promptContent ? <Markdown>{promptContent}</Markdown> : null}
+          userArtifact={expStep?.userArtifact ?? null}
+          decisionLabel={latest ? DECISION_LABELS[latest.decision] : null}
+          decisionColor={latest ? DECISION_COLORS[latest.decision] : "default"}
+          rationale={latest?.rationale ?? null}
+        />
+      );
+    }
+    redirect("/journey/path");
+  }
+
   if (intent.status === "complete") redirect("/journey/complete");
 
   const goalpost = await getCurrentGoalpost(intent.id);
@@ -53,6 +115,37 @@ export default async function GoalpostPage() {
 
   const informationStep = goalpost!.steps.find((s) => s.type === StepType.information);
   const experienceStep = goalpost!.steps.find((s) => s.type !== StepType.information);
+
+  // -----------------------------------------------------------------------
+  // Threshold sub-view (B.6 §1.1 / Q10): shown BEFORE the information phase for
+  // a goalpost the learner has not opened yet this session. "Fresh" means the
+  // information step is not yet completed AND no evaluation exists. The
+  // ?phase=information (or ?begin=1) param transitions past the threshold so we
+  // never block the existing information -> experience -> evaluation flow.
+  // -----------------------------------------------------------------------
+  const evaluationCount = await prisma.checkpointEvaluation.count({
+    where: { goalpostId: goalpost!.id },
+  });
+  const isFresh =
+    !!informationStep && !informationStep.completedAt && evaluationCount === 0;
+  const begun = params.phase === "information" || params.begin === "1";
+  if (isFresh && !begun) {
+    const totalGoalposts = await prisma.goalpost.count({
+      where: { pathId: goalpost!.pathId },
+    });
+    const expType = experienceStep?.type ?? StepType.information;
+    return (
+      <ThresholdView
+        order={goalpost!.order}
+        totalGoalposts={totalGoalposts}
+        title={goalpost!.title}
+        objective={goalpost!.objective}
+        estimatedMinutes={goalpost!.estimatedMinutes}
+        experienceLabel={EXPERIENCE_LABELS[expType]}
+        beginHref="/journey/goalpost?phase=information"
+      />
+    );
+  }
 
   // Phase decision:
   //  - if information step exists and is incomplete → information sub-view

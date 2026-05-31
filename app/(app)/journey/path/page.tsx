@@ -1,30 +1,21 @@
 import { redirect } from "next/navigation";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import Chip from "@mui/material/Chip";
-import SubmitButton from "@/components/journey/SubmitButton";
+import Divider from "@mui/material/Divider";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
-import Divider from "@mui/material/Divider";
+import SubmitButton from "@/components/journey/SubmitButton";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import {
   acceptPathAction,
   generatePathAction,
 } from "@/app/(app)/journey/_actions";
-import type { Competency } from "@/lib/services/types";
+import type { Competency, PathAdjustment } from "@/lib/services/types";
 import CompetencyBars from "@/app/(app)/journey/_components/CompetencyBars";
-import { StepType } from "@prisma/client";
-
-const STEP_TYPE_LABEL: Record<StepType, string> = {
-  information: "Information",
-  experience_socratic: "Socratic dialogue",
-  experience_applied_problem: "Applied problem",
-  experience_mini_project: "Mini-project",
-};
+import PathTrail, { type TrailNode } from "@/components/journey/PathTrail";
+import { GoalpostStatus } from "@prisma/client";
 
 export default async function PathPage() {
   const session = await getCurrentSession();
@@ -45,6 +36,7 @@ export default async function PathPage() {
         orderBy: { order: "asc" },
         include: { steps: { orderBy: { order: "asc" } } },
       },
+      revisions: { orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -57,6 +49,7 @@ export default async function PathPage() {
           orderBy: { order: "asc" },
           include: { steps: { orderBy: { order: "asc" } } },
         },
+        revisions: { orderBy: { createdAt: "asc" } },
       },
     });
   }
@@ -69,11 +62,53 @@ export default async function PathPage() {
     );
   }
 
+  const accepted = path.acceptedAt != null;
+
   const totalMinutes = path.goalposts.reduce(
     (sum, gp) => sum + gp.estimatedMinutes,
     0,
   );
   const competencies = assessment!.competencies as unknown as Competency[];
+
+  // Titles of goalposts inserted by any adjust_plan revision -> "added for you".
+  const addedTitles = new Set<string>();
+  for (const rev of path.revisions) {
+    const changes = rev.changes as unknown as PathAdjustment | null;
+    for (const gp of changes?.insertedGoalposts ?? []) {
+      addedTitles.add(gp.title);
+    }
+  }
+
+  // The "current" goalpost is the lowest-order non-terminal one. Before
+  // acceptance nothing is in_progress yet, so we treat the first goalpost as
+  // the next step; everything after it is locked.
+  const firstActiveIndex = path.goalposts.findIndex(
+    (gp) =>
+      gp.status === GoalpostStatus.in_progress ||
+      gp.status === GoalpostStatus.pending,
+  );
+
+  const nodes: TrailNode[] = path.goalposts.map((gp, i) => {
+    let state: TrailNode["state"];
+    if (gp.status === GoalpostStatus.complete || gp.status === GoalpostStatus.skipped) {
+      state = "completed";
+    } else if (i === firstActiveIndex) {
+      state = accepted ? "current" : "locked";
+    } else {
+      state = "locked";
+    }
+    const stepTypes = Array.from(new Set(gp.steps.map((s) => s.type)));
+    return {
+      id: gp.id,
+      order: gp.order,
+      title: gp.title,
+      objective: gp.objective,
+      estimatedMinutes: gp.estimatedMinutes,
+      state,
+      added: addedTitles.has(gp.title),
+      stepTypes: stepTypes as TrailNode["stepTypes"],
+    };
+  });
 
   return (
     <Stack spacing={4}>
@@ -90,68 +125,44 @@ export default async function PathPage() {
         </Typography>
       </Stack>
 
-      <Stack spacing={2}>
-        {path.goalposts.map((gp) => {
-          const stepTypes = Array.from(new Set(gp.steps.map((s) => s.type)));
-          return (
-            <Card key={gp.id} variant="outlined">
-              <CardContent>
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-                    <Typography variant="h6">
-                      {gp.order}. {gp.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      ~{gp.estimatedMinutes} min
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2">{gp.objective}</Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
-                    {stepTypes.map((t) => (
-                      <Chip key={t} label={STEP_TYPE_LABEL[t]} size="small" />
-                    ))}
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </Stack>
+      <PathTrail nodes={nodes} />
 
-      <Divider />
+      {!accepted && (
+        <>
+          <Divider />
+          <Stack spacing={2}>
+            <Typography variant="h5" component="h2">
+              Where you are starting from
+            </Typography>
+            <CompetencyBars items={competencies} />
+          </Stack>
 
-      <Stack spacing={2}>
-        <Typography variant="h5" component="h2">
-          Where you are starting from
-        </Typography>
-        <CompetencyBars items={competencies} />
-      </Stack>
+          <form action={acceptPathAction}>
+            <SubmitButton
+              variant="contained"
+              size="large"
+              pendingLabel="Setting up your first goalpost…"
+            >
+              Accept this path
+            </SubmitButton>
+          </form>
 
-      <form action={acceptPathAction}>
-        <SubmitButton
-          variant="contained"
-          size="large"
-          pendingLabel="Setting up your first goalpost…"
-        >
-          Accept this path
-        </SubmitButton>
-      </form>
-
-      <Accordion variant="outlined">
-        <AccordionSummary>
-          <Typography variant="body1">Why this path?</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Typography variant="body2" color="text.secondary">
-            The Path Outliner used your stated outcomes and the competency map
-            from your knowledge probe to choose goalposts that target the gaps
-            and build toward the can-do statements you confirmed. Each goalpost
-            includes at least one experience step so we can verify learning
-            with evidence rather than self-report. (Detailed explanations are a
-            placeholder for now.)
-          </Typography>
-        </AccordionDetails>
-      </Accordion>
+          <Accordion variant="outlined">
+            <AccordionSummary>
+              <Typography variant="body1">Why this path?</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography variant="body2" color="text.secondary">
+                The Path Outliner used your stated outcomes and the competency
+                map from your knowledge probe to choose goalposts that target
+                the gaps and build toward the can-do statements you confirmed.
+                Each goalpost includes at least one experience step so we can
+                verify learning with evidence rather than self-report.
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
+        </>
+      )}
     </Stack>
   );
 }
