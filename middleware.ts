@@ -11,8 +11,12 @@ export function middleware(request: NextRequest) {
   const hasSession = !!getSessionCookie(request);
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname === "/signin" || pathname.startsWith("/api/auth");
+  // Dev-only design-system gallery: viewable without a session in development;
+  // the page itself 404s in production, so this exemption is inert there.
+  const isDevSpecimen =
+    process.env.NODE_ENV !== "production" && pathname.startsWith("/specimens");
 
-  if (!hasSession && !isAuthRoute) {
+  if (!hasSession && !isAuthRoute && !isDevSpecimen) {
     const url = request.nextUrl.clone();
     url.pathname = "/signin";
     return NextResponse.redirect(url);

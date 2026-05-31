@@ -257,6 +257,163 @@ body {
   filter: url(#rough);
 }
 
+/* ============================================================
+   Slice 1 — hand-drawn button mechanics (Workbench + Skip).
+   These power components/ui/WobbleButton.tsx and SkipButton.tsx.
+   The marks are clean vector paths run through a per-button
+   feTurbulence + feDisplacementMap (the same "wobble" idea as the
+   shared #rough filter, but with a seed we re-roll on every hover
+   so the line never repeats). Ported verbatim from
+   design-system/ui_kits/web-app/Controls.jsx + preview/comp-buttons.html.
+
+   Critical: the inky strokes sit at opacity:0 at rest so no stray
+   round-cap dot peeks through before the draw-on. They only appear
+   on hover, drawing themselves via stroke-dashoffset 1 -> 0.
+   ============================================================ */
+
+/* --- Workbench (explore) pill: quiet at rest, teal hand draws the pill
+       outline on hover, then hatches in behind the glyph-hugging mask. --- */
+.kc-wb {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 20px;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink-2);
+  transition: color .3s;
+}
+.kc-wb:hover,
+.kc-wb:focus-visible {
+  color: var(--teal-deep);
+}
+.kc-wb:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+.kc-wb .kc-wb-lbl {
+  position: relative;
+  z-index: 3;
+}
+.kc-wb .kc-art {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+.kc-wb-base {
+  fill: none;
+  stroke: var(--silhouette);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: opacity .3s;
+}
+.kc-wb:hover .kc-wb-base,
+.kc-wb:focus-visible .kc-wb-base {
+  opacity: .3;
+}
+/* bare variant: nothing but the label at rest (no silhouette at all). */
+.kc-wb.kc-bare .kc-wb-base {
+  opacity: 0;
+}
+.kc-wb.kc-bare:hover .kc-wb-base,
+.kc-wb.kc-bare:focus-visible .kc-wb-base {
+  opacity: 0;
+}
+/* the inky teal strokes — invisible at rest so no round-cap peeks through. */
+.kc-ink-stroke {
+  fill: none;
+  stroke: var(--teal);
+  stroke-linecap: round;
+  opacity: 0;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition:
+    stroke-dashoffset .55s cubic-bezier(.55, .1, .25, 1),
+    opacity .12s linear;
+}
+.kc-wb:hover .kc-ink-stroke,
+.kc-wb:focus-visible .kc-ink-stroke {
+  opacity: 1;
+  stroke-dashoffset: 0;
+}
+
+/* --- Skip (lightest workbench): text only at rest; a loose freehand teal
+       loop draws around the word on hover. NO hatch, no silhouette. --- */
+.kc-skip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 18px;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink-3);
+  transition: color .3s;
+}
+.kc-skip:hover,
+.kc-skip:focus-visible {
+  color: var(--teal-deep);
+}
+.kc-skip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+.kc-skip .kc-wb-lbl {
+  position: relative;
+  z-index: 3;
+}
+.kc-skip .kc-art {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+.kc-loop-stroke {
+  fill: none;
+  stroke: var(--teal);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition:
+    stroke-dashoffset .62s cubic-bezier(.55, .1, .25, 1),
+    opacity .12s linear;
+}
+.kc-skip:hover .kc-loop-stroke,
+.kc-skip:focus-visible .kc-loop-stroke {
+  opacity: 1;
+  stroke-dashoffset: 0;
+}
+
+/* Reduced motion: the marks still appear on hover (state, not entrance) but
+   snap in rather than drawing along the path. */
+@media (prefers-reduced-motion: reduce) {
+  .kc-ink-stroke,
+  .kc-loop-stroke {
+    transition: opacity .12s linear;
+    stroke-dashoffset: 0;
+  }
+}
+
 /* Restraint: respect reduced-motion. Entrances resolve to their end-state
    instantly; nothing animates. */
 @media (prefers-reduced-motion: reduce) {
