@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
+import SubmitButton from "@/components/journey/SubmitButton";
 import RadioGroup from "@mui/material/RadioGroup";
 import Radio from "@mui/material/Radio";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -89,9 +89,14 @@ export default async function OutcomePage() {
                 defaultValue={goal?.timeHorizon ?? ""}
               />
 
-              <Button type="submit" variant="contained" size="large" sx={{ alignSelf: "flex-start" }}>
+              <SubmitButton
+                variant="contained"
+                size="large"
+                pendingLabel="Designing your knowledge probe…"
+                sx={{ alignSelf: "flex-start" }}
+              >
                 Continue to knowledge probe
-              </Button>
+              </SubmitButton>
             </Stack>
           </form>
         </CardContent>

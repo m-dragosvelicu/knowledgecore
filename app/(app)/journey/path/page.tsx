@@ -4,7 +4,7 @@ import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
-import Button from "@mui/material/Button";
+import SubmitButton from "@/components/journey/SubmitButton";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -128,9 +128,13 @@ export default async function PathPage() {
       </Stack>
 
       <form action={acceptPathAction}>
-        <Button type="submit" variant="contained" size="large">
+        <SubmitButton
+          variant="contained"
+          size="large"
+          pendingLabel="Setting up your first goalpost…"
+        >
           Accept this path
-        </Button>
+        </SubmitButton>
       </form>
 
       <Accordion variant="outlined">

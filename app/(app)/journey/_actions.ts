@@ -688,7 +688,9 @@ export async function adjustPlanAction(formData: FormData): Promise<void> {
     });
   });
 
-  redirect("/journey/goalpost");
+  // L0.md §7 Q7: show a must-acknowledge "we've adjusted your path" notice
+  // before dropping the learner into the revised path.
+  redirect("/journey/adjusted");
 }
 
 // --- user override of an evaluator decision (L0.md §7 / §4 userOverride) -----

@@ -1,7 +1,7 @@
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
+import SubmitButton from "@/components/journey/SubmitButton";
 import { submitIntentAction } from "@/app/(app)/journey/_actions";
 import { getCurrentSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -38,9 +38,14 @@ export default async function IntentPage() {
             Tip: try &ldquo;linear algebra basics for machine learning&rdquo; to
             see the rich pre-baked example.
           </Typography>
-          <Button type="submit" variant="contained" size="large" sx={{ alignSelf: "flex-start" }}>
+          <SubmitButton
+            variant="contained"
+            size="large"
+            pendingLabel="Reading your intent…"
+            sx={{ alignSelf: "flex-start" }}
+          >
             Continue
-          </Button>
+          </SubmitButton>
         </Stack>
       </form>
     </Stack>

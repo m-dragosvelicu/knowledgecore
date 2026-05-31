@@ -3,6 +3,7 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
 
@@ -90,9 +91,30 @@ export default function RubricGrid({
                       {LEVEL_LABEL[level]}
                     </Typography>
                     {evidenceQuote && (
-                      <Typography variant="body2" sx={{ fontStyle: "italic", mt: 1 }}>
-                        &ldquo;{evidenceQuote}&rdquo;
-                      </Typography>
+                      <Box
+                        sx={{
+                          mt: 1,
+                          p: 1.5,
+                          borderLeft: 4,
+                          borderColor: `${color}.main`,
+                          bgcolor: "action.hover",
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Typography
+                          variant="overline"
+                          color="text.secondary"
+                          sx={{ display: "block", lineHeight: 1.4 }}
+                        >
+                          From your answer
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontStyle: "italic", fontWeight: 500 }}
+                        >
+                          &ldquo;{evidenceQuote}&rdquo;
+                        </Typography>
+                      </Box>
                     )}
                   </Stack>
                 </CardContent>

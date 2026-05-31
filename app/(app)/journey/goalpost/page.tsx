@@ -3,8 +3,6 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
 import Chip from "@mui/material/Chip";
@@ -18,10 +16,15 @@ import {
   adjustPlanAction,
   advanceGoalpostAction,
   completeInformationStepAction,
+  overrideDecisionAction,
   repeatGoalpostAction,
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
 import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
+import SubmitButton from "@/components/journey/SubmitButton";
+import ExperienceForm from "@/components/journey/ExperienceForm";
+import InformationView from "@/components/journey/InformationView";
+import OverrideControl from "@/components/journey/OverrideControl";
 import Markdown from "@/components/Markdown";
 import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
@@ -67,7 +70,12 @@ export default async function GoalpostPage() {
       <Stack direction="row" spacing={1} alignItems="center">
         <Chip label={`Goalpost ${goalpost!.order}`} size="small" />
         <Typography variant="caption" color="text.secondary">
-          ~{goalpost!.estimatedMinutes} min &middot; phase: {phase}
+          ~{goalpost!.estimatedMinutes} min &middot;{" "}
+          {phase === "information"
+            ? "Read"
+            : phase === "experience"
+              ? "Do"
+              : "Feedback"}
         </Typography>
       </Stack>
       <Typography variant="h3" component="h1">
@@ -87,22 +95,11 @@ export default async function GoalpostPage() {
     return (
       <Stack spacing={4}>
         {header}
-        <Card variant="outlined">
-          <CardContent>
-            <Stack spacing={3}>
-              <Typography variant="overline" color="text.secondary">
-                Information
-              </Typography>
-              <Markdown>{content}</Markdown>
-              <form action={completeInformationStepAction}>
-                <input type="hidden" name="stepId" value={informationStep.id} />
-                <Button type="submit" variant="contained" size="large">
-                  I have read this — continue to the experience
-                </Button>
-              </form>
-            </Stack>
-          </CardContent>
-        </Card>
+        <InformationView
+          stepId={informationStep.id}
+          action={completeInformationStepAction}
+          content={<Markdown>{content}</Markdown>}
+        />
       </Stack>
     );
   }
@@ -115,33 +112,22 @@ export default async function GoalpostPage() {
     return (
       <Stack spacing={4}>
         {header}
-        <Card variant="outlined">
-          <CardContent>
-            <form action={submitExperienceStepAction}>
-              <input type="hidden" name="stepId" value={experienceStep.id} />
-              <Stack spacing={3}>
-                <Typography variant="overline" color="text.secondary">
-                  Experience
-                </Typography>
-                <Markdown>{prompt}</Markdown>
-                <TextField
-                  name="userArtifact"
-                  multiline
-                  minRows={8}
-                  fullWidth
-                  required
-                  placeholder="Type your answer here. Show your work."
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  size="large"
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Submit my answer
-                </Button>
-              </Stack>
-            </form>
+        {/* Experience surface (B.6 Q4): visually distinct from the calm reading
+            surface -- a left accent and cooler ground signal "now you do". */}
+        <Card
+          variant="outlined"
+          sx={{
+            borderLeft: 6,
+            borderLeftColor: "primary.main",
+            bgcolor: "background.paper",
+          }}
+        >
+          <CardContent sx={{ p: { xs: 3, md: 4 } }}>
+            <ExperienceForm
+              stepId={experienceStep.id}
+              action={submitExperienceStepAction}
+              prompt={<Markdown>{prompt}</Markdown>}
+            />
           </CardContent>
         </Card>
       </Stack>
@@ -195,7 +181,9 @@ export default async function GoalpostPage() {
                 Attempt {evaluation.attempt}
               </Typography>
             </Stack>
-            <Typography variant="body1">{evaluation.rationale}</Typography>
+            <Typography variant="h6" component="p" sx={{ fontWeight: 400, lineHeight: 1.5 }}>
+              {evaluation.rationale}
+            </Typography>
           </Stack>
         </CardContent>
       </Card>
@@ -210,33 +198,58 @@ export default async function GoalpostPage() {
       {decision === Decision.advance && (
         <form action={advanceGoalpostAction}>
           <input type="hidden" name="goalpostId" value={goalpost!.id} />
-          <Button type="submit" variant="contained" size="large">
+          <SubmitButton
+            variant="contained"
+            size="large"
+            pendingLabel="Moving you forward…"
+          >
             Continue to next goalpost
-          </Button>
+          </SubmitButton>
         </form>
       )}
 
       {decision === Decision.repeat && (
-        <form action={repeatGoalpostAction}>
-          <input type="hidden" name="goalpostId" value={goalpost!.id} />
-          <Button type="submit" variant="contained" color="warning" size="large">
-            Try again
-          </Button>
-        </form>
+        <Stack spacing={2}>
+          <form action={repeatGoalpostAction}>
+            <input type="hidden" name="goalpostId" value={goalpost!.id} />
+            <SubmitButton
+              variant="contained"
+              color="warning"
+              size="large"
+              pendingLabel="Setting up another attempt…"
+            >
+              Try again
+            </SubmitButton>
+          </form>
+          <OverrideControl
+            goalpostId={goalpost!.id}
+            action={overrideDecisionAction}
+          />
+        </Stack>
       )}
 
       {decision === Decision.adjust_plan && (
         <Stack spacing={2}>
-          <Alert severity="info">
-            Path adjustment is not yet implemented in mock mode. Selecting
-            &ldquo;View revised path&rdquo; will end the journey for now.
-          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            Based on this, we think the plan itself should change rather than
+            asking you to keep retrying. We will revise the path to better fit
+            where you are.
+          </Typography>
           <form action={adjustPlanAction}>
             <input type="hidden" name="goalpostId" value={goalpost!.id} />
-            <Button type="submit" variant="contained" color="info" size="large">
-              View revised path
-            </Button>
+            <SubmitButton
+              variant="contained"
+              color="info"
+              size="large"
+              pendingLabel="Revising your path…"
+            >
+              Revise my path
+            </SubmitButton>
           </form>
+          <OverrideControl
+            goalpostId={goalpost!.id}
+            action={overrideDecisionAction}
+          />
         </Stack>
       )}
     </Stack>
