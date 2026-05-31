@@ -134,7 +134,7 @@ enum PathStatus {
 }
 
 /// L0 §9 — purpose of an LLM call, used for cost-cap accounting and observability.
-/// Mirrors the five service interfaces in `lib/services/types.ts` plus an `other` bucket
+/// Mirrors the service call sites in `lib/services/*` plus an `other` bucket
 /// for ad-hoc utility calls (e.g. summarisation outside the wizard).
 enum LlmCallPurpose {
   intent_parse
@@ -143,6 +143,15 @@ enum LlmCallPurpose {
   knowledge_probe_score
   path_outline
   checkpoint_evaluate
+  // L1 — the Path Adjuster's adjust_plan revision call. Closes the documented
+  // L0 stopgap where LivePathAdjuster logged its call under `other` for lack of
+  // a dedicated value.
+  path_adjust
+  // L1 Slice 1 — Call B: per-goalpost lesson-content generation with the learner
+  // profile injected. The lazy half of the split generation (Call A = path_outline).
+  lesson_content
+  // NOTE: `visual_generate` (Slice 4 SVG generation) is intentionally NOT added
+  // here yet — it is deferred to Slice 4 per the L1 checklist.
   other
 }
 

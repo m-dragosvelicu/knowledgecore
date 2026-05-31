@@ -24,6 +24,17 @@ export type CompletionOptions = {
   temperature?: number;
   system?: string;
   onUsage?: UsageCallback;
+  /**
+   * L1 — prompt-caching hint. A stable identifier for the INVARIANT prefix of
+   * this call (typically the system instruction). When set, the client may reuse
+   * a cached prefix across calls that share the same key, so only the per-call
+   * (per-learner) tail is billed/processed at full cost. Callers MUST keep the
+   * keyed prefix constant for a given key. Optional and additive: clients that do
+   * not implement caching ignore it with no behaviour change. See the Gemini
+   * client for the as-built caching strategy (implicit prefix caching today;
+   * explicit context-cache resources are a tracked TODO).
+   */
+  cacheKey?: string;
 };
 
 export type CompletionResult = {

@@ -150,6 +150,13 @@ export const pathResultSchema = z.object({
   goalposts: z.array(goalpostPlanSchema).min(1),
 });
 
+// L1 Slice 1 — Call B (lesson-content) output. The generator returns ONLY the
+// markdown information content for one goalpost; structure already exists from
+// Call A. A single closed string field keeps the structured call cheap/reliable.
+export const lessonContentResultSchema = z.object({
+  content: z.string().min(1),
+});
+
 export const rubricScoresSchema = z.object({
   recall: rubricLevelSchema,
   application: rubricLevelSchema,

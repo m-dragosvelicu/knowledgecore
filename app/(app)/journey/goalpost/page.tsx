@@ -18,10 +18,13 @@ import {
   advanceGoalpostAction,
   completeInformationStepAction,
   overrideDecisionAction,
+  prepareGoalpostContentAction,
   repeatGoalpostAction,
   skipGoalpostAction,
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
+import { isLessonContentReady } from "@/lib/journey/lessonGeneration";
+import GettingReady from "@/components/journey/GettingReady";
 import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
 import SubmitButton from "@/components/journey/SubmitButton";
 import ExperienceForm from "@/components/journey/ExperienceForm";
@@ -195,6 +198,24 @@ export default async function GoalpostPage({
   // Information sub-view
   // -----------------------------------------------------------------------
   if (phase === "information" && informationStep) {
+    // L1 LAZY GENERATION: the lesson content (Call B) is authored against the
+    // freshest profile when the learner enters the goalpost. If it has not been
+    // generated yet (pre-generation on advance missed, or this is the first
+    // goalpost just after accepting the path), show the "getting things ready"
+    // screen, which triggers generation and refreshes back here.
+    const contentReady = await isLessonContentReady(goalpost!.id);
+    if (!contentReady) {
+      return (
+        <Stack spacing={4}>
+          {header}
+          <GettingReady
+            goalpostId={goalpost!.id}
+            title={goalpost!.title}
+            action={prepareGoalpostContentAction}
+          />
+        </Stack>
+      );
+    }
     const content = (informationStep.payload as { content?: string } | null)?.content ?? "";
     // L1 presenter seam: ask the active strategy how to render this step, then
     // apply the directives at the render boundary. The learner profile is not

@@ -49,6 +49,34 @@ type GenerateContentConfigWithThinking = GenerateContentConfig & {
 // large EvaluationResult (rationale + 6 verbatim evidence quotes) needs room.
 const STRUCTURED_OUTPUT_TOKEN_FLOOR = 4096;
 
+// ---------------------------------------------------------------------
+// Prompt caching (L1 Slice 1 tracked task)
+//
+// AS-BUILT STRATEGY: this client relies on Gemini's IMPLICIT prefix caching.
+// gemini-2.5/3.x Flash automatically caches a repeated request prefix (here the
+// invariant `systemInstruction` + `responseSchema`) and bills the cached prefix
+// at a reduced rate on subsequent calls — with NO API plumbing required. Because
+// every structured call sends the SAME stable system prompt for a given service
+// (e.g. the lesson-content SYSTEM is a module constant), that prefix is already
+// in the implicit-cache path. The `cacheKey` option (lib/llm/types.ts) documents
+// the caller's invariant prefix so this remains true and is greppable.
+//
+// TRACKED TODO — EXPLICIT context-cache resources (`ai.caches.create`/`get`):
+// the @google/genai Caches API exists in this SDK, but explicit context caching
+// has a HARD MINIMUM cacheable token count (~1k–4k tokens depending on model).
+// Our stable prefixes (system instruction + schema) are BELOW that minimum, so
+// `caches.create` would be rejected for these prompts; it only pays off for very
+// large shared prefixes (e.g. a big shared document corpus in L2/L3). Wiring the
+// create/get/delete lifecycle + TTL management now would add cost and failure
+// surface for no benefit on L1's small prefixes. Deferred deliberately; revisit
+// when a large shared prefix appears (L2 Research/Library). Until then implicit
+// caching covers the L1 spine. `cacheKey` is forwarded as the cache hint.
+function noteCacheHint(_cacheKey: string | undefined): void {
+  // Intentionally a no-op beyond documenting intent: implicit caching needs no
+  // call-site action. Kept as an explicit seam so the explicit-cache TODO above
+  // has a single place to hook in later.
+}
+
 /**
  * Best-effort token-usage extraction from a Gemini response. @google/genai@0.7.0
  * exposes usageMetadata.promptTokenCount / candidatesTokenCount. Reads them and
@@ -279,6 +307,7 @@ export class GeminiClient implements LLMClient {
 
   async complete(opts: CompletionOptions): Promise<CompletionResult> {
     const model = opts.model ?? this.defaultModel;
+    noteCacheHint(opts.cacheKey);
     const { contents, systemInstruction } = mapMessages(opts.messages);
     const system = opts.system ?? systemInstruction;
     const response = await this.client.models.generateContent({
@@ -305,6 +334,7 @@ export class GeminiClient implements LLMClient {
 
   async completeStructured<T>(opts: StructuredOptions<T>): Promise<T> {
     const model = opts.model ?? this.defaultModel;
+    noteCacheHint(opts.cacheKey);
     const { contents, systemInstruction } = mapMessages(opts.messages);
     const system = opts.system ?? systemInstruction;
     const responseSchema =

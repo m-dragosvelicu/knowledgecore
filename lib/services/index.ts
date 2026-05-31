@@ -13,8 +13,12 @@ import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
 import { LivePathOutliner } from "@/lib/services/live/livePathOutliner";
 import { LiveCheckpointEvaluator } from "@/lib/services/live/liveCheckpointEvaluator";
 import { LivePathAdjuster } from "@/lib/services/live/livePathAdjuster";
+import type { LessonContentGenerator } from "@/lib/services/lessonContent";
+import { LiveLessonContentGenerator } from "@/lib/services/live/liveLessonContentGenerator";
+import { MockLessonContentGenerator } from "@/lib/services/mock/mockLessonContentGenerator";
 
 export * from "@/lib/services/types";
+export type { LessonContentGenerator } from "@/lib/services/lessonContent";
 
 /**
  * Service registry.
@@ -237,4 +241,51 @@ export function getServices(): Services {
     pathAdjuster: pathAdjuster.impl,
     mode: allLive ? "live" : "mock",
   };
+}
+
+// ---------------------------------------------------------------------------
+// L1 Slice 1 — Call B (lesson-content) generator.
+//
+// Kept as a SEPARATE selector rather than added to the LOCKED `Services` type
+// (lib/services/types.ts must not change). It follows the same default-to-live
+// on `GOOGLE_GENAI_API_KEY` + per-service opt-out (`LIVE_LESSON_CONTENT=false`)
+// + graceful mock fallback pattern as `getServices()`.
+// ---------------------------------------------------------------------------
+
+const LIVE_LESSON_CONTENT_FLAG = "LIVE_LESSON_CONTENT";
+
+function wantsLiveLessonContent(): boolean {
+  if (!process.env.GOOGLE_GENAI_API_KEY) return false;
+  return process.env[LIVE_LESSON_CONTENT_FLAG] !== "false";
+}
+
+export function getLessonContentGenerator(): LessonContentGenerator {
+  if (wantsLiveLessonContent()) {
+    try {
+      return new LiveLessonContentGenerator(getSharedClient());
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "service_registry.fallback_to_mock",
+          service: "lessonContentGenerator",
+          reason: "build_failed",
+          envFlag: LIVE_LESSON_CONTENT_FLAG,
+          hint: "Live lesson-content generator failed to construct; fell back to mock.",
+        }),
+      );
+    }
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        event: "service_registry.fallback_to_mock",
+        service: "lessonContentGenerator",
+        reason: "no_api_key",
+        envFlag: LIVE_LESSON_CONTENT_FLAG,
+        hint: "Set GOOGLE_GENAI_API_KEY to enable live lesson-content generation.",
+      }),
+    );
+  }
+  return new MockLessonContentGenerator();
 }

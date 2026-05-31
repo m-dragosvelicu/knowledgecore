@@ -176,9 +176,9 @@ export class LivePathAdjuster implements PathAdjuster {
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
       await prisma.llmCall.create({
         data: {
-          // TODO: LlmCallPurpose has no `path_adjust` value yet; using `other`.
-          // A dedicated enum value could be added later for cleaner accounting.
-          purpose: "other",
+          // L1: dedicated `path_adjust` purpose now exists (was the documented
+          // L0 stopgap that logged adjust_plan calls under `other`).
+          purpose: "path_adjust",
           model,
           inputTokens,
           outputTokens,

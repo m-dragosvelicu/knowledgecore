@@ -17,6 +17,8 @@ import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision } from "@
 import { deriveDecision } from "@/lib/journey/decision";
 import { applyPathAdjustment, TERMINAL_GOALPOST_STATUSES } from "@/lib/journey/pathRevision";
 import type { RubricScores } from "@/lib/services/types";
+import { applyCheckpointEvidence, recordRetry } from "@/lib/journey/profileStore";
+import { ensureLessonContent } from "@/lib/journey/lessonGeneration";
 
 async function requireUserId(): Promise<string> {
   const session = await getCurrentSession();
@@ -454,11 +456,12 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     userArtifact: formData.get("userArtifact"),
   });
 
+  const submittedAt = new Date();
   const step = await prisma.step.update({
     where: { id: parsed.stepId },
     data: {
       userArtifact: parsed.userArtifact,
-      completedAt: new Date(),
+      completedAt: submittedAt,
     },
     include: { goalpost: { include: { steps: { orderBy: { order: "asc" } } } } },
   });
@@ -502,7 +505,34 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     },
   });
 
-  void intentId;
+  // L1 SIGNAL CAPTURE: fold this checkpoint into the journey learner profile via
+  // the pure BKT rule + an append-only snapshot. The goalpost id is the stable
+  // concept key. Time-on-task ≈ (experience submitted) − (information completed),
+  // a coarse but honest per-goalpost proxy. Best-effort: a profile write must
+  // never break the learner's flow, so it is wrapped — the evaluation is already
+  // persisted above regardless.
+  try {
+    const infoCompletedAt = informationStep?.completedAt ?? null;
+    const timeOnTaskMs = infoCompletedAt
+      ? Math.max(0, submittedAt.getTime() - infoCompletedAt.getTime())
+      : 0;
+    await applyCheckpointEvidence(intentId, userId, {
+      conceptKey: step.goalpostId,
+      decision,
+      // The submission itself is attempt 1 (not a retry); a `repeat` decision
+      // only becomes a retry when repeatGoalpostAction sets up the next attempt.
+      isRepeat: false,
+      timeOnTaskMs,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[learner-profile] failed to fold checkpoint evidence: ${
+        (err as Error).message
+      }`,
+    );
+  }
+
   redirect("/journey/goalpost");
 }
 
@@ -511,7 +541,11 @@ const goalpostIdSchema = z.object({ goalpostId: z.string() });
 // Shared advance core: complete the given goalpost, then either activate the
 // next non-terminal goalpost or finish the journey. Returns the redirect target
 // (the caller performs the redirect outside any try/catch).
-async function doAdvance(intentId: string, goalpostId: string): Promise<string> {
+async function doAdvance(
+  intentId: string,
+  userId: string,
+  goalpostId: string,
+): Promise<string> {
   await prisma.goalpost.update({
     where: { id: goalpostId },
     data: { status: GoalpostStatus.complete },
@@ -535,6 +569,20 @@ async function doAdvance(intentId: string, goalpostId: string): Promise<string> 
       where: { id: next.id },
       data: { status: GoalpostStatus.in_progress },
     });
+    // L1 LAZY GENERATION: PRE-GENERATE the next goalpost's lesson content now,
+    // against the FRESHEST profile (the just-completed checkpoint already folded
+    // its evidence), so the learner does not wait on entry. Best-effort and
+    // idempotent — if it fails or is skipped, the goalpost page generates on
+    // entry (with the "getting things ready" screen) as the fallback.
+    try {
+      await ensureLessonContent(intentId, userId, next.id);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[lesson-generation] pre-generation of next goalpost failed; will ` +
+          `generate on entry. ${(err as Error).message}`,
+      );
+    }
     return "/journey/goalpost";
   }
 
@@ -603,7 +651,7 @@ export async function advanceGoalpostAction(formData: FormData): Promise<void> {
     redirect("/journey/goalpost");
   }
 
-  const target = await doAdvance(intentId, goalpostId);
+  const target = await doAdvance(intentId, userId, goalpostId);
   redirect(target);
 }
 
@@ -698,6 +746,18 @@ export async function repeatGoalpostAction(formData: FormData): Promise<void> {
     intentId,
     `Goalpost "${goalpost!.title}" repeated - initial assessment may have under-estimated effort here.`,
   );
+
+  // L1 SIGNAL CAPTURE: a repeat is a retry/struggle signal. Increment the
+  // profile's totalRetries + write a `retry` snapshot. Best-effort.
+  try {
+    await recordRetry(intentId, userId, goalpostId);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[learner-profile] failed to record retry signal: ${(err as Error).message}`,
+    );
+  }
+
   redirect("/journey/goalpost");
 }
 
@@ -821,10 +881,24 @@ export async function overrideDecisionAction(formData: FormData): Promise<void> 
   });
 
   if (parsed.newDecision === Decision.advance) {
-    const target = await doAdvance(intentId, parsed.goalpostId);
+    const target = await doAdvance(intentId, userId, parsed.goalpostId);
     redirect(target);
   }
   redirect("/journey/goalpost");
+}
+
+// ---------------------------------------------------------------------------
+// L1 LAZY GENERATION — prepare a goalpost's lesson content (Call B) on entry.
+// Called by the "getting things ready" client screen the moment a goalpost with
+// un-generated content is opened. Idempotent (ensureLessonContent no-ops if the
+// content is already marked generated, e.g. it was pre-generated on advance).
+// ---------------------------------------------------------------------------
+
+export async function prepareGoalpostContentAction(goalpostId: string): Promise<void> {
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
+  const parsed = goalpostIdSchema.parse({ goalpostId });
+  await ensureLessonContent(intentId, userId, parsed.goalpostId);
 }
 
 // ---------------------------------------------------------------------------
