@@ -16,6 +16,7 @@ import {
   advancePathConfirmationAction,
   revisePathFromConfirmationAction,
 } from "@/app/(app)/journey/_actions";
+import MicButton from "@/components/journey/MicButton";
 
 // Soft cap on CORRECTION ROUNDS (a round = one full clarifying dialogue that
 // revises the path). After this many rounds the gate stays usable but gently
@@ -220,13 +221,25 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
                 justifyContent="space-between"
                 alignItems="center"
               >
-                <Button
-                  variant="text"
-                  onClick={() => setMode("gate")}
-                  disabled={isPending}
-                >
-                  Never mind, it&rsquo;s fine
-                </Button>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button
+                    variant="text"
+                    onClick={() => setMode("gate")}
+                    disabled={isPending}
+                  >
+                    Never mind, it&rsquo;s fine
+                  </Button>
+                  <MicButton
+                    onTranscript={(t) =>
+                      setDraft((prev) =>
+                        prev.trim().length > 0
+                          ? `${prev.replace(/\s+$/, "")} ${t}`
+                          : t,
+                      )
+                    }
+                    disabled={isPending}
+                  />
+                </Stack>
                 <Button
                   variant="contained"
                   onClick={answer}

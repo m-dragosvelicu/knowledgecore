@@ -1,10 +1,10 @@
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Alert from "@mui/material/Alert";
 import SubmitButton from "@/components/journey/SubmitButton";
+import MicTextField from "@/components/journey/MicTextField";
 import {
   confirmIntentAction,
   submitIntentAction,
@@ -87,7 +87,7 @@ export default async function IntentPage({
         </Typography>
         <form action={submitIntentAction}>
           <Stack spacing={2}>
-            <TextField
+            <MicTextField
               name="rawText"
               label="Refine your learning intent"
               placeholder="e.g., classical mechanics for a first-year physics course"
@@ -123,7 +123,7 @@ export default async function IntentPage({
 
       <form action={submitIntentAction}>
         <Stack spacing={2}>
-          <TextField
+          <MicTextField
             name="rawText"
             label="Your learning intent"
             placeholder="e.g., linear algebra basics for machine learning"

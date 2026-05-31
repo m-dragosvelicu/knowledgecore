@@ -11,6 +11,7 @@ import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Fade from "@mui/material/Fade";
 import SubmitButton from "@/components/journey/SubmitButton";
+import MicButton from "@/components/journey/MicButton";
 
 // Warm, honest narration for the (slow, 5-15s) evaluator. No fake progress
 // bar -- we do not know how far along the model is, so we rotate descriptive
@@ -128,16 +129,31 @@ function ExperienceBody({
       {pending ? (
         <NarratedWait artifact={artifact} />
       ) : (
-        <TextField
-          name="userArtifact"
-          multiline
-          minRows={8}
-          fullWidth
-          required
-          value={artifact}
-          onChange={(e) => onArtifactChange(e.target.value)}
-          placeholder="Type your answer here. Show your work."
-        />
+        <Stack spacing={0.5}>
+          <TextField
+            name="userArtifact"
+            multiline
+            minRows={8}
+            fullWidth
+            required
+            value={artifact}
+            onChange={(e) => onArtifactChange(e.target.value)}
+            placeholder="Type your answer here. Show your work."
+          />
+          {/* Shared mic: dictation lands in the SAME editable field above, so the
+              learner can fix any transcription error before this graded answer
+              is submitted. */}
+          <Box sx={{ alignSelf: "flex-start" }}>
+            <MicButton
+              onTranscript={(t) =>
+                onArtifactChange(
+                  artifact.trim().length > 0 ? `${artifact.replace(/\s+$/, "")} ${t}` : t,
+                )
+              }
+              disabled={pending}
+            />
+          </Box>
+        </Stack>
       )}
 
       {/* Keep the value in the form even while the editor is swapped out for

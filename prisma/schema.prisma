@@ -150,6 +150,10 @@ enum LlmCallPurpose {
   // L1 Slice 1 — Call B: per-goalpost lesson-content generation with the learner
   // profile injected. The lazy half of the split generation (Call A = path_outline).
   lesson_content
+  // L1 Slice 3 — speech-to-text: a Gemini AUDIO (multimodal) transcription call.
+  // Recorded learner speech in, clean transcript out. The audio is discarded after
+  // transcription (never persisted); only this telemetry row + the transcript live on.
+  stt_transcribe
   // NOTE: `visual_generate` (Slice 4 SVG generation) is intentionally NOT added
   // here yet — it is deferred to Slice 4 per the L1 checklist.
   other

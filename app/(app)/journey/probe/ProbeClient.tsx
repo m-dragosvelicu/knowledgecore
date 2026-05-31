@@ -16,6 +16,7 @@ import FormLabel from "@mui/material/FormLabel";
 import Box from "@mui/material/Box";
 import type { ProbeAnswer, ProbeQuestion } from "@/lib/services/types";
 import { submitProbeAction } from "@/app/(app)/journey/_actions";
+import MicButton from "@/components/journey/MicButton";
 
 type Props = {
   questions: ProbeQuestion[];
@@ -84,14 +85,28 @@ export default function ProbeClient({ questions }: Props) {
             <Typography variant="h6">{current.prompt}</Typography>
 
             {current.kind === "open" ? (
-              <TextField
-                multiline
-                minRows={4}
-                fullWidth
-                placeholder="Type your answer here. It is okay to say 'I am not sure'."
-                value={currentValue}
-                onChange={(e) => setAnswer(e.target.value)}
-              />
+              <Stack spacing={0.5}>
+                <TextField
+                  multiline
+                  minRows={4}
+                  fullWidth
+                  placeholder="Type your answer here. It is okay to say 'I am not sure'."
+                  value={currentValue}
+                  onChange={(e) => setAnswer(e.target.value)}
+                />
+                <Box sx={{ alignSelf: "flex-start" }}>
+                  <MicButton
+                    onTranscript={(t) =>
+                      setAnswer(
+                        currentValue.trim().length > 0
+                          ? `${currentValue.replace(/\s+$/, "")} ${t}`
+                          : t,
+                      )
+                    }
+                    disabled={isPending}
+                  />
+                </Box>
+              </Stack>
             ) : (
               <FormControl>
                 <FormLabel>Pick the best answer</FormLabel>

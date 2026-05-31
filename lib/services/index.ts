@@ -19,6 +19,10 @@ import { MockLessonContentGenerator } from "@/lib/services/mock/mockLessonConten
 import type { PathConfirmationInterviewer } from "@/lib/services/pathConfirmation";
 import { LivePathConfirmationInterviewer } from "@/lib/services/live/livePathConfirmationInterviewer";
 import { MockPathConfirmationInterviewer } from "@/lib/services/mock/mockPathConfirmationInterviewer";
+import type { Transcriber } from "@/lib/services/transcription";
+import { LiveTranscriber } from "@/lib/services/live/liveTranscriber";
+import { MockTranscriber } from "@/lib/services/mock/mockTranscriber";
+import { getDefaultTranscriptionClient } from "@/lib/llm";
 
 export * from "@/lib/services/types";
 export type { LessonContentGenerator } from "@/lib/services/lessonContent";
@@ -28,6 +32,11 @@ export type {
   PathConfirmationStep,
   OverviewGoalpost,
 } from "@/lib/services/pathConfirmation";
+export type {
+  Transcriber,
+  TranscribeInput,
+  TranscribeResult,
+} from "@/lib/services/transcription";
 
 /**
  * Service registry.
@@ -345,4 +354,53 @@ export function getPathConfirmationInterviewer(): PathConfirmationInterviewer {
     );
   }
   return new MockPathConfirmationInterviewer();
+}
+
+// ---------------------------------------------------------------------------
+// L1 Slice 3 — the speech-to-text Transcriber (Gemini audio).
+//
+// Same SEPARATE-selector pattern as getLessonContentGenerator /
+// getPathConfirmationInterviewer (the LOCKED `Services` type must not change):
+// default-to-live on `GOOGLE_GENAI_API_KEY` with a `LIVE_STT=false` opt-out and
+// a graceful mock fallback. The live transcriber uses the Gemini AUDIO client
+// (getDefaultTranscriptionClient), not the shared text client, but that is the
+// same underlying provider + key.
+// ---------------------------------------------------------------------------
+
+const LIVE_STT_FLAG = "LIVE_STT";
+
+function wantsLiveStt(): boolean {
+  if (!process.env.GOOGLE_GENAI_API_KEY) return false;
+  return process.env[LIVE_STT_FLAG] !== "false";
+}
+
+export function getTranscriber(): Transcriber {
+  if (wantsLiveStt()) {
+    try {
+      return new LiveTranscriber(getDefaultTranscriptionClient());
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "service_registry.fallback_to_mock",
+          service: "transcriber",
+          reason: "build_failed",
+          envFlag: LIVE_STT_FLAG,
+          hint: "Live (Gemini-audio) transcriber failed to construct; fell back to mock.",
+        }),
+      );
+    }
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        event: "service_registry.fallback_to_mock",
+        service: "transcriber",
+        reason: "no_api_key",
+        envFlag: LIVE_STT_FLAG,
+        hint: "Set GOOGLE_GENAI_API_KEY to enable live Gemini-audio transcription.",
+      }),
+    );
+  }
+  return new MockTranscriber();
 }

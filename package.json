@@ -17,7 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "smoke": "bun run scripts/smoke.ts",
-    "verify:path-confirmation": "bun run scripts/verify-path-confirmation.ts"
+    "verify:path-confirmation": "bun run scripts/verify-path-confirmation.ts",
+    "verify:stt": "bun run scripts/verify-stt.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",

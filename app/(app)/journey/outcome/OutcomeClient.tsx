@@ -20,6 +20,7 @@ import {
   advanceInterviewAction,
   finalizeOutcomeAction,
 } from "@/app/(app)/journey/_actions";
+import MicButton from "@/components/journey/MicButton";
 
 const MOTIVATIONS: Array<{ value: Motivation; label: string }> = [
   { value: "curiosity", label: "Curiosity" },
@@ -228,14 +229,28 @@ export default function OutcomeClient({ defaultMotivation }: Props) {
               onChange={(e) => setDraft(e.target.value)}
               disabled={isPending}
             />
-            <Button
-              variant="contained"
-              onClick={answer}
-              disabled={draft.trim().length === 0 || isPending}
-              sx={{ alignSelf: "flex-end" }}
+            <Stack
+              direction="row"
+              spacing={2}
+              justifyContent="space-between"
+              alignItems="center"
             >
-              {isPending ? "Thinking…" : "Send"}
-            </Button>
+              <MicButton
+                onTranscript={(t) =>
+                  setDraft((prev) =>
+                    prev.trim().length > 0 ? `${prev.replace(/\s+$/, "")} ${t}` : t,
+                  )
+                }
+                disabled={isPending}
+              />
+              <Button
+                variant="contained"
+                onClick={answer}
+                disabled={draft.trim().length === 0 || isPending}
+              >
+                {isPending ? "Thinking…" : "Send"}
+              </Button>
+            </Stack>
           </Stack>
         </CardContent>
       </Card>

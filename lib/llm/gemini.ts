@@ -7,12 +7,38 @@ import type {
   LLMClient,
   Message,
   StructuredOptions,
+  TranscriptionClient,
+  TranscriptionOptions,
+  TranscriptionResult,
 } from "./types";
 
 // gemini-3.5-flash is live on the Generative Language API (v1beta) for this
 // key and supports structured output (responseSchema). Verified returning 200
 // from generateContent. Override via GEMINI_MODEL if needed.
 const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+
+// L1 Slice 3 — model used for AUDIO transcription. A Flash-class multimodal model
+// handles inline audio (cheapest path, competitive English WER; see
+// CEO/stt-approach-2026.html). Defaults to the same Flash model as text so we
+// reuse one provider + key; override with GEMINI_STT_MODEL if a dedicated audio
+// model is preferred.
+const DEFAULT_STT_MODEL =
+  process.env.GEMINI_STT_MODEL ?? process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+
+// The transcription instruction. Kept terse and verbatim-biased: we want the
+// learner's WORDS, not a summary or an answer, because the transcript may feed a
+// graded checkpoint. The learner can still edit it before submitting.
+function buildTranscriptionPrompt(languageHint: string | undefined): string {
+  const lang = (languageHint ?? "en").trim() || "en";
+  return [
+    "Transcribe the spoken audio to text VERBATIM.",
+    `The speaker is talking in ${lang === "en" || lang.startsWith("en") ? "English" : lang}.`,
+    "Return ONLY the transcript text — no preamble, no quotation marks, no commentary,",
+    "no speaker labels, no timestamps. Do not answer, summarise, translate, or correct",
+    "the content; write down exactly what was said. If the audio is silent or",
+    "unintelligible, return an empty string.",
+  ].join(" ");
+}
 
 // ---------------------------------------------------------------------
 // Thinking control + token floors
@@ -294,7 +320,7 @@ class GeminiBlockedError extends Error {}
 /** Empty or missing candidate. Often transient -> safe to retry once. */
 class GeminiEmptyError extends Error {}
 
-export class GeminiClient implements LLMClient {
+export class GeminiClient implements LLMClient, TranscriptionClient {
   private client: GoogleGenAI;
   private defaultModel: string;
 
@@ -395,5 +421,65 @@ export class GeminiClient implements LLMClient {
       );
     }
     return opts.schema.parse(parsed);
+  }
+
+  // -------------------------------------------------------------------
+  // L1 Slice 3 — AUDIO transcription (speech-to-text).
+  //
+  // Sends the recorded audio INLINE to Gemini as a multimodal part alongside a
+  // verbatim-transcription instruction, and returns the model's text. The audio
+  // is only held in memory for this call; the caller (the server route) does not
+  // persist it. Reuses the same usage-extraction + onUsage telemetry path as the
+  // text completions.
+  // -------------------------------------------------------------------
+  async transcribe(opts: TranscriptionOptions): Promise<TranscriptionResult> {
+    const model = opts.model ?? DEFAULT_STT_MODEL;
+
+    // @google/genai expects base64 for inline bytes. Encode in a Buffer (Node
+    // server route) without pulling in a dependency.
+    const base64 = Buffer.from(opts.audio).toString("base64");
+
+    const response = await this.client.models.generateContent({
+      model,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { data: base64, mimeType: opts.mimeType } },
+            { text: buildTranscriptionPrompt(opts.languageHint) },
+          ],
+        },
+      ],
+      config: {
+        // Transcription is not schema-constrained; keep thinking off for speed
+        // and a tight transcript, and give a generous text budget.
+        temperature: 0,
+        maxOutputTokens: 4096,
+        thinkingConfig: { thinkingBudget: 0 },
+      } as GenerateContentConfigWithThinking,
+    });
+
+    // extractText surfaces hard content blocks / empty candidates as errors,
+    // exactly like the text path. A clean silent recording legitimately yields
+    // empty text, so tolerate empty here rather than throwing.
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    if (finishReason && HARD_BLOCK_REASONS.has(finishReason)) {
+      throw new GeminiBlockedError(
+        `Gemini blocked the audio transcription (finishReason=${finishReason}).`,
+      );
+    }
+    const text = (response.text ?? "").trim();
+
+    const usage = response.usageMetadata;
+    reportUsage(response, model, opts.onUsage);
+    return {
+      text,
+      usage: {
+        inputTokens: usage?.promptTokenCount ?? 0,
+        outputTokens: usage?.candidatesTokenCount ?? 0,
+      },
+      model,
+    };
   }
 }

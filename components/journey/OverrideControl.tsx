@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
 import Link from "@mui/material/Link";
 import Collapse from "@mui/material/Collapse";
 import Box from "@mui/material/Box";
 import SubmitButton from "@/components/journey/SubmitButton";
+import MicTextField from "@/components/journey/MicTextField";
 
 type Props = {
   goalpostId: string;
@@ -45,7 +45,7 @@ export default function OverrideControl({ goalpostId, action }: Props) {
               Tell us what the evaluation missed. We record this to improve the
               system, and you can continue to the next goalpost.
             </Typography>
-            <TextField
+            <MicTextField
               name="reason"
               multiline
               minRows={3}
