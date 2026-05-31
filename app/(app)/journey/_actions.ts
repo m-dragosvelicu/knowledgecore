@@ -34,6 +34,27 @@ async function requireActiveIntentId(userId: string): Promise<string> {
   return intent.id;
 }
 
+// L0.md §7: a repeat / adjust_plan is a signal that the initial assessment
+// under-estimated effort (or missed a prerequisite). Record it on the
+// KnowledgeAssessment for later calibration. Best-effort; never blocks the flow.
+async function appendRecalibrationFlag(intentId: string, flag: string): Promise<void> {
+  try {
+    const assessment = await prisma.knowledgeAssessment.findUnique({
+      where: { intentId },
+    });
+    if (!assessment) return;
+    const existing = Array.isArray(assessment.recalibrationFlags)
+      ? (assessment.recalibrationFlags as unknown as string[])
+      : [];
+    await prisma.knowledgeAssessment.update({
+      where: { intentId },
+      data: { recalibrationFlags: [...existing, flag] as unknown as object },
+    });
+  } catch {
+    // calibration telemetry is non-critical; do not break the journey
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Start a new learning intent (from landing page)
 // ---------------------------------------------------------------------------
@@ -629,7 +650,8 @@ function buildSocraticRetryPrompt(
 }
 
 export async function repeatGoalpostAction(formData: FormData): Promise<void> {
-  await requireUserId();
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
   const { goalpostId } = goalpostIdSchema.parse({
     goalpostId: formData.get("goalpostId"),
   });
@@ -671,6 +693,11 @@ export async function repeatGoalpostAction(formData: FormData): Promise<void> {
       data: resetData,
     });
   }
+
+  await appendRecalibrationFlag(
+    intentId,
+    `Goalpost "${goalpost!.title}" repeated - initial assessment may have under-estimated effort here.`,
+  );
   redirect("/journey/goalpost");
 }
 
@@ -747,6 +774,11 @@ export async function adjustPlanAction(formData: FormData): Promise<void> {
       adjustment,
       triggerEvalId: latestEval!.id,
     }),
+  );
+
+  await appendRecalibrationFlag(
+    intentId,
+    `Plan revised at goalpost "${goalpost!.title}" - a coverage or prerequisite gap was surfaced that the assessment missed.`,
   );
 
   // L0.md §7 Q7: show a must-acknowledge "we've adjusted your path" notice
