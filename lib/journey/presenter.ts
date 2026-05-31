@@ -38,6 +38,7 @@
  */
 
 import type { StepType } from "@prisma/client";
+import type { LearnerProfileState } from "./learnerProfile";
 
 // ---------------------------------------------------------------------------
 // Inputs
@@ -55,27 +56,21 @@ export interface PresenterStep {
 }
 
 /**
- * Minimal, forward-looking learner profile the seam consumes.
+ * The learner profile the seam consumes.
  *
- * Every field is optional and the seam accepts `null`/`undefined`/`{}` without
- * throwing. The authoritative persistence shape is being designed by the Backend
- * Engineer; this interface only declares the fields a strategy may eventually
- * read. The default strategy reads NONE of them.
+ * This is now the REAL persisted shape: it is the structured
+ * `LearnerProfileState` owned by `lib/journey/learnerProfile.ts` (the mastery
+ * core + the typed signal vector + the derived-signals bag), which maps 1:1 onto
+ * the `LearnerProfile` Prisma row. The seam stays decoupled from Prisma by
+ * importing only this plain domain type, not the client model.
+ *
+ * Every strategy MUST tolerate a `null`/`undefined` profile and an empty mastery
+ * map. The default strategy reads NONE of the fields — and, per the Slice 1
+ * rescope, the presenter seam is render-only (pace / dwell): SUBSTANCE
+ * adaptation (depth, worked-example count) happens at GENERATION time with the
+ * profile injected, not here.
  */
-export interface LearnerProfile {
-  /**
-   * The learner's self-reported motivation, when known. Mirrors the existing
-   * `Motivation` enum captured by the intent flow (curiosity / fun / school /
-   * work / other). Kept as an optional string here so the seam does not couple
-   * to the Prisma enum import surface; a future strategy may narrow it.
-   */
-  motivation?: string;
-  /**
-   * Optional, coarse self-reported pace preference. Reserved for a future
-   * pace-adapting strategy; the default ignores it.
-   */
-  pacePreference?: "slower" | "default" | "faster";
-}
+export type LearnerProfile = LearnerProfileState;
 
 /** A profile may legitimately be absent (e.g. anonymous / not-yet-built). */
 export type MaybeLearnerProfile = LearnerProfile | null | undefined;

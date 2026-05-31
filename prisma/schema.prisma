@@ -160,6 +160,7 @@ model LearningIntent {
   outcome    ExpectedOutcome?
   assessment KnowledgeAssessment?
   path       LearningPath?
+  profile    LearnerProfile?
 
   @@index([userId, status])
 }
@@ -326,4 +327,122 @@ model LlmCall {
   @@index([createdAt])
   @@index([purpose, createdAt])
   @@index([evaluationId])
+}
+
+// =====================================================================
+// L1 — Learner Profile (adaptive spine, Slice 1)
+// =====================================================================
+// Adopted design: CEO/L1-learner-profile-representation.html (decided 2026-05-31).
+// The profile is a STRUCTURED, MEASURABLE record (never a freeform model note):
+//   1. a per-concept mastery core, updated by a transparent BKT-style rule with
+//      fixed, documented parameters (see lib/journey/learnerProfile.ts), and
+//   2. a small TYPED signal vector for things mastery does not capture.
+// Every update writes a new immutable LearnerProfileSnapshot row (append-only);
+// the live LearnerProfile holds only the current read. The snapshots are the
+// thesis evidence artifact: they let us show the model sharpening over a journey.
+
+/// L1 — the journey-level learner profile feeding generation (Call B) and the
+/// render-only presenter seam. ONE per journey, keyed 1:1 to `LearningIntent`
+/// (mirrors Subject / LearningGoal / ExpectedOutcome / KnowledgeAssessment /
+/// LearningPath). It is journey-scoped and RESETS per journey: a new learning
+/// intent starts a fresh profile, so confident-in-Python never smears over
+/// anxious-in-statistics.
+///
+/// CROSS-JOURNEY EXTENSION POINT (L4, deferred — build NO aggregation now):
+/// a future person-level aggregation step would read these journey-level rows
+/// (and their snapshots) across a user's intents to derive durable, cross-subject
+/// dispositions. The `userId` denormalisation below exists ONLY to make that
+/// future read cheap (query all profiles for a user without joining through
+/// LearningIntent). No aggregation logic is implemented in L1.
+model LearnerProfile {
+  id       String         @id @default(cuid())
+  intentId String         @unique
+  intent   LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+
+  /// Denormalised owner id. NOT used for adaptation in L1; present purely as the
+  /// L4 cross-journey aggregation extension point (read all of a user's profiles
+  /// without a join). See model docstring.
+  userId String
+
+  /// MASTERY CORE — per-concept mastery estimates, the BKT-style rule's state.
+  /// Map keyed by a stable concept key (e.g. a goalpost id or competency name) to
+  /// `{ mastery: number 0..1; observations: number; lastUpdatedAt: ISO8601 }`.
+  /// `mastery` is P(learner has mastered this concept). Updated transparently by
+  /// `applyBktUpdate` in lib/journey/learnerProfile.ts — NOT a fitted model.
+  conceptMastery Json @default("{}")
+
+  // --- TYPED SIGNAL VECTOR (what the mastery core does not capture) ----------
+  // Exactly the four signals L0 already produces (the two cut onboarding
+  // micro-questions are deliberately absent — see the adopted decision).
+
+  /// Latest Paas perceived-mental-effort rating (1..9), tapped after an
+  /// experience. NULL until the first rating. Informs pace / worked-example density.
+  latestPaasEffort Int?
+
+  /// Running count of repeat attempts across the journey's goalposts. Informs
+  /// support level and struggle detection.
+  totalRetries Int @default(0)
+
+  /// Cumulative time-on-task in milliseconds across steps. Informs pace and
+  /// struggle detection.
+  totalTimeOnTaskMs Int @default(0)
+
+  /// How often the learner flagged a visual as "not helpful". Informs whether to
+  /// keep offering that visual treatment.
+  visualNotHelpfulCount Int @default(0)
+
+  /// EVOLVING / INFERRED signals bag (matches the schema's Json convention, e.g.
+  /// competencies / recalibrationFlags). Holds model-derived-but-still-STRUCTURED
+  /// reads whose shape evolves during L1 without a migration each time, e.g.
+  /// `{ readingLevel?: string; expertiseBand?: "novice"|"developing"|"proficient";
+  ///    lastInferredAt?: ISO8601 }`. Never a freeform paragraph (anti-drift).
+  derivedSignals Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  snapshots LearnerProfileSnapshot[]
+
+  @@index([userId])
+}
+
+/// L1 — APPEND-ONLY immutable snapshot of a LearnerProfile, written on EVERY
+/// profile update. Never overwritten, never deleted in normal operation. This is
+/// the headline empirical artifact: replaying these rows in `seq` order shows the
+/// learner model sharpening concept-by-concept as evidence accumulates.
+///
+/// Each row is a self-contained copy of the profile state AFTER the update, plus
+/// a record of the evidence that triggered it, so the snapshot stream is auditable
+/// and replayable on its own without reconstructing from the live row.
+model LearnerProfileSnapshot {
+  id        String         @id @default(cuid())
+  profileId String
+  profile   LearnerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  /// Monotonic per-profile sequence number (1-based). Unique per profile so the
+  /// snapshot stream has a stable, gap-checkable order independent of timestamps.
+  seq Int
+
+  /// Why this snapshot was written: the kind of evidence that triggered the
+  /// update (e.g. "checkpoint_result", "retry", "paas_effort", "time_on_task",
+  /// "visual_not_helpful", "init"). Free-text to avoid enum churn during L1.
+  reason String
+
+  /// Optional structured detail of the triggering evidence (e.g. the concept key,
+  /// the checkpoint correctness, the prior/posterior mastery). Opaque Json for
+  /// audit; the writer decides the shape.
+  evidence Json?
+
+  // --- Frozen copy of the profile state AFTER this update --------------------
+  conceptMastery        Json
+  latestPaasEffort      Int?
+  totalRetries          Int
+  totalTimeOnTaskMs     Int
+  visualNotHelpfulCount Int
+  derivedSignals        Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, seq])
+  @@index([profileId, createdAt])
 }

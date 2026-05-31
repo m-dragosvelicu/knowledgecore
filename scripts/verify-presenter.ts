@@ -45,8 +45,32 @@ const steps: [string, PresenterStep][] = [
 const profiles: [string, MaybeLearnerProfile][] = [
   ["null profile", null],
   ["undefined profile", undefined],
-  ["empty profile", {}],
-  ["populated profile", { motivation: "work", pacePreference: "faster" }],
+  [
+    "empty profile",
+    {
+      conceptMastery: {},
+      signals: {
+        latestPaasEffort: null,
+        totalRetries: 0,
+        totalTimeOnTaskMs: 0,
+        visualNotHelpfulCount: 0,
+      },
+      derivedSignals: null,
+    },
+  ],
+  [
+    "populated profile",
+    {
+      conceptMastery: { "concept-a": { mastery: 0.4, observations: 2, lastUpdatedAt: "2026-05-31T00:00:00.000Z" } },
+      signals: {
+        latestPaasEffort: 7,
+        totalRetries: 1,
+        totalTimeOnTaskMs: 120000,
+        visualNotHelpfulCount: 0,
+      },
+      derivedSignals: { expertiseBand: "developing" },
+    },
+  ],
 ];
 
 for (const [stepName, step] of steps) {
