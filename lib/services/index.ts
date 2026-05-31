@@ -1,30 +1,37 @@
 import type { Services } from "@/lib/services/types";
+import type { LLMClient } from "@/lib/llm";
+import { getDefaultClient } from "@/lib/llm";
 import { MockIntentParser } from "@/lib/services/mock/mockIntentParser";
 import { MockGoalInterviewer } from "@/lib/services/mock/mockGoalInterviewer";
 import { MockKnowledgeProbe } from "@/lib/services/mock/mockKnowledgeProbe";
 import { MockPathOutliner } from "@/lib/services/mock/mockPathOutliner";
 import { MockCheckpointEvaluator } from "@/lib/services/mock/mockCheckpointEvaluator";
+import { LiveIntentParser } from "@/lib/services/live/liveIntentParser";
+import { LiveGoalInterviewer } from "@/lib/services/live/liveGoalInterviewer";
+import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
+import { LivePathOutliner } from "@/lib/services/live/livePathOutliner";
+import { LiveCheckpointEvaluator } from "@/lib/services/live/liveCheckpointEvaluator";
 
 export * from "@/lib/services/types";
 
 /**
  * Service registry.
  *
- * Strategy: per-service env flag, with `ANTHROPIC_API_KEY` as the global precondition for
- * any live service. Each `LIVE_*` flag opts a single service into the live implementation
- * once that implementation lands (see activity B.2.x). Until then, the live builders here
- * throw, so the registry falls back to mocks and surfaces a *structured* warning that
- * downstream observability can grep on.
+ * Strategy: DEFAULT-TO-LIVE on Google Gemini. The global precondition for any live service
+ * is `GOOGLE_GENAI_API_KEY`. When that key is present, every service is LIVE by default and
+ * the per-service `LIVE_*` flag becomes an OPT-OUT switch: a service falls back to mock only
+ * if its flag is explicitly set to the string `"false"`. This lets an operator disable a
+ * single live service (e.g. `LIVE_INTENT_PARSER=false`) without touching the other four.
  *
- * Design notes for the live drop (B.2.a — Live CheckpointEvaluator):
- * 1. Replace `buildLiveCheckpointEvaluator()` with a real Anthropic-backed impl.
- * 2. Implementation MUST write an `LlmCall` row (see `prisma/schema.prisma`) on every
- *    invocation — success and failure — for L0 §9.7 cost-cap accounting.
- * 3. Do NOT change `lib/services/types.ts`; it is the LOCKED boundary. If a new field is
- *    needed (e.g. budget signal), surface as an OPEN_QUESTION to PM first.
- * 4. Keep the binary mock/live mode flag on the returned `Services` object accurate: it
- *    flips to "live" only when ALL five services are live. Mixed-mode is reported as
- *    "mock" so the UI doesn't claim guarantees it can't keep.
+ * The live builders construct the real Gemini-backed implementations from `lib/services/live`.
+ * If construction throws (e.g. transient client init failure), the try/catch below converts
+ * it into a structured warn + mock fallback so the app degrades gracefully rather than crashing.
+ *
+ * Boundary notes:
+ * - Do NOT change `lib/services/types.ts`; it is the LOCKED interface boundary.
+ * - The binary mock/live mode flag on the returned `Services` object flips to "live" only when
+ *   ALL five services are live. Mixed-mode is reported as "mock" so the UI doesn't claim
+ *   guarantees a mocked dependency can't keep.
  */
 
 type ServiceName =
@@ -51,7 +58,7 @@ const fallbackOnce = new Set<string>();
  * stable so the line can be grepped/aggregated by log tooling later. Console.warn so it
  * shows up in Vercel runtime logs without bringing in a logger dependency.
  */
-function warnFallback(service: ServiceName, reason: "no_api_key" | "not_implemented"): void {
+function warnFallback(service: ServiceName, reason: "no_api_key" | "build_failed"): void {
   const key = `${service}:${reason}`;
   if (fallbackOnce.has(key)) return;
   fallbackOnce.add(key);
@@ -64,46 +71,57 @@ function warnFallback(service: ServiceName, reason: "no_api_key" | "not_implemen
       envFlag: LIVE_ENV_FLAG[service],
       hint:
         reason === "no_api_key"
-          ? "Set ANTHROPIC_API_KEY (and the per-service flag) to enable live mode."
-          : "Live implementation not wired yet; this service stays on mock.",
+          ? "Set GOOGLE_GENAI_API_KEY to enable live mode (live is the default once the key is present)."
+          : "Live implementation failed to construct; this service fell back to mock.",
     }),
   );
 }
 
 /**
- * Returns true iff the operator opted this service into live mode AND the global
- * precondition (Anthropic key) is satisfied. Per-service opt-in keeps a partial rollout
- * possible — i.e. flip on CheckpointEvaluator alone without touching the other four.
+ * Returns true iff the global precondition (Gemini key) is satisfied AND this service has not
+ * been explicitly opted OUT. Default-to-live: with the key present, a service is live unless
+ * its per-service flag is set to the string "false".
  */
 function wantsLive(service: ServiceName): boolean {
-  if (!process.env.ANTHROPIC_API_KEY) return false;
-  return process.env[LIVE_ENV_FLAG[service]] === "true";
+  if (!process.env.GOOGLE_GENAI_API_KEY) return false;
+  return process.env[LIVE_ENV_FLAG[service]] !== "false";
 }
 
 // ---------------------------------------------------------------------------
-// Live builders — currently all unimplemented. B.2.x activities will replace
-// these stubs with real provider-backed implementations. The throw is what
-// triggers the fallback path; the catch below converts it into a warn + mock.
+// Shared Gemini client. Built lazily once per process and reused across every
+// live service so we don't spin up a separate GoogleGenAI instance per service.
+// Construction is deferred until a live service is actually requested so that
+// pure-mock runs (no key) never touch the client (which would throw).
 // ---------------------------------------------------------------------------
 
-function buildLiveIntentParser(): never {
-  throw new Error("not_implemented");
+let sharedClient: LLMClient | null = null;
+function getSharedClient(): LLMClient {
+  if (!sharedClient) {
+    sharedClient = getDefaultClient();
+  }
+  return sharedClient;
 }
-function buildLiveGoalInterviewer(): never {
-  throw new Error("not_implemented");
+
+// ---------------------------------------------------------------------------
+// Live builders — construct the real Gemini-backed implementations. Each takes
+// the shared LLM client. A throw here is caught by the per-service builder
+// below and converted into a warn + mock fallback.
+// ---------------------------------------------------------------------------
+
+function buildLiveIntentParser(): Services["intentParser"] {
+  return new LiveIntentParser(getSharedClient());
 }
-function buildLiveKnowledgeProbe(): never {
-  throw new Error("not_implemented");
+function buildLiveGoalInterviewer(): Services["goalInterviewer"] {
+  return new LiveGoalInterviewer(getSharedClient());
 }
-function buildLivePathOutliner(): never {
-  throw new Error("not_implemented");
+function buildLiveKnowledgeProbe(): Services["knowledgeProbe"] {
+  return new LiveKnowledgeProbe(getSharedClient());
 }
-function buildLiveCheckpointEvaluator(): never {
-  // B.2.a will replace this stub. The replacement MUST:
-  //   - construct an Anthropic client from process.env.ANTHROPIC_API_KEY
-  //   - persist an LlmCall row (success or failure) before returning
-  //   - return EvaluationResult matching the locked `CheckpointEvaluator` interface
-  throw new Error("not_implemented");
+function buildLivePathOutliner(): Services["pathOutliner"] {
+  return new LivePathOutliner(getSharedClient());
+}
+function buildLiveCheckpointEvaluator(): Services["checkpointEvaluator"] {
+  return new LiveCheckpointEvaluator(getSharedClient());
 }
 
 function buildIntentParser(): { impl: Services["intentParser"]; mode: ServiceMode } {
@@ -111,9 +129,9 @@ function buildIntentParser(): { impl: Services["intentParser"]; mode: ServiceMod
     try {
       return { impl: buildLiveIntentParser(), mode: "live" };
     } catch {
-      warnFallback("intentParser", "not_implemented");
+      warnFallback("intentParser", "build_failed");
     }
-  } else if (!process.env.ANTHROPIC_API_KEY) {
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
     warnFallback("intentParser", "no_api_key");
   }
   return { impl: new MockIntentParser(), mode: "mock" };
@@ -124,9 +142,9 @@ function buildGoalInterviewer(): { impl: Services["goalInterviewer"]; mode: Serv
     try {
       return { impl: buildLiveGoalInterviewer(), mode: "live" };
     } catch {
-      warnFallback("goalInterviewer", "not_implemented");
+      warnFallback("goalInterviewer", "build_failed");
     }
-  } else if (!process.env.ANTHROPIC_API_KEY) {
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
     warnFallback("goalInterviewer", "no_api_key");
   }
   return { impl: new MockGoalInterviewer(), mode: "mock" };
@@ -137,9 +155,9 @@ function buildKnowledgeProbe(): { impl: Services["knowledgeProbe"]; mode: Servic
     try {
       return { impl: buildLiveKnowledgeProbe(), mode: "live" };
     } catch {
-      warnFallback("knowledgeProbe", "not_implemented");
+      warnFallback("knowledgeProbe", "build_failed");
     }
-  } else if (!process.env.ANTHROPIC_API_KEY) {
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
     warnFallback("knowledgeProbe", "no_api_key");
   }
   return { impl: new MockKnowledgeProbe(), mode: "mock" };
@@ -150,9 +168,9 @@ function buildPathOutliner(): { impl: Services["pathOutliner"]; mode: ServiceMod
     try {
       return { impl: buildLivePathOutliner(), mode: "live" };
     } catch {
-      warnFallback("pathOutliner", "not_implemented");
+      warnFallback("pathOutliner", "build_failed");
     }
-  } else if (!process.env.ANTHROPIC_API_KEY) {
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
     warnFallback("pathOutliner", "no_api_key");
   }
   return { impl: new MockPathOutliner(), mode: "mock" };
@@ -163,9 +181,9 @@ function buildCheckpointEvaluator(): { impl: Services["checkpointEvaluator"]; mo
     try {
       return { impl: buildLiveCheckpointEvaluator(), mode: "live" };
     } catch {
-      warnFallback("checkpointEvaluator", "not_implemented");
+      warnFallback("checkpointEvaluator", "build_failed");
     }
-  } else if (!process.env.ANTHROPIC_API_KEY) {
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
     warnFallback("checkpointEvaluator", "no_api_key");
   }
   return { impl: new MockCheckpointEvaluator(), mode: "mock" };

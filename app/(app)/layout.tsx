@@ -70,8 +70,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <Stack spacing={4}>
           {mode === "mock" && (
             <Alert severity="info">
-              Running in mock mode. Add ANTHROPIC_API_KEY in .env to enable live
-              LLM generation.
+              Running in mock mode. Add GOOGLE_GENAI_API_KEY in .env to enable
+              live LLM generation.
             </Alert>
           )}
 
