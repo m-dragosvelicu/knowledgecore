@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 import SubmitButton from "@/components/journey/SubmitButton";
+import { Eyebrow } from "@/components/ui";
 
 type Props = {
   stepId: string;
@@ -28,11 +27,23 @@ type Props = {
 // default pass-through strategy it stays 6s.
 const DEFAULT_DWELL_SECONDS = 6;
 
+// An approximate read time, shown in the eyebrow ("Read · about 4 min") the way
+// the kit checkpoint does. Derived from the dwell, kept human and approximate so
+// it never reads as a precise system measurement.
+function approxReadMinutes(dwellSeconds: number): number {
+  return Math.max(1, Math.round(dwellSeconds / 60) || 1);
+}
+
 /**
- * The Information surface (B.6 Q4): a calm, reading-oriented mode visually
- * distinct from the Experience surface. A short dwell gate keeps the continue
- * button disabled until the learner has plausibly read the material, or has
- * scrolled to the end of it.
+ * The Information surface (B.6 Q4): the calm READING half of a goalpost.
+ *
+ * Slice 4 restyle — this is the reading surface, tuned to the kit checkpoint as
+ * the starting point: Hanken (NOT a serif), a calm reading size, a measure of
+ * ~62ch, and a looser line-height than operational copy. The first paragraph of
+ * the lesson reads as a "lead" (slightly larger, in full ink); the rest is
+ * comfortable body in ink-2; blockquotes become teal-edged pull-quotes. Warm
+ * paper surface, generous vertical rhythm. A short dwell gate keeps the continue
+ * button disabled until the learner has plausibly read, or scrolled to the end.
  */
 export default function InformationView({
   stepId,
@@ -68,52 +79,99 @@ export default function InformationView({
   const ready = remaining <= 0 || scrolledToEnd;
 
   return (
-    <Paper
-      variant="outlined"
+    <Box
       sx={{
-        p: { xs: 3, md: 5 },
         bgcolor: "background.paper",
+        border: "1px solid var(--line)",
         borderRadius: "var(--r-lg)",
+        boxShadow: "var(--shadow-sm)",
+        p: { xs: "28px 24px", md: "48px 56px" },
       }}
     >
-      <Stack spacing={3}>
-        <Typography
-          variant="overline"
-          sx={{ letterSpacing: 2, color: "text.secondary" }}
-        >
-          Read &middot; Information
-        </Typography>
+      <Stack spacing={4}>
+        <Eyebrow>Read &middot; about {approxReadMinutes(dwellSeconds)} min</Eyebrow>
+
         <Box
           sx={{
-            // Reading type (decided): Hanken — NOT a serif — at a calm reading
-            // size, generous measure and line-height (kit checkpoint values).
+            // Reading type (decided): Hanken — NOT a serif — tuned to the kit
+            // checkpoint values: a calm reading size, a ~62ch measure, and a
+            // looser line-height than operational copy. The lead paragraph reads
+            // a touch larger in full ink; the body settles into ink-2.
             fontFamily: "var(--font-read)",
-            fontSize: "16px",
-            lineHeight: 1.7,
             maxWidth: "62ch",
-            color: "text.secondary",
-            "& p": { my: 1.5 },
+            color: "var(--ink-2)",
+            // Body paragraphs: the calm reading default.
+            "& p": {
+              fontSize: "17px",
+              lineHeight: 1.75,
+              my: "1.1em",
+            },
+            // The lead: first paragraph slightly larger and in full ink, so the
+            // read opens with weight before it relaxes.
+            "& > :first-of-type, & p:first-of-type": {
+              color: "var(--ink)",
+              fontSize: "18px",
+              lineHeight: 1.7,
+            },
+            "& h1, & h2, & h3, & h4": {
+              fontFamily: "var(--font-display)",
+              fontVariationSettings: "var(--soft-ui)",
+              fontWeight: 500,
+              letterSpacing: "-.01em",
+              color: "var(--ink)",
+              lineHeight: 1.2,
+              mt: "1.6em",
+              mb: "0.5em",
+            },
+            "& h2": { fontSize: "23px" },
+            "& h3": { fontSize: "19px" },
+            "& ul, & ol": { pl: "1.3em", my: "1.1em" },
+            "& li": { fontSize: "17px", lineHeight: 1.7, my: "0.4em" },
+            "& strong": { color: "var(--ink)", fontWeight: 600 },
+            "& a": { color: "var(--teal-deep)", textUnderlineOffset: "3px" },
+            "& code": {
+              fontSize: "0.92em",
+              bgcolor: "var(--surface-2)",
+              borderRadius: "6px",
+              px: "0.4em",
+              py: "0.1em",
+            },
+            // Blockquote -> pull-quote: a teal-edged aside in the reading voice,
+            // matching the kit's `.pull`.
+            "& blockquote": {
+              m: "1.6em 0",
+              pl: "1.1em",
+              borderLeft: "3px solid var(--teal)",
+              color: "var(--ink)",
+              fontStyle: "italic",
+              fontSize: "18px",
+              lineHeight: 1.6,
+            },
+            "& img, & svg, & figure": { maxWidth: "100%" },
           }}
         >
           {content}
         </Box>
+
         <div ref={endRef} />
+
         <Box>
           <form action={action}>
             <input type="hidden" name="stepId" value={stepId} />
             <SubmitButton
               variant="contained"
+              color="kcInk"
               size="large"
               disabled={!ready}
-              pendingLabel="Loading your experience…"
+              pendingLabel="Opening your build…"
             >
               {ready
-                ? "I have read this — continue to the experience"
+                ? "I have read this. Now try it"
                 : `Take a moment to read… (${remaining}s)`}
             </SubmitButton>
           </form>
         </Box>
       </Stack>
-    </Paper>
+    </Box>
   );
 }

@@ -1,17 +1,19 @@
 import Link from "next/link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
+import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import type { ReactNode } from "react";
 
 // B.6 §5.1: completed goalposts are tappable for read-only review of their
 // information and the learner's own artifact (retrieval-practice friendly).
 // This is purely a recap surface -- no actions advance the journey from here.
+//
+// Slice 4 restyle: the reading recap on warm paper in the calm reading voice,
+// the build recap on the recessed Experience surface, and the checkpoint note in
+// the one-teal vocabulary. Back to your trail is a workbench-tier action.
 
 type Props = {
   order: number;
@@ -26,6 +28,22 @@ type Props = {
   rationale: string | null;
 };
 
+// The calm reading measure + size, matching InformationView (the kit checkpoint
+// starting values).
+const readingSx = {
+  fontFamily: "var(--font-read)",
+  maxWidth: "62ch",
+  color: "var(--ink-2)",
+  "& p": { fontSize: "16.5px", lineHeight: 1.7, my: "1em" },
+  "& blockquote": {
+    m: "1.4em 0",
+    pl: "1.1em",
+    borderLeft: "3px solid var(--teal)",
+    color: "var(--ink)",
+    fontStyle: "italic",
+  },
+} as const;
+
 export default function ReviewView({
   order,
   title,
@@ -34,107 +52,111 @@ export default function ReviewView({
   prompt,
   userArtifact,
   decisionLabel,
-  decisionColor,
   rationale,
 }: Props) {
   return (
     <Stack spacing={3}>
-      <Stack spacing={1}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Chip label={`Goalpost ${order}`} size="small" />
-          <Chip label="Review" size="small" variant="outlined" color="success" />
-        </Stack>
-        <Typography variant="h3" component="h1">
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
+      <Stack spacing={1.5}>
+        <Eyebrow>Goalpost {order} &middot; review</Eyebrow>
+        <HeadlineUnderline>
+          <Typography variant="h3" component="h1">
+            {title}
+          </Typography>
+        </HeadlineUnderline>
+        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: "62ch" }}>
           {objective}
         </Typography>
       </Stack>
 
       {information && (
-        <Card variant="outlined">
-          <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-            <Typography variant="overline" color="text.secondary">
-              What you read
-            </Typography>
-            <Box
-              sx={{
-                // Reading type (decided): Hanken — NOT a serif — at a calm
-                // reading size, generous measure and line-height.
-                fontFamily: "var(--font-read)",
-                fontSize: "16px",
-                lineHeight: 1.7,
-                maxWidth: "62ch",
-                color: "text.secondary",
-                mt: 1,
-                "& p": { my: 1.25 },
-              }}
-            >
-              {information}
-            </Box>
-          </CardContent>
-        </Card>
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-lg)",
+            boxShadow: "var(--shadow-sm)",
+            p: { xs: "24px 22px", md: "36px 44px" },
+          }}
+        >
+          <Stack spacing={2}>
+            <Eyebrow>What you read</Eyebrow>
+            <Box sx={readingSx}>{information}</Box>
+          </Stack>
+        </Box>
       )}
 
       {(prompt || userArtifact) && (
-        <Card variant="outlined" sx={{ borderLeft: 6, borderLeftColor: "primary.main" }}>
-          <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack spacing={2}>
-              {prompt && (
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    The task
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>{prompt}</Box>
+        <Box
+          sx={{
+            bgcolor: "var(--surface-experience)",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-lg)",
+            p: { xs: "24px 22px", md: "32px 40px" },
+          }}
+        >
+          <Stack spacing={2.5}>
+            {prompt && (
+              <Box>
+                <Eyebrow sx={{ mb: 1 }}>The build</Eyebrow>
+                <Box sx={readingSx}>{prompt}</Box>
+              </Box>
+            )}
+            {prompt && userArtifact && <Divider />}
+            {userArtifact && (
+              <Box>
+                <Eyebrow sx={{ mb: 1 }}>Your answer</Eyebrow>
+                <Box
+                  sx={{
+                    fontFamily: "var(--font-read)",
+                    fontSize: "16px",
+                    lineHeight: 1.65,
+                    color: "var(--ink)",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {userArtifact}
                 </Box>
-              )}
-              {prompt && userArtifact && <Divider />}
-              {userArtifact && (
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    Your answer
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ whiteSpace: "pre-wrap", mt: 0.5 }}
-                  >
-                    {userArtifact}
-                  </Typography>
-                </Box>
-              )}
-            </Stack>
-          </CardContent>
-        </Card>
+              </Box>
+            )}
+          </Stack>
+        </Box>
       )}
 
       {decisionLabel && (
-        <Card variant="outlined">
-          <CardContent>
-            <Stack spacing={1.5}>
-              <Chip
-                label={decisionLabel}
-                color={decisionColor === "default" ? undefined : decisionColor}
-                size="small"
-                sx={{ alignSelf: "flex-start" }}
-              />
-              {rationale && (
-                <Typography variant="body2" color="text.secondary">
-                  {rationale}
-                </Typography>
-              )}
-            </Stack>
-          </CardContent>
-        </Card>
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-md)",
+            p: "18px 22px",
+          }}
+        >
+          <Stack spacing={1}>
+            <Eyebrow>Checkpoint &middot; {decisionLabel.toLowerCase()}</Eyebrow>
+            {rationale && (
+              <Typography
+                variant="body2"
+                sx={{
+                  fontFamily: "var(--font-read)",
+                  lineHeight: 1.65,
+                  color: "var(--ink-2)",
+                  maxWidth: "60ch",
+                }}
+              >
+                {rationale}
+              </Typography>
+            )}
+          </Stack>
+        </Box>
       )}
 
       <Button
         component={Link}
         href="/journey/path"
         variant="text"
-        sx={{ alignSelf: "flex-start" }}
+        sx={{ alignSelf: "flex-start", px: 0 }}
       >
-        Back to your path
+        Back to your trail
       </Button>
     </Stack>
   );

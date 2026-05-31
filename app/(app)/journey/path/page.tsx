@@ -5,6 +5,7 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Box from "@mui/material/Box";
+import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import { generatePathAction } from "@/app/(app)/journey/_actions";
@@ -119,16 +120,16 @@ export default async function PathPage() {
 
   return (
     <Stack spacing={4}>
-      <Stack spacing={1}>
-        <Typography variant="overline" color="text.secondary">
-          Your learning path
-        </Typography>
-        <Typography variant="h3" component="h1">
-          {subject!.canonicalName}
-        </Typography>
+      <Stack spacing={1.5}>
+        <Eyebrow>Your trail</Eyebrow>
+        <HeadlineUnderline>
+          <Typography variant="h3" component="h1">
+            {subject!.canonicalName}
+          </Typography>
+        </HeadlineUnderline>
         <Typography variant="body2" color="text.secondary">
-          {path.goalposts.length} goalposts &middot; ~{totalMinutes} minutes
-          estimated
+          {path.goalposts.length} goalposts &middot; ~{totalMinutes} min to the
+          finish
         </Typography>
       </Stack>
 
@@ -140,51 +141,71 @@ export default async function PathPage() {
               structure-only overview (Call A) the learner confirms before
               committing to the path. */}
           {canDoStatements.length > 0 && (
-            <Stack spacing={1.5}>
-              <Typography variant="subtitle2">
-                By the end, you&rsquo;ll be able to:
-              </Typography>
-              <Stack
-                spacing={1.25}
-                component="ul"
-                sx={{ pl: 0, listStyle: "none", m: 0 }}
-              >
-                {canDoStatements.map((cd, i) => (
-                  <Stack
-                    key={i}
-                    component="li"
-                    direction="row"
-                    spacing={1.5}
-                    alignItems="flex-start"
-                  >
-                    <Box
-                      aria-hidden
-                      component="svg"
-                      viewBox="0 0 24 24"
-                      width={18}
-                      height={18}
-                      sx={{
-                        mt: 0.4,
-                        flexShrink: 0,
-                        fill: "none",
-                        stroke: "currentColor",
-                        strokeWidth: 2.5,
-                        color: "success.main",
-                      }}
+            <Box
+              sx={{
+                bgcolor: "var(--surface-2)",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--r-lg)",
+                p: { xs: "24px 22px", md: "32px 36px" },
+              }}
+            >
+              <Stack spacing={2}>
+                <Eyebrow>Where this trail ends</Eyebrow>
+                <Typography
+                  variant="h5"
+                  component="h2"
+                  sx={{ maxWidth: "52ch" }}
+                >
+                  By the end, you&rsquo;ll be able to
+                </Typography>
+                <Stack
+                  spacing={1.5}
+                  component="ul"
+                  sx={{ pl: 0, listStyle: "none", m: 0 }}
+                >
+                  {canDoStatements.map((cd, i) => (
+                    <Stack
+                      key={i}
+                      component="li"
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="flex-start"
                     >
-                      <polyline points="20 6 9 17 4 12" />
-                    </Box>
-                    <Typography variant="body1">{cd.text}</Typography>
-                  </Stack>
-                ))}
+                      <Box
+                        aria-hidden
+                        component="svg"
+                        viewBox="0 0 24 24"
+                        width={18}
+                        height={18}
+                        sx={{
+                          mt: 0.4,
+                          flexShrink: 0,
+                          fill: "none",
+                          stroke: "var(--teal)",
+                          strokeWidth: 2.5,
+                        }}
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </Box>
+                      <Box
+                        sx={{
+                          fontFamily: "var(--font-read)",
+                          fontSize: "16.5px",
+                          lineHeight: 1.6,
+                          color: "var(--ink)",
+                        }}
+                      >
+                        {cd.text}
+                      </Box>
+                    </Stack>
+                  ))}
+                </Stack>
               </Stack>
-            </Stack>
+            </Box>
           )}
 
           <Stack spacing={2}>
-            <Typography variant="h5" component="h2">
-              Where you are starting from
-            </Typography>
+            <Eyebrow>Where you&rsquo;re starting from</Eyebrow>
             <CompetencyBars items={competencies} />
           </Stack>
 
@@ -194,17 +215,63 @@ export default async function PathPage() {
               engine -> existing Path Adjuster -> re-present here. */}
           <PathConfirmationGate revisionCount={path.revisionCount} />
 
-          <Accordion variant="outlined">
-            <AccordionSummary>
-              <Typography variant="body1">Why this path?</Typography>
+          <Accordion
+            variant="outlined"
+            disableGutters
+            sx={{
+              bgcolor: "var(--surface-2)",
+              border: "1px solid var(--line)",
+              borderRadius: "var(--r-md)",
+              "&:before": { display: "none" },
+              "& .MuiAccordionSummary-root": { px: "20px" },
+              "& .MuiAccordionDetails-root": { px: "20px", pb: "20px" },
+            }}
+          >
+            <AccordionSummary
+              expandIcon={
+                <Box
+                  aria-hidden
+                  component="svg"
+                  viewBox="0 0 16 16"
+                  width={16}
+                  height={16}
+                  sx={{ fill: "none", stroke: "var(--ink-3)", strokeWidth: 1.8 }}
+                >
+                  <polyline
+                    points="4 6 8 10 12 6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Box>
+              }
+            >
+              <Box
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: ".06em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-2)",
+                }}
+              >
+                Why this trail?
+              </Box>
             </AccordionSummary>
             <AccordionDetails>
-              <Typography variant="body2" color="text.secondary">
-                The Path Outliner used your stated outcomes and the competency
-                map from your knowledge probe to choose goalposts that target
-                the gaps and build toward the can-do statements you confirmed.
-                Each goalpost includes at least one experience step so we can
-                verify learning with evidence rather than self-report.
+              <Typography
+                variant="body2"
+                sx={{
+                  fontFamily: "var(--font-read)",
+                  lineHeight: 1.65,
+                  color: "var(--ink-2)",
+                  maxWidth: "62ch",
+                }}
+              >
+                We used your stated outcomes and the competency map from your
+                knowledge probe to choose goalposts that target the gaps and
+                build toward what you said you want to be able to do. Each
+                goalpost ends in a build, so your learning is shown by evidence
+                rather than self-report.
               </Typography>
             </AccordionDetails>
           </Accordion>

@@ -1,11 +1,7 @@
 import { redirect } from "next/navigation";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
-import Alert from "@mui/material/Alert";
-import Chip from "@mui/material/Chip";
 import { getCurrentSession } from "@/lib/auth";
 import {
   getCurrentGoalpost,
@@ -41,7 +37,12 @@ import ReviewView from "@/components/journey/ReviewView";
 import Markdown from "@/components/Markdown";
 import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
+import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
+import SolidButton from "@/components/ui/SolidButton";
 
+// Decision tone collapses onto the one-teal vocabulary (no traffic light):
+// advance is a quiet teal "done/forward", repeat and adjust are neutral notes
+// carried by copy and the workbench action, not by a warning hue.
 const DECISION_COLORS: Record<Decision, "success" | "warning" | "info"> = {
   advance: "success",
   repeat: "warning",
@@ -178,22 +179,22 @@ export default async function GoalpostPage({
   }
 
   const header = (
-    <Stack spacing={1}>
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Chip label={`Goalpost ${goalpost!.order}`} size="small" />
-        <Typography variant="caption" color="text.secondary">
-          ~{goalpost!.estimatedMinutes} min &middot;{" "}
-          {phase === "information"
-            ? "Read"
-            : phase === "experience"
-              ? "Do"
-              : "Feedback"}
+    <Stack spacing={1.5}>
+      <Eyebrow>
+        Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
+        &middot;{" "}
+        {phase === "information"
+          ? "read"
+          : phase === "experience"
+            ? "build"
+            : "checkpoint"}
+      </Eyebrow>
+      <HeadlineUnderline>
+        <Typography variant="h3" component="h1">
+          {goalpost!.title}
         </Typography>
-      </Stack>
-      <Typography variant="h3" component="h1">
-        {goalpost!.title}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
+      </HeadlineUnderline>
+      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: "62ch" }}>
         {goalpost!.objective}
       </Typography>
     </Stack>
@@ -283,24 +284,23 @@ export default async function GoalpostPage({
     return (
       <Stack spacing={4}>
         {header}
-        {/* Experience surface (B.6 Q4): visually distinct from the calm reading
-            surface -- a left accent and cooler ground signal "now you do". */}
-        <Card
-          variant="outlined"
+        {/* Experience surface (B.6 Q4 / decided): the recessed --surface-2 ground
+            distinguishes "now you build" from the calm reading paper -- a surface
+            shift, not a new hue. */}
+        <Box
           sx={{
-            borderLeft: 6,
-            borderLeftColor: "primary.main",
-            bgcolor: "background.paper",
+            bgcolor: "var(--surface-experience)",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-lg)",
+            p: { xs: "28px 24px", md: "44px 48px" },
           }}
         >
-          <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-            <ExperienceForm
-              stepId={experienceStep.id}
-              action={submitExperienceStepAction}
-              prompt={<Markdown>{prompt}</Markdown>}
-            />
-          </CardContent>
-        </Card>
+          <ExperienceForm
+            stepId={experienceStep.id}
+            action={submitExperienceStepAction}
+            prompt={<Markdown>{prompt}</Markdown>}
+          />
+        </Box>
         {/* §9.2 skip-with-confirm: available during the experience phase. */}
         <SkipControl goalpostId={goalpost!.id} action={skipGoalpostAction} />
       </Stack>
@@ -319,9 +319,19 @@ export default async function GoalpostPage({
     return (
       <Stack spacing={4}>
         {header}
-        <Alert severity="warning">
-          No evaluation found yet. Please retry the experience step.
-        </Alert>
+        <Box
+          sx={{
+            bgcolor: "var(--surface-2)",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-md)",
+            p: "20px 22px",
+          }}
+        >
+          <Typography variant="body1" color="text.secondary">
+            No checkpoint result yet. Head back and submit the build to get your
+            score.
+          </Typography>
+        </Box>
       </Stack>
     );
   }
@@ -329,69 +339,111 @@ export default async function GoalpostPage({
   const scores = evaluation.scores as unknown as RubricScores;
   const evidence = evaluation.evidence as unknown as EvidenceQuote[];
   const decision = evaluation.decision;
-  const color = DECISION_COLORS[decision];
+
+  // The checkpoint score, shown in the roughened ScoreBadge as a considered
+  // judgment (Fraunces figure), not a system readout. Average of the six rubric
+  // dimensions, rounded to /4 the way each dimension is scored.
+  const scoreValues = Object.values(scores) as number[];
+  const overallScore =
+    scoreValues.length > 0
+      ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
+      : 0;
+  const advanced = decision === Decision.advance;
 
   return (
     <Stack spacing={4}>
       {header}
 
-      <Card
-        variant="outlined"
+      {/* The result, on the system surface: the roughened score badge carries the
+          judgment, the rationale reads in calm Hanken. The decision tone stays on
+          the one-teal vocabulary -- no traffic-light borders. */}
+      <Box
         sx={{
-          borderColor: `${color}.main`,
-          borderWidth: 2,
+          bgcolor: "background.paper",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-lg)",
+          boxShadow: "var(--shadow-sm)",
+          p: { xs: "28px 24px", md: "40px 44px" },
         }}
       >
-        <CardContent>
-          <Stack spacing={2}>
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Chip
-                label={DECISION_LABELS[decision]}
-                color={color}
-                size="medium"
-              />
-              <Typography variant="overline" color="text.secondary">
-                Attempt {evaluation.attempt}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 3, sm: 4 }}
+          alignItems={{ sm: "flex-start" }}
+        >
+          <Box sx={{ flexShrink: 0 }}>
+            <ScoreBadge
+              big={advanced ? `+1` : `${overallScore}`}
+              sub={advanced ? "score" : "of 4"}
+            />
+          </Box>
+          <Stack spacing={1.5}>
+            {advanced ? (
+              <HeadlineUnderline>
+                <Typography variant="h4" component="p">
+                  That&rsquo;s knowledge now
+                </Typography>
+              </HeadlineUnderline>
+            ) : (
+              <Typography variant="h4" component="p">
+                {decision === Decision.repeat
+                  ? "Close. One more pass"
+                  : "Let’s reshape the plan"}
               </Typography>
-            </Stack>
-            <Typography variant="h6" component="p" sx={{ fontWeight: 400, lineHeight: 1.5 }}>
+            )}
+            <Eyebrow>
+              {DECISION_LABELS[decision]} &middot; attempt {evaluation.attempt}
+            </Eyebrow>
+            <Typography
+              variant="body1"
+              sx={{
+                fontFamily: "var(--font-read)",
+                fontSize: "16.5px",
+                lineHeight: 1.65,
+                color: "var(--ink-2)",
+                maxWidth: "58ch",
+              }}
+            >
               {evaluation.rationale}
             </Typography>
           </Stack>
-        </CardContent>
-      </Card>
+        </Stack>
+      </Box>
 
       <Box>
-        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
-          Rubric scores
-        </Typography>
+        <Eyebrow sx={{ mb: 2 }}>How your build scored</Eyebrow>
         <RubricGrid scores={scores} evidence={evidence} />
       </Box>
 
+      {/* Advance is the solid commit. Repeat / adjust are workbench-tier: quieter
+          outlined actions, because they keep you working rather than move you on. */}
       {decision === Decision.advance && (
         <form action={advanceGoalpostAction}>
           <input type="hidden" name="goalpostId" value={goalpost!.id} />
           <SubmitButton
             variant="contained"
+            color="kcInk"
             size="large"
             pendingLabel="Moving you forward…"
           >
-            Continue to next goalpost
+            Continue to the next goalpost
           </SubmitButton>
         </form>
       )}
 
       {decision === Decision.repeat && (
-        <Stack spacing={2}>
+        <Stack spacing={2} alignItems="flex-start">
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: "58ch" }}>
+            You&rsquo;re close. Another pass through the build will close the gap.
+          </Typography>
           <form action={repeatGoalpostAction}>
             <input type="hidden" name="goalpostId" value={goalpost!.id} />
             <SubmitButton
-              variant="contained"
-              color="warning"
+              variant="outlined"
               size="large"
               pendingLabel="Setting up another attempt…"
             >
-              Try again
+              Try this build again
             </SubmitButton>
           </form>
           <OverrideControl
@@ -402,21 +454,19 @@ export default async function GoalpostPage({
       )}
 
       {decision === Decision.adjust_plan && (
-        <Stack spacing={2}>
-          <Typography variant="body2" color="text.secondary">
-            Based on this, we think the plan itself should change rather than
-            asking you to keep retrying. We will revise the path to better fit
-            where you are.
+        <Stack spacing={2} alignItems="flex-start">
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: "58ch" }}>
+            The honest move here is to change the plan rather than ask you to keep
+            retrying. We&rsquo;ll revise the path to better fit where you are.
           </Typography>
           <form action={adjustPlanAction}>
             <input type="hidden" name="goalpostId" value={goalpost!.id} />
             <SubmitButton
-              variant="contained"
-              color="info"
+              variant="outlined"
               size="large"
               pendingLabel="Revising your path…"
             >
-              Revise my path
+              Reshape my path
             </SubmitButton>
           </form>
           <OverrideControl

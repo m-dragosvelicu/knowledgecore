@@ -1,14 +1,12 @@
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import SubmitButton from "@/components/journey/SubmitButton";
+import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 
-// L0 §9.5 multi-session continuity: the "Welcome back" warm-up recap shown when
+// L0 §9.5 multi-session continuity: the "welcome back" warm-up recap shown when
 // a learner resumes a paused journey, BEFORE dropping them back into the
 // goalpost. It re-grounds them in where they left off (goalpost title +
 // objective + the last evaluation rationale if any). When the inactivity gap
@@ -16,6 +14,10 @@ import SubmitButton from "@/components/journey/SubmitButton";
 // ratified decision: offered, never automatic. Both paths flip the journey
 // back to in_progress server-side; the refresher additionally re-opens the
 // information phase. No gamification, no emojis.
+//
+// Slice 4 restyle: warm surface cards, eyebrow meta, the title with its
+// self-drawing underline, a solid continue and a skip-tier refresher. The
+// refresher card drops the info-blue accent for the one-teal vocabulary.
 
 type Props = {
   // Continue / refresher are server actions defined inline in the resume page.
@@ -52,132 +54,133 @@ export default function WarmUpRecap({
 }: Props) {
   return (
     <Stack spacing={3}>
-      <Stack spacing={1}>
-        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 2 }}>
-          Welcome back
-        </Typography>
-        <Typography variant="h3" component="h1">
-          {subjectName ? `Picking up ${subjectName}` : "Picking up where you left off"}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          It has been {describeGap(idleDays)} since you were last here. Here&rsquo;s
-          a quick reminder of where you stopped before you continue.
+      <Stack spacing={1.5}>
+        <Eyebrow>Welcome back</Eyebrow>
+        <HeadlineUnderline>
+          <Typography variant="h3" component="h1">
+            {subjectName ? `Picking up ${subjectName}` : "Picking up where you left off"}
+          </Typography>
+        </HeadlineUnderline>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ maxWidth: "60ch", lineHeight: 1.6 }}
+        >
+          It has been {describeGap(idleDays)} since you were last here.
+          Here&rsquo;s a quick reminder of where you stopped before you continue.
         </Typography>
       </Stack>
 
-      <Card variant="outlined" sx={{ borderRadius: 2 }}>
-        <CardContent sx={{ p: { xs: 3, md: 5 } }}>
-          <Stack spacing={3}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Chip label={`Goalpost ${order}`} size="small" />
-              <Typography variant="caption" color="text.secondary">
-                where you left off
-              </Typography>
-            </Stack>
+      <Box
+        sx={{
+          bgcolor: "background.paper",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-lg)",
+          boxShadow: "var(--shadow-sm)",
+          p: { xs: "28px 24px", md: "40px 48px" },
+        }}
+      >
+        <Stack spacing={3}>
+          <Eyebrow>Goalpost {order} &middot; where you left off</Eyebrow>
 
-            <Typography variant="h4" component="h2">
-              {title}
+          <Typography variant="h4" component="h2">
+            {title}
+          </Typography>
+
+          <Box>
+            <Eyebrow sx={{ mb: 1 }}>What you&rsquo;ll be able to do</Eyebrow>
+            <Typography
+              variant="h6"
+              component="p"
+              sx={{ fontWeight: 400, lineHeight: 1.5, maxWidth: "58ch" }}
+            >
+              {objective}
             </Typography>
+          </Box>
 
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                What you&rsquo;ll be able to do
-              </Typography>
-              <Typography
-                variant="h6"
-                component="p"
-                sx={{ fontWeight: 400, lineHeight: 1.5, mt: 0.5 }}
-              >
-                {objective}
-              </Typography>
-            </Box>
-
-            {lastRationale && (
-              <>
-                <Divider />
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    Where you got to last time
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ mt: 0.5, lineHeight: 1.6 }}
-                  >
-                    {lastRationale}
-                  </Typography>
-                </Box>
-              </>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
+          {lastRationale && (
+            <>
+              <Divider />
+              <Box>
+                <Eyebrow sx={{ mb: 1 }}>Where you got to last time</Eyebrow>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontFamily: "var(--font-read)",
+                    lineHeight: 1.65,
+                    color: "var(--ink-2)",
+                    maxWidth: "60ch",
+                  }}
+                >
+                  {lastRationale}
+                </Typography>
+              </Box>
+            </>
+          )}
+        </Stack>
+      </Box>
 
       {offerRefresher && (
-        <Card
-          variant="outlined"
+        <Box
           sx={{
-            borderRadius: 2,
-            borderLeft: 6,
-            borderLeftColor: "info.main",
-            bgcolor: "background.paper",
+            bgcolor: "var(--surface-2)",
+            border: "1px solid var(--line)",
+            borderLeft: "3px solid var(--teal)",
+            borderRadius: "var(--r-lg)",
+            p: { xs: "24px 22px", md: "32px 40px" },
           }}
         >
-          <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack spacing={2}>
-              <Typography variant="overline" color="text.secondary">
-                Optional
-              </Typography>
-              <Typography variant="body1">
-                Since it has been a while, you can re-read this goalpost&rsquo;s
-                material before you carry on. This is entirely up to you &mdash;
-                skip it if you already feel ready.
-              </Typography>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={2}
-                sx={{ pt: 0.5 }}
-              >
-                <form action={refresherAction}>
-                  <SubmitButton
-                    variant="outlined"
-                    color="info"
-                    size="large"
-                    pendingLabel="Opening the refresher…"
-                  >
-                    Re-read this goalpost first
-                  </SubmitButton>
-                </form>
-                <form action={continueAction}>
-                  <SubmitButton
-                    variant="contained"
-                    size="large"
-                    pendingLabel="Taking you back…"
-                  >
-                    Skip &mdash; continue where I left off
-                  </SubmitButton>
-                </form>
-              </Stack>
+          <Stack spacing={2}>
+            <Eyebrow>Optional</Eyebrow>
+            <Typography
+              variant="body1"
+              sx={{ lineHeight: 1.6, maxWidth: "60ch" }}
+            >
+              Since it has been a while, you can re-read this goalpost&rsquo;s
+              material before you carry on. This is entirely up to you. Skip it if
+              you already feel ready.
+            </Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              alignItems={{ sm: "center" }}
+              sx={{ pt: 0.5 }}
+            >
+              <form action={continueAction}>
+                <SubmitButton
+                  variant="contained"
+                  color="kcInk"
+                  size="large"
+                  pendingLabel="Taking you back…"
+                >
+                  Continue where I left off
+                </SubmitButton>
+              </form>
+              <form action={refresherAction}>
+                <SubmitButton
+                  variant="text"
+                  size="large"
+                  pendingLabel="Opening the refresher…"
+                >
+                  Re-read this goalpost first
+                </SubmitButton>
+              </form>
             </Stack>
-          </CardContent>
-        </Card>
+          </Stack>
+        </Box>
       )}
 
       {!offerRefresher && (
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          sx={{ pt: 1 }}
-        >
-          <form action={continueAction}>
-            <SubmitButton
-              variant="contained"
-              size="large"
-              pendingLabel="Taking you back…"
-            >
-              Continue
-            </SubmitButton>
-          </form>
-        </Stack>
+        <form action={continueAction}>
+          <SubmitButton
+            variant="contained"
+            color="kcInk"
+            size="large"
+            pendingLabel="Taking you back…"
+          >
+            Continue
+          </SubmitButton>
+        </form>
       )}
     </Stack>
   );

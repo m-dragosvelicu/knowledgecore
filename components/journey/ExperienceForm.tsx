@@ -3,15 +3,12 @@
 import { useFormStatus } from "react-dom";
 import { useEffect, useState } from "react";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
 import Fade from "@mui/material/Fade";
 import SubmitButton from "@/components/journey/SubmitButton";
 import MicButton from "@/components/journey/MicButton";
+import { Eyebrow } from "@/components/ui";
 
 // Warm, honest narration for the (slow, 5-15s) evaluator. No fake progress
 // bar -- we do not know how far along the model is, so we rotate descriptive
@@ -42,40 +39,58 @@ function NarratedWait({ artifact }: { artifact: string }) {
 
   return (
     <Fade in={pending}>
-      <Card variant="outlined" sx={{ bgcolor: "action.hover" }}>
-        <CardContent>
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <CircularProgress size={22} thickness={5} />
-              <Typography variant="h6" component="p" aria-live="polite">
-                {WAIT_STEPS[step]}
-              </Typography>
-            </Stack>
-            <Typography variant="caption" color="text.secondary">
-              This takes a few seconds — your work is safe and being read in full.
-            </Typography>
-            {artifact.trim() && (
+      <Box
+        sx={{
+          bgcolor: "var(--surface-2)",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-md)",
+          p: "20px 22px",
+        }}
+      >
+        <Stack spacing={1.5}>
+          <Box
+            sx={{
+              fontFamily: "var(--font-display)",
+              fontVariationSettings: "var(--soft-ui)",
+              fontWeight: 500,
+              fontSize: 19,
+              lineHeight: 1.3,
+              color: "var(--ink)",
+            }}
+            aria-live="polite"
+          >
+            {WAIT_STEPS[step]}
+          </Box>
+          <Box
+            className="kc-meta"
+            sx={{ textTransform: "none", letterSpacing: 0, fontSize: 13 }}
+          >
+            This takes a few seconds. Your work is safe and being read in full.
+          </Box>
+          {artifact.trim() && (
+            <Box
+              sx={{
+                borderLeft: "3px solid var(--line)",
+                pl: "14px",
+                maxHeight: 160,
+                overflow: "auto",
+              }}
+            >
               <Box
                 sx={{
-                  borderLeft: 3,
-                  borderColor: "divider",
-                  pl: 2,
-                  maxHeight: 160,
-                  overflow: "auto",
+                  fontFamily: "var(--font-read)",
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  color: "var(--ink-2)",
+                  whiteSpace: "pre-wrap",
                 }}
               >
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ whiteSpace: "pre-wrap" }}
-                >
-                  {artifact}
-                </Typography>
+                {artifact}
               </Box>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
+            </Box>
+          )}
+        </Stack>
+      </Box>
     </Fade>
   );
 }
@@ -88,9 +103,13 @@ type Props = {
 };
 
 /**
- * Client wrapper around the experience submit. While the slow live evaluator
- * runs, it replaces the editor with a narrated wait that echoes the learner's
- * own submission (B.6 Q5) and disables the submit button (no-feedback bug).
+ * The Experience surface — the "do" half of a goalpost (B.6 Q5).
+ *
+ * Slice 4 restyle: styled per the kit checkpoint build step. Eyebrow "Build ·
+ * the experience half", the prompt in the reading voice, an answer field + the
+ * shared mic, a solid "Lock it in" commit, and a quiet saved-hint. While the
+ * slow live evaluator runs it replaces the editor with a warm narrated wait that
+ * echoes the learner's own submission and disables the submit (no-feedback bug).
  */
 export default function ExperienceForm({ stepId, action, prompt }: Props) {
   const [artifact, setArtifact] = useState("");
@@ -121,15 +140,25 @@ function ExperienceBody({
 
   return (
     <Stack spacing={3}>
-      <Typography variant="overline" color="text.secondary">
-        Experience
-      </Typography>
-      {prompt}
+      <Eyebrow>Build &middot; the experience half</Eyebrow>
+      <Box
+        sx={{
+          fontFamily: "var(--font-read)",
+          fontSize: "17px",
+          lineHeight: 1.7,
+          color: "var(--ink)",
+          maxWidth: "62ch",
+          "& p": { my: "0.9em" },
+          "& strong": { fontWeight: 600 },
+        }}
+      >
+        {prompt}
+      </Box>
 
       {pending ? (
         <NarratedWait artifact={artifact} />
       ) : (
-        <Stack spacing={0.5}>
+        <Stack spacing={1}>
           <TextField
             name="userArtifact"
             multiline
@@ -160,14 +189,25 @@ function ExperienceBody({
           the narrated wait, so the submission always carries the artifact. */}
       {pending && <input type="hidden" name="userArtifact" value={artifact} />}
 
-      <SubmitButton
-        variant="contained"
-        size="large"
-        pendingLabel="Evaluating your answer…"
-        sx={{ alignSelf: "flex-start" }}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        alignItems={{ sm: "center" }}
       >
-        Submit my answer
-      </SubmitButton>
+        <SubmitButton
+          variant="contained"
+          color="kcInk"
+          size="large"
+          pendingLabel="Evaluating your answer…"
+        >
+          Lock it in
+        </SubmitButton>
+        {!pending && (
+          <Box className="kc-meta" sx={{ textTransform: "none", letterSpacing: 0, fontSize: 13 }}>
+            Saved to your trail as you go.
+          </Box>
+        )}
+      </Stack>
     </Stack>
   );
 }

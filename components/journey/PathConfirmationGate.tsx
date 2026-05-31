@@ -4,11 +4,7 @@ import { useState, useTransition } from "react";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
-import Alert from "@mui/material/Alert";
 import Divider from "@mui/material/Divider";
 import type { InterviewTurn } from "@/lib/services/types";
 import {
@@ -17,6 +13,9 @@ import {
   revisePathFromConfirmationAction,
 } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
+import SolidButton from "@/components/ui/SolidButton";
+import WobbleButton from "@/components/ui/WobbleButton";
+import { Eyebrow } from "@/components/ui";
 
 // Soft cap on CORRECTION ROUNDS (a round = one full clarifying dialogue that
 // revises the path). After this many rounds the gate stays usable but gently
@@ -35,6 +34,45 @@ type Props = {
 
 type Mode = "gate" | "dialogue";
 
+// The shared paper-surface panel the dialogue draws its turns and the answer box
+// on (mirrors the OutcomeClient / Goal Interview surface from Slice 3).
+function Surface({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      sx={{
+        bgcolor: "background.paper",
+        border: "1px solid var(--line)",
+        borderRadius: "var(--r-lg)",
+        boxShadow: "var(--shadow-sm)",
+        p: "22px 26px",
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+// A heading set in Fraunces at the UI display weight -- the voice that asks.
+function AskHeadline({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      component="p"
+      sx={{
+        m: 0,
+        fontFamily: "var(--font-display)",
+        fontVariationSettings: "var(--soft-ui)",
+        fontWeight: 500,
+        fontSize: "clamp(20px, 2.6vw, 26px)",
+        lineHeight: 1.18,
+        letterSpacing: "-.01em",
+        color: "var(--ink)",
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
 /**
  * L1 Slice 2 — the Path Confirmation gate + opt-in clarifying dialogue.
  *
@@ -45,6 +83,10 @@ type Mode = "gate" | "dialogue";
  * uses): the client holds the running transcript and re-sends it each turn; the
  * server step is stateless. On completion the concern is handed to the EXISTING
  * Path Adjuster to revise the overview, then the page re-presents it here.
+ *
+ * Slice 4 restyle: the commit is a SOLID button, "Not quite right" is a WORKBENCH
+ * (wobble) button, and the clarifying dialogue is the styled turn-taking cards.
+ * Logic is unchanged.
  */
 export default function PathConfirmationGate({ revisionCount }: Props) {
   const [mode, setMode] = useState<Mode>("gate");
@@ -101,13 +143,16 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
   // ---- The always-present gate ----
   if (mode === "gate") {
     return (
-      <Stack spacing={2}>
+      <Stack spacing={2.5}>
         <Divider />
         <Stack spacing={1}>
-          <Typography variant="h6" component="h2">
-            Does this path look right?
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Eyebrow>Before you start</Eyebrow>
+          <AskHeadline>Does this trail look right?</AskHeadline>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: "60ch", lineHeight: 1.6 }}
+          >
             Take a look at the goalposts above and what you&rsquo;ll be able to do
             by the end. If it fits, let&rsquo;s begin. If something feels off, we
             can talk it through before you start.
@@ -115,38 +160,48 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
         </Stack>
 
         {revisionCount > 0 && (
-          <Alert severity="success" variant="outlined">
-            We&rsquo;ve updated your path. Take another look and start when
-            it&rsquo;s right for you.
-          </Alert>
+          <Box
+            sx={{
+              bgcolor: "var(--surface-2)",
+              border: "1px solid var(--line)",
+              borderLeft: "3px solid var(--teal)",
+              borderRadius: "var(--r-md)",
+              p: "14px 18px",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              We&rsquo;ve updated your trail. Take another look and start when
+              it&rsquo;s right for you.
+            </Typography>
+          </Box>
         )}
 
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={2}
           alignItems={{ sm: "center" }}
+          sx={{ pt: 0.5 }}
         >
-          <Button
-            variant="contained"
+          <SolidButton
+            tone="ink"
             size="large"
             onClick={looksGood}
             disabled={isPending}
           >
             {isPending ? "Setting up your first goalpost…" : "Looks good, start"}
-          </Button>
-          <Button
-            variant="outlined"
-            size="large"
-            onClick={openDialogue}
-            disabled={isPending}
-          >
+          </SolidButton>
+          <WobbleButton onClick={openDialogue} disabled={isPending}>
             Not quite right
-          </Button>
+          </WobbleButton>
         </Stack>
 
         {atSoftCap && (
-          <Typography variant="body2" color="text.secondary">
-            You can keep refining, but you can also just start &mdash; the path
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: "60ch", lineHeight: 1.6 }}
+          >
+            You can keep refining, but you can also just start. The trail
             isn&rsquo;t locked. It adapts as you go, so you&rsquo;ll never be stuck
             with a step that isn&rsquo;t working.
           </Typography>
@@ -160,100 +215,111 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
     <Stack spacing={3}>
       <Divider />
       <Stack spacing={1}>
-        <Typography variant="h6" component="h2">
-          Let&rsquo;s get your path right
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Tell us what feels off and we&rsquo;ll adjust the plan before you start.
+        <Eyebrow>Let&rsquo;s get it right</Eyebrow>
+        <AskHeadline>Tell us what feels off</AskHeadline>
+        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: "60ch" }}>
+          We&rsquo;ll adjust the plan before you start.
         </Typography>
       </Stack>
 
       {transcript.length > 0 && (
-        <Stack spacing={2}>
-          {transcript.map((t, i) => (
-            <Box
-              key={i}
-              sx={{
-                alignSelf: t.role === "assistant" ? "flex-start" : "flex-end",
-                maxWidth: "85%",
-              }}
-            >
-              <Card
-                variant="outlined"
+        <Stack spacing={1.5}>
+          {transcript.map((t, i) => {
+            const isAsk = t.role === "assistant";
+            return (
+              <Box
+                key={i}
                 sx={{
-                  bgcolor:
-                    t.role === "assistant" ? "background.paper" : "action.hover",
+                  alignSelf: isAsk ? "flex-start" : "flex-end",
+                  maxWidth: "86%",
+                  bgcolor: isAsk ? "background.paper" : "var(--surface-2)",
+                  border: "1px solid var(--line)",
+                  borderRadius: "var(--r-md)",
+                  boxShadow: isAsk ? "var(--shadow-sm)" : "none",
+                  p: "14px 18px",
                 }}
               >
-                <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    display="block"
-                  >
-                    {t.role === "assistant" ? "Guide" : "You"}
-                  </Typography>
-                  <Typography variant="body1">{t.content}</Typography>
-                </CardContent>
-              </Card>
-            </Box>
-          ))}
+                <Box className="kc-meta" sx={{ mb: "6px" }}>
+                  {isAsk ? "Your guide" : "You"}
+                </Box>
+                <Box
+                  sx={
+                    isAsk
+                      ? {
+                          fontFamily: "var(--font-display)",
+                          fontVariationSettings: "var(--soft-ui)",
+                          fontWeight: 500,
+                          fontSize: 17,
+                          lineHeight: 1.35,
+                          color: "var(--ink)",
+                        }
+                      : {
+                          fontSize: 15.5,
+                          lineHeight: 1.5,
+                          color: "var(--ink)",
+                        }
+                  }
+                >
+                  {t.content}
+                </Box>
+              </Box>
+            );
+          })}
         </Stack>
       )}
 
       {question ? (
-        <Card variant="outlined">
-          <CardContent>
-            <Stack spacing={2}>
-              <Typography variant="h6">{question}</Typography>
-              <TextField
-                multiline
-                minRows={2}
-                fullWidth
-                placeholder="Type your answer…"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                disabled={isPending}
-              />
-              <Stack
-                direction="row"
-                spacing={2}
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Button
-                    variant="text"
-                    onClick={() => setMode("gate")}
-                    disabled={isPending}
-                  >
-                    Never mind, it&rsquo;s fine
-                  </Button>
-                  <MicButton
-                    onTranscript={(t) =>
-                      setDraft((prev) =>
-                        prev.trim().length > 0
-                          ? `${prev.replace(/\s+$/, "")} ${t}`
-                          : t,
-                      )
-                    }
-                    disabled={isPending}
-                  />
-                </Stack>
-                <Button
-                  variant="contained"
-                  onClick={answer}
-                  disabled={draft.trim().length === 0 || isPending}
+        <Surface>
+          <Stack spacing={2}>
+            <AskHeadline>{question}</AskHeadline>
+            <TextField
+              multiline
+              minRows={2}
+              fullWidth
+              placeholder="Type your answer…"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              disabled={isPending}
+            />
+            <Stack
+              direction="row"
+              spacing={2}
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <WobbleButton
+                  onClick={() => setMode("gate")}
+                  disabled={isPending}
+                  bare
                 >
-                  {isPending ? "Revising your path…" : "Send"}
-                </Button>
+                  Never mind, it&rsquo;s fine
+                </WobbleButton>
+                <MicButton
+                  onTranscript={(t) =>
+                    setDraft((prev) =>
+                      prev.trim().length > 0
+                        ? `${prev.replace(/\s+$/, "")} ${t}`
+                        : t,
+                    )
+                  }
+                  disabled={isPending}
+                />
               </Stack>
+              <SolidButton
+                tone="ink"
+                arrow={false}
+                onClick={answer}
+                disabled={draft.trim().length === 0 || isPending}
+              >
+                {isPending ? "Revising your trail…" : "Send"}
+              </SolidButton>
             </Stack>
-          </CardContent>
-        </Card>
+          </Stack>
+        </Surface>
       ) : (
         <Typography variant="body2" color="text.secondary">
-          {isPending ? "Thinking about your path…" : "Starting the conversation…"}
+          {isPending ? "Thinking about your trail…" : "Starting the conversation…"}
         </Typography>
       )}
     </Stack>

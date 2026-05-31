@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
@@ -10,6 +8,7 @@ import SubmitButton from "@/components/journey/SubmitButton";
 import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/journey/state";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
+import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import type {
   CanDoStatement,
   EvidenceQuote,
@@ -82,44 +81,71 @@ export default async function CompletePage() {
 
   return (
     <Stack spacing={4}>
-      <Stack spacing={1}>
-        <Typography variant="overline" color="text.secondary">
-          Journey complete
-        </Typography>
-        <Typography variant="h3" component="h1">
-          You completed your journey on {subject}.
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {completedGoalposts.length} of {goalposts.length} goalposts completed
-          {revisions.length > 0
-            ? ` · path revised ${revisions.length} ${
-                revisions.length === 1 ? "time" : "times"
-              } along the way`
-            : ""}
-          .
-        </Typography>
+      {/* The completion as an achievement moment: the roughened score badge
+          carries the "done" the way the kit's +1 moment does, beside the
+          Fraunces headline with its self-drawing underline. */}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={{ xs: 2.5, sm: 4 }}
+        alignItems={{ sm: "center" }}
+      >
+        <Box sx={{ flexShrink: 0 }}>
+          <ScoreBadge big="done" sub="trail" />
+        </Box>
+        <Stack spacing={1.5}>
+          <Eyebrow>Journey complete</Eyebrow>
+          <HeadlineUnderline>
+            <Typography variant="h3" component="h1">
+              You finished {subject}
+            </Typography>
+          </HeadlineUnderline>
+          <Typography variant="body2" color="text.secondary">
+            {completedGoalposts.length} of {goalposts.length} goalposts completed
+            {revisions.length > 0
+              ? ` · trail reshaped ${revisions.length} ${
+                  revisions.length === 1 ? "time" : "times"
+                } along the way`
+              : ""}
+            .
+          </Typography>
+        </Stack>
       </Stack>
 
       {/* What you set out to do, and the evidence you earned for it. */}
       {canDoStatements.length > 0 && (
         <Box>
-          <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
-            What you set out to be able to do
-          </Typography>
-          <Stack spacing={2}>
+          <Eyebrow sx={{ mb: 2 }}>What you set out to be able to do</Eyebrow>
+          <Stack spacing={1.5}>
             {canDoStatements.map((stmt, i) => (
-              <Card key={i} variant="outlined">
-                <CardContent>
-                  <Stack spacing={1}>
-                    <Stack direction="row" spacing={1} alignItems="baseline">
-                      <Chip label={stmt.bloomLevel} size="small" />
-                      <Typography variant="subtitle1" fontWeight={600}>
-                        {stmt.text}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
+              <Box
+                key={i}
+                sx={{
+                  bgcolor: "var(--surface-2)",
+                  border: "1px solid var(--line)",
+                  borderRadius: "var(--r-md)",
+                  p: "16px 20px",
+                }}
+              >
+                <Stack direction="row" spacing={2} alignItems="flex-start">
+                  <Chip
+                    label={stmt.bloomLevel}
+                    size="small"
+                    sx={{ textTransform: "capitalize", flexShrink: 0, mt: "2px" }}
+                  />
+                  <Box
+                    sx={{
+                      fontFamily: "var(--font-display)",
+                      fontVariationSettings: "var(--soft-ui)",
+                      fontWeight: 500,
+                      fontSize: 18,
+                      lineHeight: 1.35,
+                      color: "var(--ink)",
+                    }}
+                  >
+                    {stmt.text}
+                  </Box>
+                </Stack>
+              </Box>
             ))}
           </Stack>
         </Box>
@@ -127,31 +153,39 @@ export default async function CompletePage() {
 
       {earned.length > 0 && (
         <Box>
-          <Typography variant="h5" component="h2" sx={{ mb: 1 }}>
-            Evidence you produced
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            These are moments from your own answers where you demonstrated
-            understanding — not self-report, but what you actually wrote.
+          <Eyebrow sx={{ mb: 1 }}>Evidence you produced</Eyebrow>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: "60ch" }}>
+            These are moments from your own answers where you showed understanding.
+            Not self-report, but what you actually wrote.
           </Typography>
           <Stack spacing={2}>
             {earned.map((e, i) => (
               <Box
                 key={i}
                 sx={{
-                  borderLeft: 4,
-                  borderColor: "success.main",
-                  bgcolor: "action.hover",
-                  borderRadius: 1,
-                  p: 2,
+                  borderLeft: "3px solid var(--teal)",
+                  pl: "16px",
+                  py: "2px",
                 }}
               >
-                <Typography variant="overline" color="text.secondary">
-                  {e.goalpostTitle} · {e.dimension}
-                </Typography>
-                <Typography variant="body1" sx={{ fontStyle: "italic", fontWeight: 500 }}>
+                <Box
+                  className="kc-meta"
+                  sx={{ mb: "6px" }}
+                >
+                  {e.goalpostTitle} &middot; {e.dimension}
+                </Box>
+                <Box
+                  sx={{
+                    fontFamily: "var(--font-read)",
+                    fontSize: "17px",
+                    lineHeight: 1.6,
+                    fontStyle: "italic",
+                    color: "var(--ink)",
+                    maxWidth: "62ch",
+                  }}
+                >
                   &ldquo;{e.quote}&rdquo;
-                </Typography>
+                </Box>
               </Box>
             ))}
           </Stack>
@@ -159,10 +193,8 @@ export default async function CompletePage() {
       )}
 
       <Box>
-        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
-          Goalposts
-        </Typography>
-        <Stack spacing={1}>
+        <Eyebrow sx={{ mb: 2 }}>Your goalposts</Eyebrow>
+        <Stack spacing={1.25}>
           {goalposts.map((gp) => {
             const isSkipped = gp.status === GoalpostStatus.skipped;
             return (
@@ -175,7 +207,6 @@ export default async function CompletePage() {
               >
                 <Chip
                   label={isSkipped ? "Skipped" : "Done"}
-                  color={isSkipped ? "default" : "success"}
                   size="small"
                   variant={isSkipped ? "outlined" : "filled"}
                 />
@@ -191,16 +222,19 @@ export default async function CompletePage() {
       {revisions.length > 0 && (
         <Box>
           <Divider sx={{ mb: 2 }} />
-          <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-            How your path adapted
-          </Typography>
+          <Eyebrow sx={{ mb: 1.5 }}>How your trail adapted</Eyebrow>
           <Stack spacing={1}>
             {revisions.map((r) => {
               const rationale =
                 (r.changes as { rationale?: string } | null)?.rationale ??
-                "The path was revised to better fit your progress.";
+                "The trail was reshaped to better fit your progress.";
               return (
-                <Typography key={r.id} variant="body2" color="text.secondary">
+                <Typography
+                  key={r.id}
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ lineHeight: 1.6, maxWidth: "62ch" }}
+                >
                   {rationale}
                 </Typography>
               );
@@ -212,6 +246,7 @@ export default async function CompletePage() {
       <form action={startNewJourneyAction}>
         <SubmitButton
           variant="contained"
+          color="kcInk"
           size="large"
           pendingLabel="Starting a new journey…"
         >
