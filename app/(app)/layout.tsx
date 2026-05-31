@@ -1,21 +1,17 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { auth, getCurrentSession } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent } from "@/lib/journey/state";
 import { getServices } from "@/lib/services";
-import AppBar from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
 import Stepper from "@mui/material/Stepper";
 import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
 import Alert from "@mui/material/Alert";
 import type { JourneyStatus } from "@prisma/client";
+import AppHeader from "@/components/AppHeader";
 
 const STEPS: Array<{ label: string; statuses: JourneyStatus[] }> = [
   { label: "Intent", statuses: ["created"] },
@@ -42,29 +38,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar position="static" color="default" elevation={1}>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            KnowledgeCore
-          </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-              {session.user.email}
-            </Typography>
-            <form
-              action={async () => {
-                "use server";
-                await auth.api.signOut({ headers: await headers() });
-              redirect("/signin");
-              }}
-            >
-              <Button type="submit" size="small" variant="outlined">
-                Sign out
-              </Button>
-            </form>
-          </Stack>
-        </Toolbar>
-      </AppBar>
+      <AppHeader />
 
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Stack spacing={4}>
