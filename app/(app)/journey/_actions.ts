@@ -8,6 +8,8 @@ import { getServices } from "@/lib/services";
 import type {
   CanDoStatement,
   Competency,
+  InterviewStep,
+  InterviewTurn,
   ProbeAnswer,
   ProbeQuestion,
 } from "@/lib/services/types";
@@ -98,52 +100,134 @@ export async function submitIntentAction(formData: FormData): Promise<void> {
 // Stages 3+4 — submit goal + outcome
 // ---------------------------------------------------------------------------
 
-const submitOutcomeSchema = z.object({
-  motivation: z.nativeEnum(Motivation),
-  elaboration: z.string().min(3, "Please tell us a bit more."),
-  timeHorizon: z.string().optional(),
+// --- Multi-turn goal interview (L0.md §3 Stage 3+4, §5 Goal Interview Agent) ---
+//
+// The interview is a turn loop driven by the client, which holds the running
+// transcript and re-sends it each turn (mirrors ProbeClient's stateless shape).
+// `advanceInterviewAction` returns the next InterviewStep; `finalizeOutcomeAction`
+// persists the synthesized outcome and moves the journey forward.
+
+const interviewTurnSchema = z.object({
+  role: z.enum(["assistant", "user"]),
+  content: z.string(),
 });
 
-export async function submitOutcomeAction(formData: FormData): Promise<void> {
+const advanceInterviewSchema = z.object({
+  motivation: z.nativeEnum(Motivation),
+  transcript: z.array(interviewTurnSchema),
+});
+
+// Best-effort numeric horizon parse for LearningGoal.timeHorizonDays (L0.md §4
+// path-budget constraint). Recognizes simple "<n> day/week/month" phrasings; the
+// raw user phrasing is always preserved separately in LearningGoal.timeHorizon.
+function parseTimeHorizonDays(text: string): number | null {
+  const m = text.toLowerCase().match(/(\d+)\s*(day|week|month|year)/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const unit = m[2];
+  const perUnit =
+    unit === "day" ? 1 : unit === "week" ? 7 : unit === "month" ? 30 : 365;
+  return n * perUnit;
+}
+
+// Most recent learner free-text answer in the transcript (seeds elaboration).
+function latestUserText(transcript: InterviewTurn[]): string {
+  for (let i = transcript.length - 1; i >= 0; i--) {
+    if (transcript[i].role === "user") return transcript[i].content.trim();
+  }
+  return "";
+}
+
+/**
+ * Advance the interview by one turn. Upserts LearningGoal (motivation + latest
+ * learner free-text as elaboration + best-effort timeHorizon) as the interview
+ * progresses, then returns the next InterviewStep for the client to render.
+ */
+export async function advanceInterviewAction(
+  motivation: Motivation,
+  transcript: InterviewTurn[],
+): Promise<InterviewStep> {
   const userId = await requireUserId();
   const intentId = await requireActiveIntentId(userId);
-
-  const parsed = submitOutcomeSchema.parse({
-    motivation: formData.get("motivation"),
-    elaboration: formData.get("elaboration"),
-    timeHorizon: formData.get("timeHorizon") || undefined,
-  });
+  const parsed = advanceInterviewSchema.parse({ motivation, transcript });
 
   const subject = await prisma.subject.findUnique({ where: { intentId } });
   if (!subject) redirect("/journey/intent");
 
+  // Persist what we know so far. elaboration is required (non-null) in the
+  // schema, so default to a placeholder until the learner has answered.
+  const elaboration = latestUserText(parsed.transcript) || "(in progress)";
+  const horizonDays = parseTimeHorizonDays(elaboration);
   await prisma.learningGoal.upsert({
     where: { intentId },
     update: {
       motivation: parsed.motivation,
-      elaboration: parsed.elaboration,
-      timeHorizon: parsed.timeHorizon ?? null,
+      elaboration,
+      ...(horizonDays !== null
+        ? { timeHorizon: elaboration, timeHorizonDays: horizonDays }
+        : {}),
     },
     create: {
       intentId,
       motivation: parsed.motivation,
-      elaboration: parsed.elaboration,
-      timeHorizon: parsed.timeHorizon ?? null,
+      elaboration,
+      timeHorizon: horizonDays !== null ? elaboration : null,
+      timeHorizonDays: horizonDays,
     },
   });
 
   const services = getServices();
-  const interview = await services.goalInterviewer.interview({
+  return services.goalInterviewer.interview({
     subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
     motivation: parsed.motivation,
-    elaboration: parsed.elaboration,
-    timeHorizon: parsed.timeHorizon,
+    transcript: parsed.transcript,
   });
+}
+
+const finalizeOutcomeSchema = z.object({
+  canDoStatements: z
+    .array(
+      z.object({
+        text: z.string().min(1),
+        bloomLevel: z.enum([
+          "remember",
+          "understand",
+          "apply",
+          "analyze",
+          "evaluate",
+          "create",
+        ]),
+      }),
+    )
+    .min(1),
+  successCriterion: z.string().min(1),
+});
+
+/**
+ * Finalize the interview: persist the confirmed can-do statements + success
+ * criterion to ExpectedOutcome, mark the intent outcome_assessed, and proceed to
+ * the probe.
+ */
+export async function finalizeOutcomeAction(
+  canDoStatements: CanDoStatement[],
+  successCriterion: string,
+): Promise<void> {
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
+  const parsed = finalizeOutcomeSchema.parse({ canDoStatements, successCriterion });
 
   await prisma.expectedOutcome.upsert({
     where: { intentId },
-    update: { canDoStatements: interview.canDoStatements },
-    create: { intentId, canDoStatements: interview.canDoStatements },
+    update: {
+      canDoStatements: parsed.canDoStatements,
+      successCriterion: parsed.successCriterion,
+    },
+    create: {
+      intentId,
+      canDoStatements: parsed.canDoStatements,
+      successCriterion: parsed.successCriterion,
+    },
   });
 
   await prisma.learningIntent.update({

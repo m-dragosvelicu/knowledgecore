@@ -40,6 +40,19 @@ export const goalInterviewResultSchema = z.object({
   canDoStatements: z.array(canDoStatementSchema).min(1),
 });
 
+// Multi-turn interview step. Modeled as a flat object (rather than a Zod
+// discriminated union) because Gemini structured output handles a single object
+// shape with a `kind` enum more reliably than oneOf/anyOf. The optional fields
+// are normalized in liveGoalInterviewer based on `kind`:
+//   - kind="question"  -> `question` is required
+//   - kind="complete"  -> `canDoStatements` (>=3) and `successCriterion` required
+export const interviewStepSchema = z.object({
+  kind: z.enum(["question", "complete"]),
+  question: z.string().nullish(),
+  canDoStatements: z.array(canDoStatementSchema).nullish(),
+  successCriterion: z.string().nullish(),
+});
+
 export const probeQuestionSchema = z
   .object({
     id: z.string().min(1),

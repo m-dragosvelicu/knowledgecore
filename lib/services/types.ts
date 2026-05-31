@@ -78,17 +78,35 @@ export interface IntentParser {
   parse(rawText: string): Promise<ParsedSubject>;
 }
 
+// One turn of the multi-turn goal interview. The client (outcome page) holds the
+// running transcript and re-sends it each turn so the interviewer stays stateless.
+export type InterviewTurn = {
+  role: "assistant" | "user";
+  content: string;
+};
+
+// The result of one interview turn: either the next focused question to ask, or
+// a terminal "complete" step carrying the synthesized outcome.
+export type InterviewStep =
+  | { kind: "question"; question: string }
+  | {
+      kind: "complete";
+      canDoStatements: CanDoStatement[];
+      successCriterion: string;
+    };
+
 export type GoalInterviewInput = {
   subject: ParsedSubject;
   motivation: Motivation;
-  elaboration: string;
-  timeHorizon?: string;
+  transcript: InterviewTurn[];
 };
 
 export interface GoalInterviewer {
-  interview(input: GoalInterviewInput): Promise<{
-    canDoStatements: CanDoStatement[];
-  }>;
+  // Multi-turn (L0.md §5): given the subject, motivation, and the transcript so
+  // far, return the next InterviewStep. Terminates with kind="complete" once a
+  // time horizon and >=3 can-do statements have been gathered (capped at ~6
+  // assistant questions).
+  interview(input: GoalInterviewInput): Promise<InterviewStep>;
 }
 
 export type ProbeScoreResult = {

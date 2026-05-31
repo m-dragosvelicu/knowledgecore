@@ -14,7 +14,11 @@ import { LiveGoalInterviewer } from "@/lib/services/live/liveGoalInterviewer";
 import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
 import { LivePathOutliner } from "@/lib/services/live/livePathOutliner";
 import { LiveCheckpointEvaluator } from "@/lib/services/live/liveCheckpointEvaluator";
-import type { ProbeAnswer } from "@/lib/services/types";
+import type {
+  CanDoStatement,
+  InterviewTurn,
+  ProbeAnswer,
+} from "@/lib/services/types";
 
 function hr(title: string) {
   console.log("\n" + "=".repeat(70));
@@ -40,11 +44,31 @@ async function main() {
   // 2. Goal ------------------------------------------------------------
   hr("2. GoalInterviewer.interview");
   const goalInterviewer = new LiveGoalInterviewer(llm);
-  const { canDoStatements } = await goalInterviewer.interview({
-    subject,
-    motivation: "work",
-    elaboration: "I'm a backend dev who keeps hitting linear algebra in ML papers.",
-  });
+  // Drive the multi-turn interview to completion with canned learner answers.
+  const cannedAnswers = [
+    "I'm a backend dev who keeps hitting linear algebra in ML papers.",
+    "I'd like to be comfortable in about a month; no hard deadline.",
+    "No exam, I just want to follow derivations and reproduce small models in code.",
+  ];
+  const interviewTranscript: InterviewTurn[] = [];
+  let canDoStatements: CanDoStatement[] = [];
+  for (let turn = 0; turn < 8; turn++) {
+    const step = await goalInterviewer.interview({
+      subject,
+      motivation: "work",
+      transcript: interviewTranscript,
+    });
+    if (step.kind === "complete") {
+      canDoStatements = step.canDoStatements;
+      console.log("successCriterion:", step.successCriterion);
+      break;
+    }
+    console.log("Q:", step.question);
+    interviewTranscript.push({ role: "assistant", content: step.question });
+    const a = cannedAnswers[turn] ?? "I'm not sure, please proceed.";
+    console.log("A:", a);
+    interviewTranscript.push({ role: "user", content: a });
+  }
   console.log(JSON.stringify(canDoStatements, null, 2));
 
   // 3. Probe -----------------------------------------------------------
