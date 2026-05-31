@@ -22,21 +22,9 @@ import {
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
 import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
+import Markdown from "@/components/Markdown";
 import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
-
-function renderMarkdownLite(text: string): React.ReactElement {
-  const paragraphs = text.split(/\n\n+/);
-  return (
-    <Stack spacing={2}>
-      {paragraphs.map((p, i) => (
-        <Typography key={i} variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
-          {p}
-        </Typography>
-      ))}
-    </Stack>
-  );
-}
 
 const DECISION_COLORS: Record<Decision, "success" | "warning" | "info"> = {
   advance: "success",
@@ -105,7 +93,7 @@ export default async function GoalpostPage() {
               <Typography variant="overline" color="text.secondary">
                 Information
               </Typography>
-              {renderMarkdownLite(content)}
+              <Markdown>{content}</Markdown>
               <form action={completeInformationStepAction}>
                 <input type="hidden" name="stepId" value={informationStep.id} />
                 <Button type="submit" variant="contained" size="large">
@@ -135,9 +123,7 @@ export default async function GoalpostPage() {
                 <Typography variant="overline" color="text.secondary">
                   Experience
                 </Typography>
-                <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
-                  {prompt}
-                </Typography>
+                <Markdown>{prompt}</Markdown>
                 <TextField
                   name="userArtifact"
                   multiline
