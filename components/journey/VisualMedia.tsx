@@ -2,11 +2,10 @@
 
 import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import Link from "@mui/material/Link";
+import { SkipButton } from "@/components/ui";
 import type { ResolvedVisual } from "@/lib/services/visualMedia";
 
 /**
@@ -35,18 +34,24 @@ type Props = {
   onNotHelpful?: (visualId: string) => void | Promise<void>;
 };
 
+// The caption is the quiet middot-meta voice (.kc-meta): Hanken, muted ink. It
+// carries the real, checkable attribution / source label -- never fabricated.
 function Caption({ children }: { children: React.ReactNode }) {
   return (
     <Typography
-      variant="caption"
+      className="kc-meta"
       component="figcaption"
-      sx={{ color: "text.secondary", display: "block" }}
+      sx={{ display: "block", lineHeight: 1.5 }}
     >
       {children}
     </Typography>
   );
 }
 
+// The "not helpful" control is a skip-tier affordance: text-only at rest, a
+// loose freehand teal loop draws around it on hover. Same machinery as the rest
+// of the lightest workbench tier -- a low-stakes opt-out, not a commitment. The
+// wiring to the learner profile (onNotHelpful) is unchanged: presentation only.
 function NotHelpful({
   visualId,
   onNotHelpful,
@@ -59,28 +64,25 @@ function NotHelpful({
   if (!onNotHelpful) return null;
   if (done) {
     return (
-      <Typography variant="caption" sx={{ color: "text.secondary" }} aria-live="polite">
-        Thanks — we will use that.
+      <Typography className="kc-meta" aria-live="polite">
+        Thanks &mdash; we will use that.
       </Typography>
     );
   }
   return (
-    <Button
+    <SkipButton
       type="button"
-      size="small"
-      variant="text"
       disabled={pending}
+      aria-label="Mark this visual as not helpful"
       onClick={() =>
         startTransition(async () => {
           await onNotHelpful(visualId);
           setDone(true);
         })
       }
-      aria-label="Mark this visual as not helpful"
-      sx={{ color: "text.secondary", textTransform: "none", minWidth: 0, px: 0.5 }}
     >
       Not helpful
-    </Button>
+    </SkipButton>
   );
 }
 
@@ -90,10 +92,15 @@ export default function VisualMedia({ visual, onNotHelpful }: Props) {
   if (visual.medium === "none") return null;
 
   return (
-    <Paper
+    <Box
       component="figure"
-      variant="outlined"
-      sx={{ m: 0, p: 2, borderRadius: 2, bgcolor: "background.paper" }}
+      sx={{
+        m: 0,
+        p: 2,
+        borderRadius: "var(--r-md)",
+        border: "1px solid var(--line)",
+        bgcolor: "var(--surface)",
+      }}
     >
       <Stack spacing={1}>
         {visual.medium === "svg" && (
@@ -118,15 +125,28 @@ export default function VisualMedia({ visual, onNotHelpful }: Props) {
               src={visual.url}
               alt={visual.caption}
               loading="lazy"
-              sx={{ maxWidth: "100%", height: "auto", borderRadius: 1, display: "block" }}
+              sx={{
+                maxWidth: "100%",
+                height: "auto",
+                borderRadius: "var(--r-sm, 10px)",
+                display: "block",
+                border: "1px solid var(--line)",
+              }}
             />
+            {/* Real, checkable attribution -- assembled ONLY from the resolved
+                attribution fields, never fabricated. Links go teal. */}
             <Caption>
               {visual.caption}
               {" — "}
               {visual.attribution.title ? `"${visual.attribution.title}" ` : ""}
               {visual.attribution.creator ? `by ${visual.attribution.creator}, ` : ""}
               {visual.attribution.licenseUrl ? (
-                <Link href={visual.attribution.licenseUrl} target="_blank" rel="noopener noreferrer">
+                <Link
+                  href={visual.attribution.licenseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ color: "var(--teal)", textDecorationColor: "var(--teal-soft)" }}
+                >
                   {visual.attribution.licenseName}
                 </Link>
               ) : (
@@ -135,7 +155,12 @@ export default function VisualMedia({ visual, onNotHelpful }: Props) {
               {visual.attribution.sourcePage ? (
                 <>
                   {" via "}
-                  <Link href={visual.attribution.sourcePage} target="_blank" rel="noopener noreferrer">
+                  <Link
+                    href={visual.attribution.sourcePage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ color: "var(--teal)", textDecorationColor: "var(--teal-soft)" }}
+                  >
                     {visual.attribution.source}
                   </Link>
                 </>
@@ -148,14 +173,24 @@ export default function VisualMedia({ visual, onNotHelpful }: Props) {
 
         {visual.medium === "video" && (
           <>
+            {/* The video is sourced, not evaluated -- a quiet upfront label says
+                so before the frame, so it never reads as endorsed content. */}
+            <Typography
+              className="kc-label"
+              component="span"
+              sx={{ display: "block" }}
+            >
+              reference &middot; unevaluated suggestion
+            </Typography>
             <Box
               sx={{
                 position: "relative",
                 width: "100%",
                 pt: "56.25%", // 16:9
-                borderRadius: 1,
+                borderRadius: "var(--r-sm, 10px)",
                 overflow: "hidden",
-                bgcolor: "grey.100",
+                bgcolor: "var(--surface-2)",
+                border: "1px solid var(--line)",
               }}
             >
               <Box
@@ -174,8 +209,7 @@ export default function VisualMedia({ visual, onNotHelpful }: Props) {
               />
             </Box>
             <Caption>
-              {visual.caption} — reference video from {visual.provider} (an
-              unevaluated suggestion).
+              {visual.caption} &mdash; reference video from {visual.provider}.
             </Caption>
           </>
         )}
@@ -186,6 +220,6 @@ export default function VisualMedia({ visual, onNotHelpful }: Props) {
           <NotHelpful visualId={visual.id} onNotHelpful={onNotHelpful} />
         </Box>
       </Stack>
-    </Paper>
+    </Box>
   );
 }

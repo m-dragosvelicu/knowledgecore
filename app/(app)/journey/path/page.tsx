@@ -13,6 +13,7 @@ import type {
   CanDoStatement,
   Competency,
   PathAdjustment,
+  RubricScores,
 } from "@/lib/services/types";
 import CompetencyBars from "@/app/(app)/journey/_components/CompetencyBars";
 import PathTrail, { type TrailNode } from "@/components/journey/PathTrail";
@@ -37,28 +38,29 @@ export default async function PathPage() {
   const canDoStatements =
     (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [];
 
+  // Pull the latest checkpoint evaluation per goalpost too, so a cleared
+  // goalpost can carry a roughened score ellipse on the hand-drawn trail.
+  const pathInclude = {
+    goalposts: {
+      orderBy: { order: "asc" },
+      include: {
+        steps: { orderBy: { order: "asc" } },
+        evaluations: { orderBy: { attempt: "desc" }, take: 1 },
+      },
+    },
+    revisions: { orderBy: { createdAt: "asc" } },
+  } as const;
+
   let path = await prisma.learningPath.findUnique({
     where: { intentId: intent.id },
-    include: {
-      goalposts: {
-        orderBy: { order: "asc" },
-        include: { steps: { orderBy: { order: "asc" } } },
-      },
-      revisions: { orderBy: { createdAt: "asc" } },
-    },
+    include: pathInclude,
   });
 
   if (!path) {
     await generatePathAction();
     path = await prisma.learningPath.findUnique({
       where: { intentId: intent.id },
-      include: {
-        goalposts: {
-          orderBy: { order: "asc" },
-          include: { steps: { orderBy: { order: "asc" } } },
-        },
-        revisions: { orderBy: { createdAt: "asc" } },
-      },
+      include: pathInclude,
     });
   }
 
@@ -106,6 +108,25 @@ export default async function PathPage() {
       state = "locked";
     }
     const stepTypes = Array.from(new Set(gp.steps.map((s) => s.type)));
+
+    // A cleared goalpost's score: the mean of its six rubric dimensions (0..4)
+    // from the latest checkpoint evaluation. Absent when the goalpost was
+    // skipped or never evaluated -- the trail then shows just the cleared node.
+    let score: number | undefined;
+    if (state === "completed" && gp.evaluations.length > 0) {
+      const s = gp.evaluations[0].scores as unknown as RubricScores;
+      const dims: number[] = [
+        s.recall,
+        s.application,
+        s.conceptual,
+        s.transfer,
+        s.communication,
+        s.coverage,
+      ];
+      const mean = dims.reduce((a, b) => a + b, 0) / dims.length;
+      score = Math.round(mean * 10) / 10;
+    }
+
     return {
       id: gp.id,
       order: gp.order,
@@ -115,6 +136,7 @@ export default async function PathPage() {
       state,
       added: addedTitles.has(gp.title),
       stepTypes: stepTypes as TrailNode["stepTypes"],
+      score,
     };
   });
 

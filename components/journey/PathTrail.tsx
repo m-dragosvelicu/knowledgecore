@@ -6,11 +6,27 @@ import Stack from "@mui/material/Stack";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import {
+  CheckpointNode,
+  TrailConnector,
+  TrailScore,
+} from "@/components/marks/Marks";
 
 // B.6 Q3 (resolved 2026-05-30): a VERTICAL, Duolingo-style skill trail -- a
 // winding column of nodes with one obvious next step, a sticky "you are here"
 // marker, completed nodes tappable for review, and future nodes locked. We
 // adopt only the navigational affordance: NO streaks, XP, lives, or points.
+//
+// Slice 5 (design system): the trail is now drawn in the product's literal
+// hand-drawn language -- the connector legs are wobbly self-drawing teal strokes
+// for the walked path and quiet dotted legs for what is ahead; checkpoint nodes
+// are hatched circles (completed), a filled node with a planted flag (current),
+// or a bone circle (locked); completed goalposts carry a roughened score
+// ellipse. Marks live in components/marks/Marks.tsx and reference the shared
+// #rough / #hatchT defs; the draw-on resolves to its finished stroke under
+// prefers-reduced-motion (handled by .kc-draw in globals.css). This is
+// presentation only: states, ordering, scores, and every link/lock/aria
+// behavior are driven by the SAME real journey data as before.
 
 export type TrailStepKind =
   | "information"
@@ -30,6 +46,11 @@ export type TrailNode = {
   added: boolean;
   // Step-type chips (information + experience) for the goalpost.
   stepTypes: TrailStepKind[];
+  // The cleared goalpost's score out of 4 (mean of the rubric dimensions),
+  // derived on the server from the latest checkpoint evaluation. Present only
+  // for completed goalposts that were actually evaluated; absent ones render
+  // the hatched node + check without a score ellipse.
+  score?: number;
 };
 
 const STEP_TYPE_LABEL: Record<TrailStepKind, string> = {
@@ -39,82 +60,21 @@ const STEP_TYPE_LABEL: Record<TrailStepKind, string> = {
   experience_mini_project: "Mini-project",
 };
 
-// The trail winds left/right so it reads as a path, not a list. Even-indexed
-// nodes hug the left; odd-indexed nodes shift right.
-const SHIFT = 56; // px horizontal offset for the winding effect
-
-function nodeColor(state: TrailNode["state"]) {
-  if (state === "completed") return "success.main";
-  if (state === "current") return "primary.main";
-  return "text.disabled";
-}
-
-function Marker({ node }: { node: TrailNode }) {
-  const color = nodeColor(node.state);
-  return (
-    <Box
-      aria-hidden
-      sx={{
-        position: "relative",
-        flex: "0 0 auto",
-        width: 44,
-        height: 44,
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        bgcolor: node.state === "locked" ? "action.hover" : color,
-        color: node.state === "locked" ? "text.disabled" : "common.white",
-        border: 3,
-        borderColor: node.state === "current" ? "primary.light" : "transparent",
-        boxShadow: node.state === "current" ? 4 : 0,
-      }}
-    >
-      {node.state === "completed" ? (
-        <Box
-          component="svg"
-          viewBox="0 0 24 24"
-          width={22}
-          height={22}
-          sx={{ fill: "none", stroke: "currentColor", strokeWidth: 3 }}
-        >
-          <polyline points="20 6 9 17 4 12" />
-        </Box>
-      ) : node.state === "locked" ? (
-        <Box
-          component="svg"
-          viewBox="0 0 24 24"
-          width={20}
-          height={20}
-          sx={{ fill: "none", stroke: "currentColor", strokeWidth: 2 }}
-        >
-          <rect x="5" y="11" width="14" height="9" rx="2" />
-          <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-        </Box>
-      ) : (
-        <Typography sx={{ fontWeight: 700, fontSize: "1.05rem" }}>
-          {node.order}
-        </Typography>
-      )}
-    </Box>
-  );
-}
-
 function NodeCard({ node }: { node: TrailNode }) {
   const isCurrent = node.state === "current";
   const isLocked = node.state === "locked";
 
-  const card = (
+  return (
     <Box
       sx={{
         flex: 1,
         minWidth: 0,
-        borderRadius: 2,
-        border: 1,
-        borderColor: isCurrent ? "primary.main" : "divider",
+        borderRadius: "var(--r-md)",
+        border: "1px solid var(--line)",
+        borderColor: isCurrent ? "var(--teal)" : "var(--line)",
         borderWidth: isCurrent ? 2 : 1,
-        bgcolor: isLocked ? "action.hover" : "background.paper",
-        opacity: isLocked ? 0.7 : 1,
+        bgcolor: isLocked ? "var(--surface-2)" : "var(--surface)",
+        opacity: isLocked ? 0.78 : 1,
         p: 2,
         transition: "box-shadow 120ms ease, transform 120ms ease",
         ...(!isLocked && {
@@ -131,11 +91,16 @@ function NodeCard({ node }: { node: TrailNode }) {
         >
           <Typography
             variant="subtitle1"
-            sx={{ fontWeight: 600, color: isLocked ? "text.secondary" : "text.primary" }}
+            sx={{
+              fontFamily: "var(--font-display)",
+              fontVariationSettings: "var(--soft-ui)",
+              fontWeight: 500,
+              color: isLocked ? "var(--ink-2)" : "var(--ink)",
+            }}
           >
             {node.title}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+          <Typography variant="caption" className="kc-meta" sx={{ flexShrink: 0 }}>
             ~{node.estimatedMinutes} min
           </Typography>
         </Stack>
@@ -145,13 +110,13 @@ function NodeCard({ node }: { node: TrailNode }) {
             <Chip label="You are here" color="primary" size="small" />
           )}
           {node.state === "completed" && (
-            <Chip label="Completed" color="success" size="small" variant="outlined" />
+            <Chip label="Cleared" size="small" variant="outlined" />
           )}
           {isLocked && (
             <Chip label="Locked" size="small" variant="outlined" />
           )}
           {node.added && (
-            <Chip label="Added for you" color="info" size="small" />
+            <Chip label="Added for you" size="small" />
           )}
         </Stack>
 
@@ -182,9 +147,13 @@ function NodeCard({ node }: { node: TrailNode }) {
       </Stack>
     </Box>
   );
+}
 
-  // Completed goalposts are tappable for read-only review; the current goalpost
-  // links into the live execution loop; locked goalposts are inert (tooltip).
+// The card, wrapped in its interaction affordance. Completed goalposts are
+// tappable for read-only review; the current goalpost links into the live
+// execution loop; locked goalposts are inert (tooltip). Unchanged from before
+// the restyle -- only the surrounding marks moved to the hand-drawn language.
+function NodeCardLink({ node }: { node: TrailNode }) {
   if (node.state === "completed") {
     return (
       <Box
@@ -193,7 +162,7 @@ function NodeCard({ node }: { node: TrailNode }) {
         sx={{ display: "flex", flex: 1, minWidth: 0, textDecoration: "none" }}
         aria-label={`Review goalpost ${node.order}: ${node.title}`}
       >
-        {card}
+        <NodeCard node={node} />
       </Box>
     );
   }
@@ -205,7 +174,7 @@ function NodeCard({ node }: { node: TrailNode }) {
         sx={{ display: "flex", flex: 1, minWidth: 0, textDecoration: "none" }}
         aria-label={`Continue goalpost ${node.order}: ${node.title}`}
       >
-        {card}
+        <NodeCard node={node} />
       </Box>
     );
   }
@@ -216,7 +185,7 @@ function NodeCard({ node }: { node: TrailNode }) {
       arrow
     >
       <Box sx={{ display: "flex", flex: 1, minWidth: 0, cursor: "not-allowed" }}>
-        {card}
+        <NodeCard node={node} />
       </Box>
     </Tooltip>
   );
@@ -226,8 +195,11 @@ export default function PathTrail({ nodes }: { nodes: TrailNode[] }) {
   return (
     <Box role="list" aria-label="Your learning path">
       {nodes.map((node, i) => {
-        const shift = i % 2 === 0 ? 0 : SHIFT;
         const isLast = i === nodes.length - 1;
+        // A connector leg below this node is part of the walked path (teal,
+        // self-drawing) when this node is already cleared OR is the current
+        // "you are here" goalpost; everything beyond stays a quiet dotted leg.
+        const legDrawn = node.state === "completed" || node.state === "current";
         return (
           <Box
             key={node.id}
@@ -237,12 +209,11 @@ export default function PathTrail({ nodes }: { nodes: TrailNode[] }) {
               display: "flex",
               alignItems: "flex-start",
               gap: 2,
-              ml: { xs: 0, sm: `${shift}px` },
-              transition: "margin-left 200ms ease",
               pb: isLast ? 0 : 3,
             }}
           >
-            {/* Connector line + marker column */}
+            {/* Hand-drawn marker column: the checkpoint node + the wobbly leg
+                down to the next node. */}
             <Box
               sx={{
                 position: "relative",
@@ -250,25 +221,29 @@ export default function PathTrail({ nodes }: { nodes: TrailNode[] }) {
                 flexDirection: "column",
                 alignItems: "center",
                 flex: "0 0 auto",
+                alignSelf: "stretch",
+                // Lift the column so the node circle (drawn low in its box to
+                // leave flag headroom) lines up with the card's title row.
+                mt: "-8px",
               }}
             >
-              <Marker node={node} />
+              <CheckpointNode state={node.state} />
               {!isLast && (
-                <Box
-                  aria-hidden
-                  sx={{
-                    width: 4,
-                    flex: 1,
-                    minHeight: 36,
-                    mt: 0.5,
-                    borderRadius: 2,
-                    bgcolor:
-                      node.state === "completed" ? "success.light" : "divider",
-                  }}
+                <TrailConnector
+                  drawn={legDrawn}
+                  delay={`${0.15 + i * 0.12}s`}
                 />
               )}
             </Box>
-            <NodeCard node={node} />
+
+            <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
+              <NodeCardLink node={node} />
+              {node.state === "completed" && node.score != null && (
+                <Box sx={{ flex: "none", mt: 0.5 }} aria-hidden>
+                  <TrailScore value={node.score} />
+                </Box>
+              )}
+            </Stack>
           </Box>
         );
       })}
