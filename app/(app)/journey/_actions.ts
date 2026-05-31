@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth";
 import { prisma, getOrCreateActiveIntent, getCurrentGoalpost } from "@/lib/journey/state";
-import { getServices } from "@/lib/services";
+import { getServices, getPathConfirmationInterviewer } from "@/lib/services";
 import type {
   CanDoStatement,
   Competency,
@@ -15,8 +15,13 @@ import type {
 } from "@/lib/services/types";
 import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision } from "@prisma/client";
 import { deriveDecision } from "@/lib/journey/decision";
-import { applyPathAdjustment, TERMINAL_GOALPOST_STATUSES } from "@/lib/journey/pathRevision";
+import {
+  applyPathAdjustment,
+  applyPreAcceptancePathAdjustment,
+  TERMINAL_GOALPOST_STATUSES,
+} from "@/lib/journey/pathRevision";
 import type { RubricScores } from "@/lib/services/types";
+import type { PathConfirmationStep } from "@/lib/services";
 import { applyCheckpointEvidence, recordRetry } from "@/lib/journey/profileStore";
 import { ensureLessonContent } from "@/lib/journey/lessonGeneration";
 
@@ -423,6 +428,159 @@ export async function acceptPathAction(): Promise<void> {
     });
   }
   redirect("/journey/goalpost");
+}
+
+// ---------------------------------------------------------------------------
+// L1 Slice 2 — Path Confirmation gate + clarifying dialogue
+//
+// After the structure-only path overview (Call A) and BEFORE goalpost 1, the
+// learner always has a lightweight choice: "Looks good, start" (-> acceptPathAction
+// above, which proceeds into goalpost 1 and triggers lazy Call B) or "Not quite
+// right", which opens an OPT-IN clarifying dialogue.
+//
+// The dialogue REUSES the shared turn-taking primitive (the same InterviewTurn /
+// step shape the Goal Interview uses): the client holds the running transcript
+// and re-sends it each turn; `advancePathConfirmationAction` is stateless and
+// returns the next step. On completion the synthesized concern is fed to the
+// EXISTING Path Adjuster (`adjust_plan`) to revise the overview, which is then
+// re-presented for confirmation. A soft cap on correction ROUNDS is enforced in
+// the client (then it surfaces "you can adjust as you go").
+// ---------------------------------------------------------------------------
+
+const confirmationTranscriptSchema = z.array(interviewTurnSchema);
+
+/**
+ * Advance the clarifying dialogue by one turn. Stateless: the client passes the
+ * whole transcript and we re-derive the next step. Returns the next
+ * PathConfirmationStep (a question, or completion with the concern summary).
+ */
+export async function advancePathConfirmationAction(
+  transcript: InterviewTurn[],
+): Promise<PathConfirmationStep> {
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
+  const parsedTranscript = confirmationTranscriptSchema.parse(transcript);
+
+  const [subject, outcome, path] = await Promise.all([
+    prisma.subject.findUnique({ where: { intentId } }),
+    prisma.expectedOutcome.findUnique({ where: { intentId } }),
+    prisma.learningPath.findUnique({
+      where: { intentId },
+      include: {
+        goalposts: {
+          where: { status: { notIn: TERMINAL_GOALPOST_STATUSES } },
+          orderBy: { order: "asc" },
+        },
+      },
+    }),
+  ]);
+  if (!subject) redirect("/journey/intent");
+  if (!path) redirect("/journey/path");
+
+  const interviewer = getPathConfirmationInterviewer();
+  return interviewer.clarify({
+    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+    outcome: (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [],
+    overview: path!.goalposts.map((g) => ({
+      order: g.order,
+      title: g.title,
+      objective: g.objective,
+      estimatedMinutes: g.estimatedMinutes,
+    })),
+    transcript: parsedTranscript,
+  });
+}
+
+const revisePathSchema = z.object({
+  concern: z.string().min(1, "We need to know what is off to revise the plan."),
+});
+
+// Neutral rubric scores: the pre-acceptance revision is NOT triggered by a failed
+// checkpoint, so there is no real evidence. The Path Adjuster reads scores as
+// context only; the load-bearing signal is the concern (passed as the rationale).
+const NEUTRAL_SCORES: RubricScores = {
+  recall: 2,
+  application: 2,
+  conceptual: 2,
+  transfer: 2,
+  communication: 2,
+  coverage: 2,
+};
+
+/**
+ * Revise the draft path from the clarifying dialogue's concern. REUSES the
+ * existing Path Adjuster (`adjust_plan`) to produce a minimal-edit PathAdjustment,
+ * then applies it with the pre-acceptance applier (no goalpost is completed; the
+ * whole draft is revised and renumbered). The learner is bounced back to the path
+ * page to re-confirm the revised overview.
+ */
+export async function revisePathFromConfirmationAction(
+  concern: string,
+): Promise<void> {
+  const userId = await requireUserId();
+  const intentId = await requireActiveIntentId(userId);
+  const parsed = revisePathSchema.parse({ concern });
+
+  const [subject, goal, outcome, assessment, path] = await Promise.all([
+    prisma.subject.findUnique({ where: { intentId } }),
+    prisma.learningGoal.findUnique({ where: { intentId } }),
+    prisma.expectedOutcome.findUnique({ where: { intentId } }),
+    prisma.knowledgeAssessment.findUnique({ where: { intentId } }),
+    prisma.learningPath.findUnique({
+      where: { intentId },
+      include: {
+        goalposts: {
+          where: { status: { notIn: TERMINAL_GOALPOST_STATUSES } },
+          orderBy: { order: "asc" },
+        },
+      },
+    }),
+  ]);
+
+  // Guard: a path that is already accepted / in progress is past this gate.
+  if (!subject || !goal || !outcome || !assessment || !path || path.acceptedAt) {
+    redirect("/journey/path");
+  }
+
+  const goalposts = path!.goalposts;
+  if (goalposts.length === 0) redirect("/journey/path");
+  const anchor = goalposts[0];
+  // The remaining overview the adjuster may keep/modify/remove is everything
+  // AFTER the anchor goalpost (the anchor itself plays the "current" slot the
+  // adjuster expects); the adjuster inserts new goalposts at anchor.order + 1.
+  const remaining = goalposts.slice(1);
+
+  const services = getServices();
+  const adjustment = await services.pathAdjuster.adjust({
+    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+    motivation: goal!.motivation,
+    outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
+    assessment: assessment!.competencies as unknown as Competency[],
+    currentGoalpost: {
+      order: anchor.order,
+      title: anchor.title,
+      objective: anchor.objective,
+    },
+    triggerScores: NEUTRAL_SCORES,
+    // The learner's clarifying concern IS the rationale that drives the edit.
+    triggerRationale: `Before starting, the learner said the proposed path is not quite right. ${parsed.concern}`,
+    remainingGoalposts: remaining.map((g) => ({
+      order: g.order,
+      title: g.title,
+      objective: g.objective,
+      estimatedMinutes: g.estimatedMinutes,
+    })),
+  });
+
+  await prisma.$transaction((tx) =>
+    applyPreAcceptancePathAdjustment(tx, {
+      pathId: path!.id,
+      adjustment,
+    }),
+  );
+
+  // Re-present the revised overview for another confirmation pass.
+  redirect("/journey/path");
 }
 
 // ---------------------------------------------------------------------------

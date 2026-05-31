@@ -1,20 +1,21 @@
 import { redirect } from "next/navigation";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Divider from "@mui/material/Divider";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
-import SubmitButton from "@/components/journey/SubmitButton";
+import Box from "@mui/material/Box";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
-import {
-  acceptPathAction,
-  generatePathAction,
-} from "@/app/(app)/journey/_actions";
-import type { Competency, PathAdjustment } from "@/lib/services/types";
+import { generatePathAction } from "@/app/(app)/journey/_actions";
+import type {
+  CanDoStatement,
+  Competency,
+  PathAdjustment,
+} from "@/lib/services/types";
 import CompetencyBars from "@/app/(app)/journey/_components/CompetencyBars";
 import PathTrail, { type TrailNode } from "@/components/journey/PathTrail";
+import PathConfirmationGate from "@/components/journey/PathConfirmationGate";
 import { GoalpostStatus } from "@prisma/client";
 
 export default async function PathPage() {
@@ -27,7 +28,13 @@ export default async function PathPage() {
   const assessment = await prisma.knowledgeAssessment.findUnique({
     where: { intentId: intent.id },
   });
+  const outcome = await prisma.expectedOutcome.findUnique({
+    where: { intentId: intent.id },
+  });
   if (!subject || !assessment) redirect("/journey/probe");
+
+  const canDoStatements =
+    (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [];
 
   let path = await prisma.learningPath.findUnique({
     where: { intentId: intent.id },
@@ -129,7 +136,51 @@ export default async function PathPage() {
 
       {!accepted && (
         <>
-          <Divider />
+          {/* The end "you'll be able to..." achievement -- part of the
+              structure-only overview (Call A) the learner confirms before
+              committing to the path. */}
+          {canDoStatements.length > 0 && (
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2">
+                By the end, you&rsquo;ll be able to:
+              </Typography>
+              <Stack
+                spacing={1.25}
+                component="ul"
+                sx={{ pl: 0, listStyle: "none", m: 0 }}
+              >
+                {canDoStatements.map((cd, i) => (
+                  <Stack
+                    key={i}
+                    component="li"
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="flex-start"
+                  >
+                    <Box
+                      aria-hidden
+                      component="svg"
+                      viewBox="0 0 24 24"
+                      width={18}
+                      height={18}
+                      sx={{
+                        mt: 0.4,
+                        flexShrink: 0,
+                        fill: "none",
+                        stroke: "currentColor",
+                        strokeWidth: 2.5,
+                        color: "success.main",
+                      }}
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </Box>
+                    <Typography variant="body1">{cd.text}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Stack>
+          )}
+
           <Stack spacing={2}>
             <Typography variant="h5" component="h2">
               Where you are starting from
@@ -137,15 +188,11 @@ export default async function PathPage() {
             <CompetencyBars items={competencies} />
           </Stack>
 
-          <form action={acceptPathAction}>
-            <SubmitButton
-              variant="contained"
-              size="large"
-              pendingLabel="Setting up your first goalpost…"
-            >
-              Accept this path
-            </SubmitButton>
-          </form>
+          {/* L1 Slice 2: the always-present Path Confirmation gate + opt-in
+              clarifying dialogue. "Looks good, start" -> acceptPathAction ->
+              goalpost 1 (lazy Call B). "Not quite right" -> reused dialogue
+              engine -> existing Path Adjuster -> re-present here. */}
+          <PathConfirmationGate revisionCount={path.revisionCount} />
 
           <Accordion variant="outlined">
             <AccordionSummary>

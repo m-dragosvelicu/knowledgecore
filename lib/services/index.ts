@@ -16,9 +16,18 @@ import { LivePathAdjuster } from "@/lib/services/live/livePathAdjuster";
 import type { LessonContentGenerator } from "@/lib/services/lessonContent";
 import { LiveLessonContentGenerator } from "@/lib/services/live/liveLessonContentGenerator";
 import { MockLessonContentGenerator } from "@/lib/services/mock/mockLessonContentGenerator";
+import type { PathConfirmationInterviewer } from "@/lib/services/pathConfirmation";
+import { LivePathConfirmationInterviewer } from "@/lib/services/live/livePathConfirmationInterviewer";
+import { MockPathConfirmationInterviewer } from "@/lib/services/mock/mockPathConfirmationInterviewer";
 
 export * from "@/lib/services/types";
 export type { LessonContentGenerator } from "@/lib/services/lessonContent";
+export type {
+  PathConfirmationInterviewer,
+  PathConfirmationInput,
+  PathConfirmationStep,
+  OverviewGoalpost,
+} from "@/lib/services/pathConfirmation";
 
 /**
  * Service registry.
@@ -288,4 +297,52 @@ export function getLessonContentGenerator(): LessonContentGenerator {
     );
   }
   return new MockLessonContentGenerator();
+}
+
+// ---------------------------------------------------------------------------
+// L1 Slice 2 — the Path Confirmation clarifying-dialogue interviewer.
+//
+// Same SHARED dialogue engine as the Goal Interview, instantiated in the new
+// Path Confirmation context. Kept as a SEPARATE selector (the LOCKED `Services`
+// type must not change), following the same default-to-live on
+// `GOOGLE_GENAI_API_KEY` + per-service opt-out (`LIVE_PATH_CONFIRMATION=false`)
+// + graceful mock fallback pattern as `getLessonContentGenerator()`.
+// ---------------------------------------------------------------------------
+
+const LIVE_PATH_CONFIRMATION_FLAG = "LIVE_PATH_CONFIRMATION";
+
+function wantsLivePathConfirmation(): boolean {
+  if (!process.env.GOOGLE_GENAI_API_KEY) return false;
+  return process.env[LIVE_PATH_CONFIRMATION_FLAG] !== "false";
+}
+
+export function getPathConfirmationInterviewer(): PathConfirmationInterviewer {
+  if (wantsLivePathConfirmation()) {
+    try {
+      return new LivePathConfirmationInterviewer(getSharedClient());
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "service_registry.fallback_to_mock",
+          service: "pathConfirmationInterviewer",
+          reason: "build_failed",
+          envFlag: LIVE_PATH_CONFIRMATION_FLAG,
+          hint: "Live path-confirmation interviewer failed to construct; fell back to mock.",
+        }),
+      );
+    }
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        event: "service_registry.fallback_to_mock",
+        service: "pathConfirmationInterviewer",
+        reason: "no_api_key",
+        envFlag: LIVE_PATH_CONFIRMATION_FLAG,
+        hint: "Set GOOGLE_GENAI_API_KEY to enable the live path-confirmation dialogue.",
+      }),
+    );
+  }
+  return new MockPathConfirmationInterviewer();
 }
