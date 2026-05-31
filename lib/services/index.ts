@@ -6,6 +6,7 @@ import { MockGoalInterviewer } from "@/lib/services/mock/mockGoalInterviewer";
 import { MockKnowledgeProbe } from "@/lib/services/mock/mockKnowledgeProbe";
 import { MockPathOutliner } from "@/lib/services/mock/mockPathOutliner";
 import { MockCheckpointEvaluator } from "@/lib/services/mock/mockCheckpointEvaluator";
+import { MockPathAdjuster } from "@/lib/services/mock/mockPathAdjuster";
 import { LiveIntentParser } from "@/lib/services/live/liveIntentParser";
 import { LiveGoalInterviewer } from "@/lib/services/live/liveGoalInterviewer";
 import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
@@ -206,12 +207,16 @@ export function getServices(): Services {
     pathOutliner.mode === "live" &&
     checkpointEvaluator.mode === "live";
 
+  // pathAdjuster: wired to mock here as a placeholder so the Services type is
+  // satisfied. WAVE 2 (T6) replaces this with the live/mock builder pattern and
+  // folds it into the allLive computation once LivePathAdjuster exists.
   return {
     intentParser: intentParser.impl,
     goalInterviewer: goalInterviewer.impl,
     knowledgeProbe: knowledgeProbe.impl,
     pathOutliner: pathOutliner.impl,
     checkpointEvaluator: checkpointEvaluator.impl,
+    pathAdjuster: new MockPathAdjuster(),
     mode: allLive ? "live" : "mock",
   };
 }

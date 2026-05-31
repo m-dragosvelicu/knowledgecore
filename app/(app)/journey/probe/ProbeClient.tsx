@@ -54,8 +54,10 @@ export default function ProbeClient({ questions }: Props) {
       questionId: q.id,
       response: answers[q.id] ?? "",
     }));
+    // Send the exact questions the learner saw so scoring is stateless and never
+    // regenerates mismatched questions (the root cause of the all-0/4 bug).
     startTransition(async () => {
-      await submitProbeAction(payload);
+      await submitProbeAction(questions, payload);
     });
   }
 

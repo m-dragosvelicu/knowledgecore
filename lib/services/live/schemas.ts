@@ -65,8 +65,19 @@ export const competencySchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
+// Per-question judgement emitted by the scorer, keyed back to the probe
+// question by id. Assembled in code into ProbeTranscriptEntry rows (the
+// question prompt + learner answer come from the passed-in questions/answers,
+// the model only supplies the one-sentence judgement of what the answer
+// revealed). Powers KnowledgeAssessment.probeTranscript / the §7 loop.
+export const probeJudgementSchema = z.object({
+  questionId: z.string().min(1),
+  judgement: z.string().min(1),
+});
+
 export const competenciesResultSchema = z.object({
   competencies: z.array(competencySchema).min(1),
+  judgements: z.array(probeJudgementSchema),
 });
 
 // Step types Gemini may emit. The schema/database also allow

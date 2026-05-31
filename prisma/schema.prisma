@@ -178,7 +178,13 @@ model LearningGoal {
   intent      LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
   motivation  Motivation
   elaboration String
+  /// Raw user input for the time horizon (e.g. "a couple of weeks").
   timeHorizon String?
+  /// L0 §4 — numeric horizon parsed from `timeHorizon`; feeds §9 path-budget constraint.
+  /// Distinct from `timeHorizon` which stays the unparsed user phrasing.
+  timeHorizonDays Int?
+  /// L0 §4 — user-provided constraints (e.g. deadlines, prerequisites to skip).
+  externalConstraints String?
 }
 
 /// `canDoStatements` is a JSON array of `{ text: string; bloomLevel: string }`
@@ -187,6 +193,8 @@ model ExpectedOutcome {
   intentId        String         @unique
   intent          LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
   canDoStatements Json
+  /// L0 §4 — LLM-generated summary of what success looks like for this outcome.
+  successCriterion String?
 }
 
 /// `competencies` is a JSON array of `{ competency: string; estimatedLevel: 0..4; confidence: 0..1 }`
@@ -195,6 +203,11 @@ model KnowledgeAssessment {
   intentId     String         @unique
   intent       LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
   competencies Json
+  /// L0 §4 — audit trail for probe scoring: array of
+  /// `{ question: string; answer: string; judgement: string }`.
+  probeTranscript Json?
+  /// L0 §4 — `string[]` appended when §7 checkpoints reveal the initial estimate was off.
+  recalibrationFlags Json?
 }
 
 model LearningPath {
@@ -238,6 +251,9 @@ model Step {
   payload      Json
   userArtifact String?
   completedAt  DateTime?
+  /// L0 §4 — JsonSchema for the experience artifact. Optional/forward-looking: L0 ships a
+  /// plain textarea baseline (B.6 Q2), so structured artifact capture comes later.
+  expectedArtifactSchema Json?
 
   @@unique([goalpostId, order])
 }

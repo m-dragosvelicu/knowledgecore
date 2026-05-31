@@ -63,8 +63,8 @@ async function main() {
           ? "I know basic high school algebra and can solve linear equations."
           : "I have a vague idea but have never used it in code.",
   }));
-  const competencies = await probe.score(answers);
-  console.log(JSON.stringify(competencies, null, 2));
+  const { competencies, transcript } = await probe.score(questions, answers);
+  console.log(JSON.stringify({ competencies, transcript }, null, 2));
 
   // 4. Path ------------------------------------------------------------
   hr("4. PathOutliner.outline");

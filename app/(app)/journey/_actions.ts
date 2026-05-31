@@ -9,6 +9,7 @@ import type {
   CanDoStatement,
   Competency,
   ProbeAnswer,
+  ProbeQuestion,
 } from "@/lib/services/types";
 import { Motivation, StepType, GoalpostStatus, JourneyStatus } from "@prisma/client";
 
@@ -154,7 +155,16 @@ export async function submitOutcomeAction(formData: FormData): Promise<void> {
 // Stage 5 — submit probe answers
 // ---------------------------------------------------------------------------
 
-const probeAnswersSchema = z.object({
+const probeQuestionSchema = z.object({
+  id: z.string(),
+  prompt: z.string(),
+  kind: z.enum(["open", "multiple_choice"]),
+  options: z.array(z.string()).optional(),
+  competencyTag: z.string(),
+});
+
+const probeSubmissionSchema = z.object({
+  questions: z.array(probeQuestionSchema),
   answers: z.array(
     z.object({
       questionId: z.string(),
@@ -163,29 +173,33 @@ const probeAnswersSchema = z.object({
   ),
 });
 
-export async function submitProbeAction(answers: ProbeAnswer[]): Promise<void> {
+export async function submitProbeAction(
+  questions: ProbeQuestion[],
+  answers: ProbeAnswer[],
+): Promise<void> {
   const userId = await requireUserId();
   const intentId = await requireActiveIntentId(userId);
-  const parsed = probeAnswersSchema.parse({ answers });
+  const parsed = probeSubmissionSchema.parse({ questions, answers });
 
   const services = getServices();
-  // Re-derive questions so the scorer can match the subject (mock relies on this).
-  const subject = await prisma.subject.findUnique({ where: { intentId } });
-  const outcome = await prisma.expectedOutcome.findUnique({ where: { intentId } });
-  if (subject && outcome) {
-    const canDo = outcome.canDoStatements as unknown as CanDoStatement[];
-    await services.knowledgeProbe.questions(
-      { canonicalName: subject.canonicalName, scopeNote: subject.scopeNote },
-      canDo,
-    );
-  }
-
-  const competencies = await services.knowledgeProbe.score(parsed.answers);
+  // Stateless scoring: pass the exact questions the learner answered. No
+  // regeneration (which previously produced mismatched questions and 0/4 scores).
+  const { competencies, transcript } = await services.knowledgeProbe.score(
+    parsed.questions,
+    parsed.answers,
+  );
 
   await prisma.knowledgeAssessment.upsert({
     where: { intentId },
-    update: { competencies: competencies as unknown as object },
-    create: { intentId, competencies: competencies as unknown as object },
+    update: {
+      competencies: competencies as unknown as object,
+      probeTranscript: transcript as unknown as object,
+    },
+    create: {
+      intentId,
+      competencies: competencies as unknown as object,
+      probeTranscript: transcript as unknown as object,
+    },
   });
 
   await prisma.learningIntent.update({

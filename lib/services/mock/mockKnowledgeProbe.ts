@@ -5,6 +5,8 @@ import type {
   ParsedSubject,
   ProbeAnswer,
   ProbeQuestion,
+  ProbeScoreResult,
+  ProbeTranscriptEntry,
 } from "@/lib/services/types";
 
 function isLinearAlgebraSubject(name: string): boolean {
@@ -121,29 +123,61 @@ const GENERIC_COMPETENCIES: Competency[] = [
   { competency: "adjacent-knowledge", estimatedLevel: 2, confidence: 0.5 },
 ];
 
-export class MockKnowledgeProbe implements KnowledgeProbe {
-  private lastSubject: ParsedSubject | null = null;
+// Deterministic, non-degenerate one-sentence judgement for a mock transcript
+// entry. Keyed off whether an answer was given and (lightly) its content so the
+// fixture transcript is plausible without an LLM call.
+function mockJudgement(question: ProbeQuestion, answerText: string): string {
+  const hasAnswer = answerText.trim().length > 0;
+  if (!hasAnswer) {
+    return `Left "${question.prompt}" unanswered, so no signal on ${question.competencyTag}.`;
+  }
+  const lower = answerText.toLowerCase();
+  if (lower.includes("not sure") || lower.includes("don't know") || lower.includes("no idea")) {
+    return `Said they were unsure, indicating little to no grasp of ${question.competencyTag}.`;
+  }
+  return `Answered "${answerText.slice(0, 60)}", giving a partial read on ${question.competencyTag}.`;
+}
 
+export class MockKnowledgeProbe implements KnowledgeProbe {
   async questions(
     subject: ParsedSubject,
     _outcome: CanDoStatement[],
   ): Promise<ProbeQuestion[]> {
     void _outcome;
-    this.lastSubject = subject;
     if (isLinearAlgebraSubject(subject.canonicalName)) {
       return LINEAR_ALGEBRA_QUESTIONS;
     }
     return genericQuestions(subject.canonicalName);
   }
 
-  async score(answers: ProbeAnswer[]): Promise<Competency[]> {
-    void answers;
-    if (this.lastSubject && isLinearAlgebraSubject(this.lastSubject.canonicalName)) {
-      return LINEAR_ALGEBRA_COMPETENCIES;
-    }
-    // If questions() was never called (e.g., scoring fed in directly), inspect
-    // answers to decide which fixed map to return.
-    const looksLikeLinearAlgebra = answers.some((a) => a.questionId.startsWith("la-"));
-    return looksLikeLinearAlgebra ? LINEAR_ALGEBRA_COMPETENCIES : GENERIC_COMPETENCIES;
+  // Stateless: scoring derives everything from the passed-in questions+answers,
+  // not from any instance state retained between requests.
+  async score(
+    questions: ProbeQuestion[],
+    answers: ProbeAnswer[],
+  ): Promise<ProbeScoreResult> {
+    const answerLookup = new Map(answers.map((a) => [a.questionId, a.response]));
+
+    const transcript: ProbeTranscriptEntry[] = questions.map((q) => {
+      const response = answerLookup.get(q.id);
+      const answerText =
+        response && response.trim().length > 0 ? response : "(no answer)";
+      return {
+        question: q.prompt,
+        answer: answerText,
+        judgement: mockJudgement(q, response ?? ""),
+      };
+    });
+
+    // Choose the competency fixture from the actual questions (stateless): the
+    // linear-algebra fixture is keyed by its "la-" question ids.
+    const looksLikeLinearAlgebra =
+      questions.some((q) => q.id.startsWith("la-")) ||
+      answers.some((a) => a.questionId.startsWith("la-"));
+    const competencies: Competency[] = looksLikeLinearAlgebra
+      ? LINEAR_ALGEBRA_COMPETENCIES
+      : GENERIC_COMPETENCIES;
+
+    return { competencies, transcript };
   }
 }

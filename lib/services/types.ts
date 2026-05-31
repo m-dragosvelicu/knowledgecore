@@ -29,6 +29,14 @@ export type ProbeAnswer = {
   response: string;
 };
 
+// One scored Q/A row, persisted to KnowledgeAssessment.probeTranscript for the
+// §7 calibration loop and as an audit trail for probe-scoring correctness.
+export type ProbeTranscriptEntry = {
+  question: string;
+  answer: string;
+  judgement: string;
+};
+
 export type GoalpostPlan = {
   order: number;
   title: string;
@@ -83,9 +91,18 @@ export interface GoalInterviewer {
   }>;
 }
 
+export type ProbeScoreResult = {
+  competencies: Competency[];
+  transcript: ProbeTranscriptEntry[];
+};
+
 export interface KnowledgeProbe {
   questions(subject: ParsedSubject, outcome: CanDoStatement[]): Promise<ProbeQuestion[]>;
-  score(answers: ProbeAnswer[]): Promise<Competency[]>;
+  // Stateless scoring: the answered questions are passed in explicitly so scoring
+  // never depends on instance state surviving between requests (the root cause of
+  // the "all competencies 0/4" bug — a fresh service instance per request lost the
+  // questions and the action regenerated mismatched ones).
+  score(questions: ProbeQuestion[], answers: ProbeAnswer[]): Promise<ProbeScoreResult>;
 }
 
 export type PathOutlinerInput = {
@@ -113,6 +130,51 @@ export interface CheckpointEvaluator {
 }
 
 // =====================================================================
+// Path Adjuster — L0.md §5 / §7 decision branch `adjust_plan`.
+// Added to the locked boundary under CEO delegated authority (2026-05-31)
+// to close the M6 remediation loop; see DECISIONS-INDEX.
+// Minimal-edit principle: prefer inserting/replacing 1-2 goalposts over
+// rewriting the tail; keep >=70% of the original remaining path intact.
+// =====================================================================
+
+export type RemainingGoalpost = {
+  order: number;
+  title: string;
+  objective: string;
+  estimatedMinutes: number;
+};
+
+export type PathAdjusterInput = {
+  subject: ParsedSubject;
+  motivation: Motivation;
+  outcome: CanDoStatement[];
+  assessment: Competency[];
+  // The goalpost that triggered adjust_plan and the evaluation evidence.
+  currentGoalpost: { order: number; title: string; objective: string };
+  triggerScores: RubricScores;
+  triggerRationale: string;
+  // Goalposts not yet completed (excluding the current one), in order.
+  remainingGoalposts: RemainingGoalpost[];
+};
+
+// Minimal-edit operations applied to the remaining (not-yet-completed) goalposts.
+export type PathAdjustment = {
+  insertedGoalposts: GoalpostPlan[]; // new goalposts (order = insertion point)
+  removedOrders: number[]; // orders of remaining goalposts to drop
+  modifiedGoalposts: Array<{
+    order: number;
+    title?: string;
+    objective?: string;
+    estimatedMinutes?: number;
+  }>;
+  rationale: string; // user-facing one-liner (L0.md §7 Q7 acknowledge notice)
+};
+
+export interface PathAdjuster {
+  adjust(input: PathAdjusterInput): Promise<PathAdjustment>;
+}
+
+// =====================================================================
 // Service registry — selects mock vs live based on env
 // =====================================================================
 
@@ -122,5 +184,6 @@ export type Services = {
   knowledgeProbe: KnowledgeProbe;
   pathOutliner: PathOutliner;
   checkpointEvaluator: CheckpointEvaluator;
+  pathAdjuster: PathAdjuster;
   mode: "mock" | "live";
 };
