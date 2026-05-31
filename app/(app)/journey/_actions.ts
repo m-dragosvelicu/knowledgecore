@@ -13,6 +13,7 @@ import type {
 } from "@/lib/services/types";
 import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision } from "@prisma/client";
 import { deriveDecision } from "@/lib/journey/decision";
+import { applyPathAdjustment, TERMINAL_GOALPOST_STATUSES } from "@/lib/journey/pathRevision";
 import type { RubricScores } from "@/lib/services/types";
 
 async function requireUserId(): Promise<string> {
@@ -380,12 +381,6 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
 
 const goalpostIdSchema = z.object({ goalpostId: z.string() });
 
-// Goalpost statuses that mean "done, do not serve again".
-const TERMINAL_GOALPOST_STATUSES = [
-  GoalpostStatus.complete,
-  GoalpostStatus.skipped,
-];
-
 // Shared advance core: complete the given goalpost, then either activate the
 // next non-terminal goalpost or finish the journey. Returns the redirect target
 // (the caller performs the redirect outside any try/catch).
@@ -597,96 +592,15 @@ export async function adjustPlanAction(formData: FormData): Promise<void> {
     })),
   });
 
-  await prisma.$transaction(async (tx) => {
-    // adjust_plan acknowledges the PLAN was wrong, not the learner: complete the
-    // current goalpost and move them into the inserted remediation.
-    await tx.goalpost.update({
-      where: { id: goalpostId },
-      data: { status: GoalpostStatus.complete },
-    });
-
-    if (adjustment.removedOrders.length) {
-      await tx.goalpost.updateMany({
-        where: { pathId, order: { in: adjustment.removedOrders } },
-        data: { status: GoalpostStatus.skipped },
-      });
-    }
-
-    for (const m of adjustment.modifiedGoalposts) {
-      await tx.goalpost.updateMany({
-        where: { pathId, order: m.order },
-        data: {
-          ...(m.title !== undefined ? { title: m.title } : {}),
-          ...(m.objective !== undefined ? { objective: m.objective } : {}),
-          ...(m.estimatedMinutes !== undefined
-            ? { estimatedMinutes: m.estimatedMinutes }
-            : {}),
-        },
-      });
-    }
-
-    if (adjustment.insertedGoalposts.length) {
-      // Respect @@unique([pathId, order]): vacate the range after the current
-      // goalpost by bumping later goalposts out by a large offset, insert the
-      // new goalposts contiguously at currentOrder+1, then renumber the bumped
-      // ones to follow.
-      const OFFSET = 100000;
-      const later = await tx.goalpost.findMany({
-        where: { pathId, order: { gt: currentOrder } },
-        orderBy: { order: "asc" },
-      });
-      for (const g of later) {
-        await tx.goalpost.update({
-          where: { id: g.id },
-          data: { order: g.order + OFFSET },
-        });
-      }
-      let nextOrder = currentOrder + 1;
-      for (const gp of adjustment.insertedGoalposts) {
-        await tx.goalpost.create({
-          data: {
-            pathId,
-            order: nextOrder,
-            title: gp.title,
-            objective: gp.objective,
-            estimatedMinutes: gp.estimatedMinutes,
-            status: GoalpostStatus.pending,
-            steps: {
-              create: gp.steps.map((s) => ({
-                order: s.order,
-                type: s.type,
-                payload: s.payload as object,
-              })),
-            },
-          },
-        });
-        nextOrder += 1;
-      }
-      const bumped = await tx.goalpost.findMany({
-        where: { pathId, order: { gte: OFFSET } },
-        orderBy: { order: "asc" },
-      });
-      for (const g of bumped) {
-        await tx.goalpost.update({
-          where: { id: g.id },
-          data: { order: nextOrder },
-        });
-        nextOrder += 1;
-      }
-    }
-
-    await tx.pathRevision.create({
-      data: {
-        pathId,
-        triggerEvalId: latestEval!.id,
-        changes: adjustment as unknown as object,
-      },
-    });
-    await tx.learningPath.update({
-      where: { id: pathId },
-      data: { revisionCount: { increment: 1 } },
-    });
-  });
+  await prisma.$transaction((tx) =>
+    applyPathAdjustment(tx, {
+      pathId,
+      currentGoalpostId: goalpostId,
+      currentOrder,
+      adjustment,
+      triggerEvalId: latestEval!.id,
+    }),
+  );
 
   // L0.md §7 Q7: show a must-acknowledge "we've adjusted your path" notice
   // before dropping the learner into the revised path.
