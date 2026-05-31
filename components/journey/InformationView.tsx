@@ -12,11 +12,21 @@ type Props = {
   action: (formData: FormData) => void | Promise<void>;
   // Server-rendered markdown content.
   content: React.ReactNode;
+  /**
+   * Minimum dwell before the learner can continue, in whole seconds. Supplied by
+   * the server via the presenter seam (lib/journey/presenter.ts): the page asks
+   * the active strategy for render directives and passes the paced dwell down.
+   * Defaults to DEFAULT_DWELL_SECONDS so any caller that does not yet thread the
+   * presenter through keeps today's behavior.
+   */
+  dwellSeconds?: number;
 };
 
-// Minimum dwell before the learner can continue. A gentle gate (B.6 Q1): it
-// signals that reading is the point, without being a hard lock that frustrates.
-const DWELL_SECONDS = 6;
+// Default minimum dwell before the learner can continue. A gentle gate (B.6 Q1):
+// it signals that reading is the point, without being a hard lock that
+// frustrates. The presenter seam can scale this via paceMultiplier; with the
+// default pass-through strategy it stays 6s.
+const DEFAULT_DWELL_SECONDS = 6;
 
 /**
  * The Information surface (B.6 Q4): a calm, reading-oriented mode visually
@@ -24,8 +34,13 @@ const DWELL_SECONDS = 6;
  * button disabled until the learner has plausibly read the material, or has
  * scrolled to the end of it.
  */
-export default function InformationView({ stepId, action, content }: Props) {
-  const [remaining, setRemaining] = useState(DWELL_SECONDS);
+export default function InformationView({
+  stepId,
+  action,
+  content,
+  dwellSeconds = DEFAULT_DWELL_SECONDS,
+}: Props) {
+  const [remaining, setRemaining] = useState(dwellSeconds);
   const [scrolledToEnd, setScrolledToEnd] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
 

@@ -12,6 +12,7 @@ import {
   getOrCreateActiveIntent,
   prisma,
 } from "@/lib/journey/state";
+import { getPresenter, applyPace } from "@/lib/journey/presenter";
 import {
   adjustPlanAction,
   advanceGoalpostAction,
@@ -195,6 +196,16 @@ export default async function GoalpostPage({
   // -----------------------------------------------------------------------
   if (phase === "information" && informationStep) {
     const content = (informationStep.payload as { content?: string } | null)?.content ?? "";
+    // L1 presenter seam: ask the active strategy how to render this step, then
+    // apply the directives at the render boundary. The learner profile is not
+    // yet persisted (Backend owns that schema), so we pass null — the default
+    // pass-through strategy ignores it and returns identity directives, leaving
+    // the dwell gate at its current 6s.
+    const directives = getPresenter().directivesFor(
+      { type: informationStep.type },
+      null,
+    );
+    const dwellSeconds = applyPace(6, directives.paceMultiplier);
     return (
       <Stack spacing={4}>
         {header}
@@ -202,6 +213,7 @@ export default async function GoalpostPage({
           stepId={informationStep.id}
           action={completeInformationStepAction}
           content={<Markdown>{content}</Markdown>}
+          dwellSeconds={dwellSeconds}
         />
         {/* §9.2 skip-with-confirm: available during the information phase. */}
         <SkipControl goalpostId={goalpost!.id} action={skipGoalpostAction} />
