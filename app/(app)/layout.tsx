@@ -45,7 +45,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Stack spacing={4}>
           {mode === "mock" && (
-            <Alert severity="info">
+            // Restyled onto the one-teal palette (no info-blue): a quiet teal-soft
+            // note carried by copy, not a traffic-light color.
+            <Alert
+              icon={false}
+              severity="info"
+              sx={{
+                bgcolor: "var(--teal-soft)",
+                color: "var(--teal-deep)",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--r-md)",
+                "& .MuiAlert-message": { fontSize: 14 },
+              }}
+            >
               Running in mock mode. Add GOOGLE_GENAI_API_KEY in .env to enable
               live LLM generation.
             </Alert>

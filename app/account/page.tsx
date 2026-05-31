@@ -1,23 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import { getCurrentSession } from "@/lib/auth";
 import AppHeader from "@/components/AppHeader";
+import { Eyebrow, WobbleButton } from "@/components/ui";
 
+// One detail row: an eyebrow label over the value. Hanken throughout; the label
+// is the teal-deep uppercase eyebrow, the value the calm ink body.
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <Box>
-      <Typography variant="overline" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1">{value}</Typography>
+      <Eyebrow sx={{ mb: "4px" }}>{label}</Eyebrow>
+      <Box sx={{ fontSize: 16, color: "var(--ink)" }}>{value}</Box>
     </Box>
   );
 }
@@ -32,31 +30,59 @@ export default async function AccountPage() {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "transparent", position: "relative", zIndex: 2 }}>
       <AppHeader />
-      <Container maxWidth="sm" sx={{ py: 5 }}>
-        <Stack spacing={3}>
-          <Box>
-            <Typography variant="h3" component="h1">
+
+      <Box
+        component="main"
+        sx={{
+          maxWidth: 1060,
+          mx: "auto",
+          px: { xs: "22px", sm: "40px" },
+          pb: { xs: "80px", sm: "100px" },
+        }}
+      >
+        <Box sx={{ maxWidth: 560 }}>
+          <Box className="kc-fade" sx={{ mb: "26px", animationDelay: ".06s" }}>
+            <Eyebrow sx={{ mb: "12px" }}>Your account</Eyebrow>
+            <Box
+              component="h1"
+              sx={{
+                m: 0,
+                fontFamily: "var(--font-display)",
+                fontWeight: 400,
+                fontSize: "clamp(34px, 4.4vw, 48px)",
+                lineHeight: 1.06,
+                letterSpacing: "-.02em",
+                fontVariationSettings: '"SOFT" 20, "opsz" 144',
+                color: "var(--ink)",
+              }}
+            >
               Account
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Your account details.
-            </Typography>
+            </Box>
+            <Box sx={{ mt: "8px", fontSize: 15, lineHeight: 1.55, color: "var(--ink-2)" }}>
+              The details you signed up with.
+            </Box>
           </Box>
 
-          <Card variant="outlined">
-            <CardContent>
-              <Stack spacing={2} divider={<Divider flexItem />}>
+          <Card
+            className="kc-fade"
+            variant="outlined"
+            sx={{ borderRadius: "var(--r-lg)", animationDelay: ".16s" }}
+          >
+            <CardContent sx={{ p: "26px 28px" }}>
+              <Stack spacing="22px" divider={<Divider flexItem sx={{ borderColor: "var(--line)" }} />}>
                 <Field label="Name" value={name?.trim() || "Not set"} />
                 <Field label="Email" value={email} />
               </Stack>
             </CardContent>
           </Card>
 
-          <Button component={Link} href="/" variant="text" sx={{ alignSelf: "flex-start" }}>
-            Back to dashboard
-          </Button>
-        </Stack>
-      </Container>
+          <Box className="kc-fade" sx={{ mt: "26px", animationDelay: ".22s" }}>
+            <Box component={Link} href="/" sx={{ textDecoration: "none", display: "inline-flex" }}>
+              <WobbleButton bare>Back to your journeys</WobbleButton>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 }

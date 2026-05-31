@@ -1,19 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import Divider from "@mui/material/Divider";
 import type { JourneyStatus } from "@prisma/client";
 import { getCurrentSession } from "@/lib/auth";
 import { prisma, nextWizardRoute } from "@/lib/journey/state";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 import AppHeader from "@/components/AppHeader";
+import HomeHero from "@/components/HomeHero";
+import {
+  FeaturedCard,
+  SolidButton,
+  WobbleButton,
+  SkipButton,
+  Eyebrow,
+  SectionLabel,
+  HeadlineUnderline,
+  ScoreBadge,
+} from "@/components/ui";
 
 const ACTIVE_STATUSES: JourneyStatus[] = [
   "created",
@@ -25,16 +29,19 @@ const ACTIVE_STATUSES: JourneyStatus[] = [
   "paused",
 ];
 
-const STATUS_META: Record<JourneyStatus, { label: string; color: "default" | "info" | "warning" | "success" }> = {
-  created: { label: "Just started", color: "info" },
-  goal_assessed: { label: "Setting your goal", color: "info" },
-  outcome_assessed: { label: "Defining outcomes", color: "info" },
-  knowledge_assessed: { label: "Assessed", color: "info" },
-  path_outlined: { label: "Path ready", color: "info" },
-  in_progress: { label: "In progress", color: "warning" },
-  paused: { label: "Paused", color: "warning" },
-  complete: { label: "Completed", color: "success" },
-  abandoned: { label: "Abandoned", color: "default" },
+// Status copy on the one-teal palette: sentence case, no second hue. The visual
+// difference is carried by ink weight + the middot metadata, not a traffic-light
+// color. "Abandoned" is softened to "set aside".
+const STATUS_LABEL: Record<JourneyStatus, string> = {
+  created: "Just started",
+  goal_assessed: "Setting your goal",
+  outcome_assessed: "Defining outcomes",
+  knowledge_assessed: "Assessed",
+  path_outlined: "Path ready",
+  in_progress: "In progress",
+  paused: "Paused",
+  complete: "Completed",
+  abandoned: "Set aside",
 };
 
 function journeyTitle(intent: {
@@ -47,145 +54,297 @@ function journeyTitle(intent: {
   );
 }
 
+// Warm relative phrasing for the middot metadata ("opened today", "opened
+// yesterday", "4 days ago"). Sentence case, second person, no emoji.
+function relativeWhen(date: Date, now: Date): string {
+  const ms = now.getTime() - date.getTime();
+  const days = Math.floor(ms / 86_400_000);
+  if (days <= 0) return "opened today";
+  if (days === 1) return "opened yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return "last week";
+  if (days < 60) return `${Math.floor(days / 7)} weeks ago`;
+  return `${Math.floor(days / 30)} months ago`;
+}
+
+type IntentRow = {
+  id: string;
+  rawText: string;
+  status: JourneyStatus;
+  updatedAt: Date;
+  subject: { canonicalName: string } | null;
+  path: { goalposts: { status: string; estimatedMinutes: number | null }[] } | null;
+};
+
+// A single journey row: title + middot metadata on the left, a roughened score
+// badge (n of m goalposts, or a score for a completed journey) on the right.
+// Hover nudges the row right and warms the title to teal-deep (CSS only).
+function JourneyRow({ intent, now }: { intent: IntentRow; now: Date }) {
+  const goalposts = intent.path?.goalposts ?? [];
+  const total = goalposts.length;
+  const done = goalposts.filter((g) => g.status === "complete").length;
+  const meta = `${STATUS_LABEL[intent.status]} · ${relativeWhen(intent.updatedAt, now)}`;
+
+  return (
+    <Box
+      component={Link}
+      href={nextWizardRoute(intent as never)}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "24px",
+        py: "22px",
+        px: "4px",
+        borderBottom: "1px solid var(--line)",
+        cursor: "pointer",
+        textDecoration: "none",
+        color: "inherit",
+        transition: "padding-left .2s",
+        "&:hover": { pl: "12px" },
+        "&:hover .kc-row-title": { color: "var(--teal-deep)" },
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Box
+          className="kc-row-title"
+          sx={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 500,
+            fontSize: 20,
+            letterSpacing: "-.01em",
+            fontVariationSettings: '"SOFT" 30',
+            color: "var(--ink)",
+            transition: "color .2s",
+          }}
+        >
+          {journeyTitle(intent)}
+        </Box>
+        <Box sx={{ mt: "5px", fontSize: 13, color: "var(--ink-3)" }}>{meta}</Box>
+      </Box>
+
+      <Box sx={{ flex: "none" }}>
+        {intent.status === "complete" ? (
+          <ScoreBadge big={total > 0 ? `${done}/${total}` : "Done"} sub="goalposts" />
+        ) : (
+          <ScoreBadge
+            big={total > 0 ? `${done}/${total}` : "—"}
+            sub={total > 0 ? "goalposts" : "not built"}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+}
+
 export default async function HomePage() {
   const session = await getCurrentSession();
   if (!session?.user?.id) {
     redirect("/signin");
   }
 
-  const intents = await prisma.learningIntent.findMany({
+  const intents = (await prisma.learningIntent.findMany({
     where: { userId: session.user.id },
     include: {
       subject: true,
-      path: { include: { goalposts: { select: { status: true } } } },
+      path: {
+        include: {
+          goalposts: { select: { status: true, estimatedMinutes: true } },
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
-  });
+  })) as unknown as IntentRow[];
 
+  const now = new Date();
   const active = intents.find((i) => ACTIVE_STATUSES.includes(i.status));
   const past = intents.filter((i) => i.id !== active?.id);
-  const firstName = session.user.name?.split(" ")[0];
+
+  // Featured-card side stat: remaining goalposts + an estimated time to the next
+  // checkpoint, derived from the path the active journey already has (if any).
+  const activeGoalposts = active?.path?.goalposts ?? [];
+  const remaining = activeGoalposts.filter((g) => g.status !== "complete");
+  const nextEtaMin = remaining[0]?.estimatedMinutes ?? null;
 
   return (
-    // Transparent + raised so the fixed bone/grain/dot-grid backdrop shows
-    // through; content stacks above the texture layers.
+    // Above the fixed bone/grain/dot-grid backdrop; centered single column,
+    // max-width 1060px, generous padding to match the shared chrome.
     <Box sx={{ minHeight: "100vh", bgcolor: "transparent", position: "relative", zIndex: 2 }}>
       <AppHeader />
-      <Container maxWidth="md" sx={{ py: 5 }}>
-        <Stack spacing={4}>
-          <Box>
-            <Typography variant="h3" component="h1">
-              {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Pick up where you left off, or start something new.
-            </Typography>
-          </Box>
 
-          {/* Continue the active journey, if any */}
-          {active ? (
-            <Card variant="outlined" sx={{ borderColor: "primary.main", borderWidth: 2 }}>
-              <CardContent>
-                <Stack spacing={2}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip
-                      size="small"
-                      label={STATUS_META[active.status].label}
-                      color={STATUS_META[active.status].color}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      updated {active.updatedAt.toLocaleDateString()}
-                    </Typography>
-                  </Stack>
-                  <Typography variant="h5" component="h2">
-                    {journeyTitle(active)}
-                  </Typography>
-                  <Button
-                    component={Link}
-                    href={nextWizardRoute(active)}
-                    variant="contained"
-                    size="large"
-                    sx={{ alignSelf: "flex-start" }}
+      <Box
+        component="main"
+        sx={{
+          maxWidth: 1060,
+          mx: "auto",
+          px: { xs: "22px", sm: "40px" },
+          pb: { xs: "80px", sm: "100px" },
+        }}
+      >
+        {active ? (
+          // ---- Returning user with an active journey: welcome-back dashboard ----
+          <>
+            <Box className="kc-fade" sx={{ mb: "14px", animationDelay: ".06s" }}>
+              <Box
+                component="h2"
+                sx={{
+                  m: 0,
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 500,
+                  fontSize: 25,
+                  letterSpacing: "-.01em",
+                  fontVariationSettings: '"SOFT" 30',
+                  color: "var(--ink)",
+                }}
+              >
+                Pick up where you left off
+              </Box>
+            </Box>
+
+            <Box className="kc-fade" sx={{ mb: { xs: "44px", sm: "66px" }, animationDelay: ".16s" }}>
+              <FeaturedCard
+                side={
+                  <>
+                    <Box>
+                      <SectionLabel sx={{ mb: "12px" }}>your trail so far</SectionLabel>
+                      <Box sx={{ fontSize: 13, color: "var(--ink-2)" }}>
+                        {activeGoalposts.length > 0
+                          ? `${activeGoalposts.filter((g) => g.status === "complete").length} of ${activeGoalposts.length} goalposts cleared`
+                          : "your path is still building"}
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Box
+                        sx={{
+                          fontFamily: "var(--font-display)",
+                          fontSize: 27,
+                          fontVariationSettings: '"SOFT" 30',
+                          color: "var(--ink)",
+                        }}
+                      >
+                        {nextEtaMin != null ? `~${nextEtaMin} min` : "next up"}
+                      </Box>
+                      <Box sx={{ mt: "2px", fontSize: 12.5, color: "var(--ink-3)" }}>
+                        to the next checkpoint
+                      </Box>
+                    </Box>
+                  </>
+                }
+              >
+                <Eyebrow>{STATUS_LABEL[active.status]}</Eyebrow>
+                <Box sx={{ position: "relative", display: "inline-block", my: "14px" }}>
+                  <HeadlineUnderline>
+                    <Box
+                      component="h3"
+                      sx={{
+                        m: 0,
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 400,
+                        fontSize: 33,
+                        lineHeight: 1.08,
+                        letterSpacing: "-.01em",
+                        fontVariationSettings: '"SOFT" 20',
+                        color: "var(--ink)",
+                      }}
+                    >
+                      {journeyTitle(active)}
+                    </Box>
+                  </HeadlineUnderline>
+                </Box>
+                <Box
+                  component="p"
+                  sx={{ m: 0, maxWidth: "94%", fontSize: 15, lineHeight: 1.55, color: "var(--ink-2)" }}
+                >
+                  You have a journey in progress. Carry on from where you stopped, or
+                  open the full path to see what is ahead.
+                </Box>
+                <Stack direction="row" alignItems="center" spacing="10px" sx={{ mt: "28px", flexWrap: "wrap" }}>
+                  <Box component={Link} href={nextWizardRoute(active as never)} sx={{ textDecoration: "none" }}>
+                    <SolidButton tone="teal">Resume</SolidButton>
+                  </Box>
+                  <Box component={Link} href={nextWizardRoute(active as never)} sx={{ textDecoration: "none", display: "inline-flex" }}>
+                    <WobbleButton>See the full path</WobbleButton>
+                  </Box>
+                </Stack>
+              </FeaturedCard>
+            </Box>
+
+            {past.length > 0 && (
+              <Box className="kc-fade" sx={{ animationDelay: ".3s" }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mb: "14px" }}
+                >
+                  <Box
+                    component="h2"
+                    sx={{
+                      m: 0,
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 500,
+                      fontSize: 25,
+                      letterSpacing: "-.01em",
+                      fontVariationSettings: '"SOFT" 30',
+                      color: "var(--ink)",
+                    }}
                   >
-                    Continue this journey
-                  </Button>
+                    Your journeys
+                  </Box>
+                  <Box component={Link} href="/" sx={{ textDecoration: "none", display: "inline-flex" }}>
+                    <WobbleButton bare>View all journeys</WobbleButton>
+                  </Box>
                 </Stack>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card variant="outlined">
-              <CardContent>
-                <Stack spacing={2} alignItems="flex-start">
-                  <Typography variant="body1">
-                    You have no journey in progress.
-                  </Typography>
-                  <form action={startNewJourneyAction}>
-                    <Button type="submit" variant="contained" size="large">
-                      Start a new journey
-                    </Button>
-                  </form>
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
+                <Box sx={{ borderTop: "1px solid var(--line)" }}>
+                  {past.map((intent) => (
+                    <JourneyRow key={intent.id} intent={intent} now={now} />
+                  ))}
+                </Box>
+              </Box>
+            )}
 
-          {/* Past journeys */}
-          {past.length > 0 && (
-            <Box>
-              <Typography variant="h5" component="h2" sx={{ mb: 1 }}>
-                Your journeys
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Stack spacing={1.5}>
-                {past.map((intent) => {
-                  const total = intent.path?.goalposts.length ?? 0;
-                  const done =
-                    intent.path?.goalposts.filter((g) => g.status === "complete").length ?? 0;
-                  return (
-                    <Card key={intent.id} variant="outlined">
-                      <CardContent sx={{ py: 2 }}>
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          spacing={2}
-                        >
-                          <Box>
-                            <Typography variant="subtitle1">{journeyTitle(intent)}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {total > 0 && `${done}/${total} goalposts · `}
-                              {intent.updatedAt.toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                          <Chip
-                            size="small"
-                            label={STATUS_META[intent.status].label}
-                            color={STATUS_META[intent.status].color}
-                          />
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </Stack>
-            </Box>
-          )}
-
-          {/* Start new is always available as a secondary action when a journey is active */}
-          {active && (
-            <Box>
-              <form action={startNewJourneyAction}>
-                <Button type="submit" variant="text">
-                  Start a different journey
-                </Button>
-              </form>
-              <Typography variant="caption" color="text.secondary">
+            {/* Start a different journey — quiet skip tier; sets aside the current one. */}
+            <Box sx={{ mt: { xs: "32px", sm: "44px" } }}>
+              <Box component="form" action={startNewJourneyAction} sx={{ display: "inline-flex" }}>
+                <SkipButton type="submit">Start a different journey</SkipButton>
+              </Box>
+              <Box sx={{ mt: "2px", pl: "18px", fontSize: 12.5, color: "var(--ink-3)" }}>
                 Starting a new journey sets aside the one in progress.
-              </Typography>
+              </Box>
             </Box>
-          )}
-        </Stack>
-      </Container>
+          </>
+        ) : (
+          // ---- No active journey: the hero question is the entry point ----
+          <>
+            <HomeHero />
+
+            {past.length > 0 && (
+              <Box className="kc-fade" sx={{ animationDelay: ".22s" }}>
+                <Box
+                  component="h2"
+                  sx={{
+                    m: 0,
+                    mb: "14px",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 500,
+                    fontSize: 25,
+                    letterSpacing: "-.01em",
+                    fontVariationSettings: '"SOFT" 30',
+                    color: "var(--ink)",
+                  }}
+                >
+                  Your journeys
+                </Box>
+                <Box sx={{ borderTop: "1px solid var(--line)" }}>
+                  {past.map((intent) => (
+                    <JourneyRow key={intent.id} intent={intent} now={now} />
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </>
+        )}
+      </Box>
     </Box>
   );
 }

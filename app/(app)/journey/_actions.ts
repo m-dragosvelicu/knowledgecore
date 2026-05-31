@@ -87,6 +87,49 @@ export async function startNewJourneyAction(): Promise<void> {
   redirect("/journey/intent");
 }
 
+// Start a new journey carrying the intent typed in the home hero pill. Mirrors
+// startNewJourneyAction (abandon any in-progress journey, open a fresh one) but
+// seeds the rawText and runs the same intent-parsing path as submitIntentAction
+// so the learner lands straight in the flow instead of an empty intent box.
+const heroIntentSchema = z.object({
+  rawText: z.string().min(3, "Please describe what you want to learn."),
+});
+
+export async function startJourneyWithIntentAction(formData: FormData): Promise<void> {
+  const userId = await requireUserId();
+  const parsed = heroIntentSchema.parse({ rawText: formData.get("rawText") });
+
+  // Set aside any non-terminal journey so the new one is the active one.
+  await prisma.learningIntent.updateMany({
+    where: { userId, status: { notIn: ["complete", "abandoned"] } },
+    data: { status: "abandoned" },
+  });
+
+  const services = getServices();
+  const subject = await services.intentParser.parse(parsed.rawText);
+
+  const intent = await prisma.learningIntent.create({
+    data: { userId, rawText: parsed.rawText, status: "goal_assessed" },
+  });
+
+  await prisma.subject.create({
+    data: {
+      intentId: intent.id,
+      canonicalName: subject.canonicalName,
+      scopeNote: subject.scopeNote,
+    },
+  });
+
+  // Same ambiguity guard as submitIntentAction: never silently narrow.
+  if (subject.ambiguous) {
+    const params = new URLSearchParams({ confirm: "1" });
+    if (subject.clarification) params.set("note", subject.clarification);
+    redirect(`/journey/intent?${params.toString()}`);
+  }
+
+  redirect("/journey/outcome");
+}
+
 // ---------------------------------------------------------------------------
 // Stage 2 — submit intent text
 // ---------------------------------------------------------------------------
