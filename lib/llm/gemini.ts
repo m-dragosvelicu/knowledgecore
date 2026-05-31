@@ -1,4 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, FinishReason } from "@google/genai";
+import type { GenerateContentConfig, GenerateContentResponse } from "@google/genai";
 import { z } from "zod";
 import type {
   CompletionOptions,
@@ -12,6 +13,41 @@ import type {
 // key and supports structured output (responseSchema). Verified returning 200
 // from generateContent. Override via GEMINI_MODEL if needed.
 const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+
+// ---------------------------------------------------------------------
+// Thinking control + token floors
+//
+// gemini-3.5-flash is a THINKING model: reasoning ("thought") tokens are drawn
+// from the SAME maxOutputTokens budget as the visible answer. On large prompts
+// the thinking pass can consume most of the budget, truncating the JSON answer
+// (finishReason MAX_TOKENS) so JSON.parse fails. This was the intermittent
+// "did not return valid JSON" failure.
+//
+// The installed @google/genai is 0.7.0, whose `ThinkingConfig` type only
+// declares `includeThoughts` -- it has NO `thinkingBudget` field, which is why
+// the naive `thinkingConfig = { thinkingBudget: 512 }` failed to typecheck.
+// However, the LIVE v1beta API for gemini-3.5-flash DOES honor `thinkingBudget`
+// at the wire level (empirically verified: thinkingBudget:0 -> thoughtsTokenCount
+// becomes undefined, i.e. thinking is disabled). We therefore declare the field
+// in a local type that extends the SDK config so we can set it type-safely
+// without an `any`/`never` cast over the whole config object.
+//
+// For a schema-constrained JUDGE (completeStructured), free-form chain-of-thought
+// is unnecessary -- the model emits JSON conforming to responseSchema -- so we
+// disable thinking there. This both fixes the truncation and cuts cost/latency.
+type ThinkingConfigWithBudget = {
+  includeThoughts?: boolean;
+  // tokens; 0 = thinking OFF, -1 = automatic. Honored by the live v1beta API
+  // even though @google/genai@0.7.0 does not yet declare it in ThinkingConfig.
+  thinkingBudget?: number;
+};
+type GenerateContentConfigWithThinking = GenerateContentConfig & {
+  thinkingConfig?: ThinkingConfigWithBudget;
+};
+
+// Visible-output floor for structured calls. Even with thinking disabled, a
+// large EvaluationResult (rationale + 6 verbatim evidence quotes) needs room.
+const STRUCTURED_OUTPUT_TOKEN_FLOOR = 4096;
 
 // =====================================================================
 // Zod -> Gemini responseSchema converter
@@ -71,9 +107,11 @@ function zodToGeminiSchema(schema: z.ZodTypeAny): GeminiSchema {
     return { type: "STRING", enum: values };
   }
   if (schema instanceof z.ZodUnion) {
-    // Gemini lacks a oneOf/anyOf. Collapse all-literal unions: string literals
-    // become a STRING enum; numeric literals become an INTEGER. Otherwise fall
-    // back to the first variant's schema.
+    // Gemini lacks a oneOf/anyOf. We can only faithfully represent all-literal
+    // unions: string literals become a STRING enum; numeric literals become an
+    // INTEGER. Any other union (mixed, or non-literal variants) cannot be
+    // expressed without silently dropping variants -- which would let Gemini
+    // emit data that then fails the downstream Zod .parse. Fail loudly instead.
     const options = schema._def.options as z.ZodTypeAny[];
     const literals = options.filter((o) => o instanceof z.ZodLiteral);
     if (literals.length === options.length && literals.length > 0) {
@@ -85,7 +123,12 @@ function zodToGeminiSchema(schema: z.ZodTypeAny): GeminiSchema {
         return { type: "INTEGER" };
       }
     }
-    return zodToGeminiSchema(options[0]);
+    throw new Error(
+      "zodToGeminiSchema: cannot represent a non-literal or mixed-type union as " +
+        "a Gemini responseSchema (Gemini has no oneOf/anyOf). Refactor the schema " +
+        "to an all-string-literal or all-number-literal union, or pass an explicit " +
+        "jsonSchema.",
+    );
   }
   if (schema instanceof z.ZodArray) {
     return { type: "ARRAY", items: zodToGeminiSchema(schema.element) };
@@ -107,9 +150,18 @@ function zodToGeminiSchema(schema: z.ZodTypeAny): GeminiSchema {
       propertyOrdering: ordering,
     };
   }
-  // Records / unknown shapes: Gemini cannot represent open-ended maps well.
-  // Fall back to a permissive object.
-  return { type: "OBJECT" };
+  // Records / unknown / any and every other unhandled shape: Gemini cannot
+  // represent an open-ended map. The previous behavior returned a bare
+  // { type: "OBJECT" } with no properties, which Gemini may reject or which
+  // silently drops every field. Fail loudly so the schema is fixed at the
+  // source rather than producing a structured call that can't be satisfied.
+  const typeName = (schema as { _def?: { typeName?: string } })._def?.typeName;
+  throw new Error(
+    `zodToGeminiSchema: unsupported Zod type${
+      typeName ? ` (${typeName})` : ""
+    } for a Gemini responseSchema. Open-ended maps (z.record), z.unknown, and ` +
+      "z.any cannot be expressed; use a closed z.object, or pass an explicit jsonSchema.",
+  );
 }
 
 type GeminiContent = {
@@ -136,6 +188,57 @@ function mapMessages(messages: Message[]): {
     systemInstruction: systemFromMessages || undefined,
   };
 }
+
+// finishReasons that indicate the candidate is genuinely unusable (vs. a clean
+// STOP or a tolerable MAX_TOKENS that may still hold parseable text).
+const HARD_BLOCK_REASONS: ReadonlySet<FinishReason> = new Set([
+  FinishReason.SAFETY,
+  FinishReason.RECITATION,
+  FinishReason.BLOCKLIST,
+  FinishReason.PROHIBITED_CONTENT,
+  FinishReason.SPII,
+]);
+
+/**
+ * Pull the visible text out of a response while surfacing problems instead of
+ * silently returning "". Distinguishes: hard content blocks (never retry),
+ * truncation (MAX_TOKENS), and empty/missing candidates (transient -> retry).
+ */
+function extractText(
+  response: GenerateContentResponse,
+  context: string,
+): { text: string; truncated: boolean } {
+  const candidate = response.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+
+  if (finishReason && HARD_BLOCK_REASONS.has(finishReason)) {
+    throw new GeminiBlockedError(
+      `Gemini blocked the response for ${context} (finishReason=${finishReason}` +
+        `${candidate?.finishMessage ? `: ${candidate.finishMessage}` : ""}).`,
+    );
+  }
+  const promptBlock = response.promptFeedback?.blockReason;
+  if (promptBlock) {
+    throw new GeminiBlockedError(
+      `Gemini blocked the prompt for ${context} (blockReason=${promptBlock}).`,
+    );
+  }
+
+  const text = response.text ?? "";
+  const truncated = finishReason === FinishReason.MAX_TOKENS;
+  if (text.length === 0) {
+    // No usable candidate text and not a hard block -> transient/empty.
+    throw new GeminiEmptyError(
+      `Gemini returned no text for ${context} (finishReason=${finishReason ?? "none"}).`,
+    );
+  }
+  return { text, truncated };
+}
+
+/** A content/safety block. Deterministic -> not worth retrying. */
+class GeminiBlockedError extends Error {}
+/** Empty or missing candidate. Often transient -> safe to retry once. */
+class GeminiEmptyError extends Error {}
 
 export class GeminiClient implements LLMClient {
   private client: GoogleGenAI;
@@ -179,23 +282,57 @@ export class GeminiClient implements LLMClient {
     const system = opts.system ?? systemInstruction;
     const responseSchema =
       opts.jsonSchema ?? zodToGeminiSchema(opts.schema as unknown as z.ZodTypeAny);
-    const response = await this.client.models.generateContent({
-      model,
-      contents,
-      config: {
-        maxOutputTokens: opts.maxTokens,
-        temperature: opts.temperature,
-        systemInstruction: system,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema as never,
-      },
-    });
-    const text = response.text ?? "";
+
+    // Disable thinking for schema-constrained output and guarantee a visible
+    // output budget large enough for the full JSON object. See the notes on
+    // ThinkingConfigWithBudget / STRUCTURED_OUTPUT_TOKEN_FLOOR above.
+    const maxOutputTokens = Math.max(
+      opts.maxTokens ?? 0,
+      STRUCTURED_OUTPUT_TOKEN_FLOOR,
+    );
+    const config: GenerateContentConfigWithThinking = {
+      maxOutputTokens,
+      temperature: opts.temperature,
+      systemInstruction: system,
+      responseMimeType: "application/json",
+      responseSchema: responseSchema as never,
+      thinkingConfig: { thinkingBudget: 0 },
+    };
+
+    const callOnce = async (): Promise<string> => {
+      const response = await this.client.models.generateContent({
+        model,
+        contents,
+        config,
+      });
+      const { text, truncated } = extractText(response, opts.schemaName);
+      if (truncated) {
+        throw new GeminiEmptyError(
+          `Gemini truncated the JSON for ${opts.schemaName} (finishReason=MAX_TOKENS, ` +
+            `maxOutputTokens=${maxOutputTokens}); output is incomplete.`,
+        );
+      }
+      return text;
+    };
+
+    // One retry on transient/empty/truncated outcomes; never retry hard blocks.
+    let text: string;
+    try {
+      text = await callOnce();
+    } catch (err) {
+      if (err instanceof GeminiBlockedError) throw err;
+      text = await callOnce();
+    }
+
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
     } catch {
-      throw new Error(`Gemini did not return valid JSON for ${opts.schemaName}`);
+      const snippet = text.slice(0, 200).replace(/\s+/g, " ");
+      throw new Error(
+        `Gemini did not return valid JSON for ${opts.schemaName}. ` +
+          `First 200 chars: ${snippet}`,
+      );
     }
     return opts.schema.parse(parsed);
   }
