@@ -56,7 +56,7 @@ export default function GettingReady({ goalpostId, title, action }: Props) {
   return (
     <Paper
       variant="outlined"
-      sx={{ p: { xs: 4, md: 6 }, bgcolor: "#fbfaf7", borderRadius: 2 }}
+      sx={{ p: { xs: 4, md: 6 }, bgcolor: "background.paper", borderRadius: "var(--r-lg)" }}
     >
       <Stack spacing={3} alignItems="center" textAlign="center">
         {error ? (

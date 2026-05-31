@@ -67,7 +67,9 @@ export default async function HomePage() {
   const firstName = session.user.name?.split(" ")[0];
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    // Transparent + raised so the fixed bone/grain/dot-grid backdrop shows
+    // through; content stacks above the texture layers.
+    <Box sx={{ minHeight: "100vh", bgcolor: "transparent", position: "relative", zIndex: 2 }}>
       <AppHeader />
       <Container maxWidth="md" sx={{ py: 5 }}>
         <Stack spacing={4}>

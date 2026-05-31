@@ -1,6 +1,40 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Fraunces, Hanken_Grotesk } from "next/font/google";
 import { Providers } from "./providers";
+import Backdrop from "@/components/Backdrop";
+import "./globals.css";
+
+// Fonts via next/font — self-hosted, no layout shift, no external Google CSS.
+//
+// Fraunces SPEAKS: the variable display serif. We pull the SOFT axis (softens
+// terminals) and opsz (optical size) so headlines never read cold; the .kc-*
+// classes / MUI variants dial SOFT 20 + opsz 144 on big display and SOFT 30 on
+// UI-scale serif. Exposed as --font-fraunces.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  // Variable font: the full weight range (300..700) ships automatically; named
+  // axes can only be requested when weight is left variable.
+  axes: ["SOFT", "opsz"],
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
+});
+
+// Hanken Grotesk OPERATES and READS: the operational workhorse and the
+// long-form reading font (decided: no reading serif). Exposed as --font-hanken
+// and set as MUI's default typography.fontFamily.
+const hanken = Hanken_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-hanken",
+});
+
+// NOTE: Architects Daughter is intentionally NOT loaded here. It is an
+// annotation/presentation font for docs & slides only and must never ship in
+// the app bundle. The --font-annotate token exists for documentation but is
+// referenced nowhere in product code.
 
 export const metadata: Metadata = {
   title: "KnowledgeCore",
@@ -8,8 +42,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${fraunces.variable} ${hanken.variable}`}>
       <body>
+        {/* Global texture + shared hand-mark defs, behind all content. */}
+        <Backdrop />
         <Providers>{children}</Providers>
       </body>
     </html>

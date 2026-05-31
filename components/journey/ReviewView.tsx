@@ -60,10 +60,13 @@ export default function ReviewView({
             </Typography>
             <Box
               sx={{
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: "1.02rem",
+                // Reading type (decided): Hanken — NOT a serif — at a calm
+                // reading size, generous measure and line-height.
+                fontFamily: "var(--font-read)",
+                fontSize: "16px",
                 lineHeight: 1.7,
                 maxWidth: "62ch",
+                color: "text.secondary",
                 mt: 1,
                 "& p": { my: 1.25 },
               }}

@@ -30,7 +30,7 @@ export default async function AccountPage() {
   const { email, name } = session.user;
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "transparent", position: "relative", zIndex: 2 }}>
       <AppHeader />
       <Container maxWidth="sm" sx={{ py: 5 }}>
         <Stack spacing={3}>

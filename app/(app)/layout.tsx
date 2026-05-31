@@ -37,7 +37,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const { mode } = getServices();
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    // Transparent + raised so the fixed bone/grain/dot-grid backdrop shows
+    // through; content stacks above the texture layers.
+    <Box sx={{ minHeight: "100vh", bgcolor: "transparent", position: "relative", zIndex: 2 }}>
       <AppHeader />
 
       <Container maxWidth="md" sx={{ py: 4 }}>

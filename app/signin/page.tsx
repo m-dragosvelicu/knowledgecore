@@ -67,7 +67,7 @@ function SignInInner() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: 8 }}>
+    <Container maxWidth="sm" sx={{ py: 8, position: "relative", zIndex: 2 }}>
       <Card>
         <CardContent>
           <Stack spacing={3}>

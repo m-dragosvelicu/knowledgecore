@@ -72,8 +72,8 @@ export default function InformationView({
       variant="outlined"
       sx={{
         p: { xs: 3, md: 5 },
-        bgcolor: "#fbfaf7",
-        borderRadius: 2,
+        bgcolor: "background.paper",
+        borderRadius: "var(--r-lg)",
       }}
     >
       <Stack spacing={3}>
@@ -85,11 +85,13 @@ export default function InformationView({
         </Typography>
         <Box
           sx={{
-            // Reading-optimized: serif body, generous measure and line-height.
-            fontFamily: "Georgia, 'Times New Roman', serif",
-            fontSize: "1.075rem",
-            lineHeight: 1.75,
+            // Reading type (decided): Hanken — NOT a serif — at a calm reading
+            // size, generous measure and line-height (kit checkpoint values).
+            fontFamily: "var(--font-read)",
+            fontSize: "16px",
+            lineHeight: 1.7,
             maxWidth: "62ch",
+            color: "text.secondary",
             "& p": { my: 1.5 },
           }}
         >
