@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import { getServices } from "@/lib/services";
 import type { CanDoStatement } from "@/lib/services/types";
+import { Eyebrow } from "@/components/ui";
 import ProbeClient from "./ProbeClient";
 
 export default async function ProbePage() {
@@ -25,15 +25,36 @@ export default async function ProbePage() {
   );
 
   return (
-    <Stack spacing={3}>
-      <Typography variant="h3" component="h1">
-        Knowledge probe
-      </Typography>
-      <Typography variant="body1" color="text.secondary">
-        A few quick questions to calibrate your starting point. Wrong answers
-        help us, do not worry — there is no grade here.
-      </Typography>
-      <ProbeClient questions={questions} />
-    </Stack>
+    <Box sx={{ maxWidth: 720 }}>
+      <Box className="kc-fade" sx={{ mb: "30px", animationDelay: ".04s" }}>
+        <Eyebrow sx={{ mb: "12px" }}>Finding your starting point</Eyebrow>
+        <Box
+          component="h1"
+          sx={{
+            m: 0,
+            fontFamily: "var(--font-display)",
+            fontWeight: 400,
+            fontSize: "clamp(30px, 4.4vw, 48px)",
+            lineHeight: 1.06,
+            letterSpacing: "-.02em",
+            fontVariationSettings: '"SOFT" 20, "opsz" 144',
+            color: "var(--ink)",
+          }}
+        >
+          A few quick questions
+        </Box>
+        <Box
+          component="p"
+          sx={{ mt: "12px", fontSize: 15.5, lineHeight: 1.55, color: "var(--ink-2)" }}
+        >
+          Just enough to calibrate where your trail begins. There&rsquo;s no
+          score here, and a blank or unsure answer tells us just as much.
+        </Box>
+      </Box>
+
+      <Box className="kc-fade" sx={{ animationDelay: ".12s" }}>
+        <ProbeClient questions={questions} />
+      </Box>
+    </Box>
   );
 }

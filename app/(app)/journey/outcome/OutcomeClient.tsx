@@ -2,18 +2,15 @@
 
 import { useState, useTransition } from "react";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
 import RadioGroup from "@mui/material/RadioGroup";
 import Radio from "@mui/material/Radio";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
-import FormLabel from "@mui/material/FormLabel";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { Motivation } from "@prisma/client";
 import type { CanDoStatement, InterviewTurn } from "@/lib/services/types";
 import {
@@ -21,6 +18,7 @@ import {
   finalizeOutcomeAction,
 } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
+import { Eyebrow } from "@/components/ui";
 
 const MOTIVATIONS: Array<{ value: Motivation; label: string }> = [
   { value: "curiosity", label: "Curiosity" },
@@ -40,6 +38,57 @@ type Complete = {
 type Props = {
   defaultMotivation: Motivation | null;
 };
+
+// A heading set in Fraunces at the light/medium display weight — the voice that
+// asks the questions through this flow. Used for the motivation prompt, the
+// interview question, and the "what success looks like" header.
+function AskHeadline({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      component="h2"
+      sx={{
+        m: 0,
+        fontFamily: "var(--font-display)",
+        fontVariationSettings: "var(--soft-ui)",
+        fontWeight: 500,
+        fontSize: "clamp(22px, 3vw, 30px)",
+        lineHeight: 1.16,
+        letterSpacing: "-.01em",
+        color: "var(--ink)",
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+// The shared paper-surface panel the flow draws its turns and steps on.
+function Surface({
+  children,
+  recessed = false,
+  sx,
+}: {
+  children: React.ReactNode;
+  recessed?: boolean;
+  sx?: SxProps<Theme>;
+}) {
+  return (
+    <Box
+      sx={[
+        {
+          bgcolor: recessed ? "var(--surface-2)" : "background.paper",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-lg)",
+          boxShadow: recessed ? "none" : "var(--shadow-sm)",
+          p: "22px 26px",
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      {children}
+    </Box>
+  );
+}
 
 export default function OutcomeClient({ defaultMotivation }: Props) {
   const [phase, setPhase] = useState<Phase>("motivation");
@@ -99,161 +148,198 @@ export default function OutcomeClient({ defaultMotivation }: Props) {
   // ---- Phase 1: motivation selection (seeds LearningGoal.motivation) ----
   if (phase === "motivation") {
     return (
-      <Card variant="outlined">
-        <CardContent>
-          <Stack spacing={3}>
-            <Typography variant="h5" component="h2">
-              Tell us about your goal
-            </Typography>
-            <FormControl required>
-              <FormLabel>Why do you want to learn this?</FormLabel>
-              <RadioGroup
-                row
-                value={motivation}
-                onChange={(e) => setMotivation(e.target.value as Motivation)}
-              >
-                {MOTIVATIONS.map((m) => (
-                  <FormControlLabel
-                    key={m.value}
-                    value={m.value}
-                    control={<Radio />}
-                    label={m.label}
-                  />
-                ))}
-              </RadioGroup>
-            </FormControl>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={startInterview}
-              disabled={motivation === "" || isPending}
-              sx={{ alignSelf: "flex-start" }}
+      <Surface>
+        <Stack spacing={3}>
+          <Box>
+            <Eyebrow sx={{ mb: "10px" }}>Shaping your journey</Eyebrow>
+            <AskHeadline>Why do you want to learn this?</AskHeadline>
+          </Box>
+          <FormControl required>
+            <RadioGroup
+              row
+              value={motivation}
+              onChange={(e) => setMotivation(e.target.value as Motivation)}
+              sx={{ gap: "4px 18px" }}
             >
-              {isPending ? "Starting…" : "Start the conversation"}
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
+              {MOTIVATIONS.map((m) => (
+                <FormControlLabel
+                  key={m.value}
+                  value={m.value}
+                  control={<Radio />}
+                  label={m.label}
+                />
+              ))}
+            </RadioGroup>
+          </FormControl>
+          <Button
+            variant="contained"
+            color="kcInk"
+            size="large"
+            onClick={startInterview}
+            disabled={motivation === "" || isPending}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            {isPending ? "Starting…" : "Start the conversation"}
+          </Button>
+        </Stack>
+      </Surface>
     );
   }
 
-  // ---- Phase 3: confirm synthesized outcome ----
+  // ---- Phase 3: confirm synthesized outcome (the can-do statements) ----
   if (phase === "complete" && complete) {
     return (
       <Stack spacing={3}>
-        <Card variant="outlined">
-          <CardContent>
-            <Stack spacing={2}>
-              <Typography variant="h5" component="h2">
-                Here is what success looks like for you
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {complete.successCriterion}
-              </Typography>
-              <Stack spacing={1.5} sx={{ mt: 1 }}>
-                {complete.canDoStatements.map((s, i) => (
+        <Box>
+          <Eyebrow sx={{ mb: "12px" }}>By the end of this journey</Eyebrow>
+          <AskHeadline>Here&rsquo;s what success looks like for you</AskHeadline>
+          <Box
+            component="p"
+            sx={{ mt: "12px", fontSize: 15, lineHeight: 1.55, color: "var(--ink-2)" }}
+          >
+            {complete.successCriterion}
+          </Box>
+        </Box>
+
+        {/* Can-do statements: a clean list of surface cards. The statement itself
+            is set in Fraunces (the voice); the Bloom level is a quiet teal-soft
+            chip and an eyebrow marks the list. */}
+        <Box>
+          <Eyebrow sx={{ mb: "12px" }}>You&rsquo;ll be able to</Eyebrow>
+          <Stack spacing={1.5}>
+            {complete.canDoStatements.map((s, i) => (
+              <Surface key={i} recessed sx={{ p: "16px 20px" }}>
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  alignItems="flex-start"
+                >
+                  <Chip
+                    label={s.bloomLevel}
+                    size="small"
+                    sx={{ textTransform: "capitalize", flexShrink: 0, mt: "2px" }}
+                  />
                   <Box
-                    key={i}
                     sx={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 1.5,
+                      fontFamily: "var(--font-display)",
+                      fontVariationSettings: "var(--soft-ui)",
+                      fontWeight: 500,
+                      fontSize: 18,
+                      lineHeight: 1.35,
+                      color: "var(--ink)",
                     }}
                   >
-                    <Chip label={s.bloomLevel} size="small" variant="outlined" />
-                    <Typography variant="body1">{s.text}</Typography>
+                    {s.text}
                   </Box>
-                ))}
-              </Stack>
-            </Stack>
-          </CardContent>
-        </Card>
+                </Stack>
+              </Surface>
+            ))}
+          </Stack>
+        </Box>
+
         <Button
           variant="contained"
+          color="kcInk"
           size="large"
           onClick={finalize}
           disabled={isPending}
           sx={{ alignSelf: "flex-start" }}
         >
-          {isPending ? "Designing your knowledge probe…" : "Continue to knowledge probe"}
+          {isPending ? "Designing your knowledge probe…" : "Continue to the knowledge probe"}
         </Button>
       </Stack>
     );
   }
 
-  // ---- Phase 2: the multi-turn conversation ----
+  // ---- Phase 2: the multi-turn goal interview (turn-taking dialogue) ----
   return (
     <Stack spacing={3}>
       {transcript.length > 0 && (
-        <Stack spacing={2}>
-          {transcript.map((t, i) => (
-            <Box
-              key={i}
-              sx={{
-                alignSelf: t.role === "assistant" ? "flex-start" : "flex-end",
-                maxWidth: "85%",
-              }}
-            >
-              <Card
-                variant="outlined"
+        <Stack spacing={1.5}>
+          {transcript.map((t, i) => {
+            const isAsk = t.role === "assistant";
+            return (
+              <Box
+                key={i}
                 sx={{
-                  bgcolor: t.role === "assistant" ? "background.paper" : "action.hover",
+                  alignSelf: isAsk ? "flex-start" : "flex-end",
+                  maxWidth: "86%",
+                  bgcolor: isAsk ? "background.paper" : "var(--surface-2)",
+                  border: "1px solid var(--line)",
+                  borderRadius: "var(--r-md)",
+                  boxShadow: isAsk ? "var(--shadow-sm)" : "none",
+                  p: "14px 18px",
                 }}
               >
-                <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    display="block"
-                  >
-                    {t.role === "assistant" ? "Interviewer" : "You"}
-                  </Typography>
-                  <Typography variant="body1">{t.content}</Typography>
-                </CardContent>
-              </Card>
-            </Box>
-          ))}
+                <Box
+                  className="kc-meta"
+                  sx={{ mb: "6px" }}
+                >
+                  {isAsk ? "Your guide" : "You"}
+                </Box>
+                <Box
+                  sx={
+                    isAsk
+                      ? {
+                          fontFamily: "var(--font-display)",
+                          fontVariationSettings: "var(--soft-ui)",
+                          fontWeight: 500,
+                          fontSize: 17,
+                          lineHeight: 1.35,
+                          color: "var(--ink)",
+                        }
+                      : {
+                          fontSize: 15.5,
+                          lineHeight: 1.5,
+                          color: "var(--ink)",
+                        }
+                  }
+                >
+                  {t.content}
+                </Box>
+              </Box>
+            );
+          })}
         </Stack>
       )}
 
-      <Card variant="outlined">
-        <CardContent>
-          <Stack spacing={2}>
-            <Typography variant="h6">{question}</Typography>
-            <TextField
-              multiline
-              minRows={2}
-              fullWidth
-              placeholder="Type your answer…"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+      <Surface>
+        <Stack spacing={2}>
+          <AskHeadline>{question}</AskHeadline>
+          <TextField
+            multiline
+            minRows={2}
+            fullWidth
+            placeholder="Type your answer…"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            disabled={isPending}
+          />
+          <Stack
+            direction="row"
+            spacing={2}
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <MicButton
+              onTranscript={(t) =>
+                setDraft((prev) =>
+                  prev.trim().length > 0 ? `${prev.replace(/\s+$/, "")} ${t}` : t,
+                )
+              }
               disabled={isPending}
             />
-            <Stack
-              direction="row"
-              spacing={2}
-              justifyContent="space-between"
-              alignItems="center"
+            <Button
+              variant="contained"
+              color="kcInk"
+              onClick={answer}
+              disabled={draft.trim().length === 0 || isPending}
             >
-              <MicButton
-                onTranscript={(t) =>
-                  setDraft((prev) =>
-                    prev.trim().length > 0 ? `${prev.replace(/\s+$/, "")} ${t}` : t,
-                  )
-                }
-                disabled={isPending}
-              />
-              <Button
-                variant="contained"
-                onClick={answer}
-                disabled={draft.trim().length === 0 || isPending}
-              >
-                {isPending ? "Thinking…" : "Send"}
-              </Button>
-            </Stack>
+              {isPending ? "Thinking…" : "Continue"}
+            </Button>
           </Stack>
-        </CardContent>
-      </Card>
+        </Stack>
+      </Surface>
     </Stack>
   );
 }

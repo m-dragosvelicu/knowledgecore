@@ -237,6 +237,24 @@ body {
 .kc-stagger-5 { animation-delay: .3s; }
 .kc-stagger-6 { animation-delay: .36s; }
 
+/* Quiet progress dot-row (the wizard's calm replacement for a LinearProgress
+   bar). Ported from design-system/ui_kits/web-app StartFlow .progress/.pdot:
+   short rounded ticks that fill teal as the learner advances. */
+.kc-progress {
+  display: flex;
+  gap: 8px;
+}
+.kc-pdot {
+  width: 34px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  transition: background .35s;
+}
+.kc-pdot.on {
+  background: var(--teal);
+}
+
 /* Draw-in: SVG strokes use pathLength="1" + stroke-dasharray:1, then animate
    stroke-dashoffset 1 -> 0. Apply .kc-draw to the path; delay so an underline
    arrives just after its text. */

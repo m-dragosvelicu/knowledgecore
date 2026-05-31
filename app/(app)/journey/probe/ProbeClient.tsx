@@ -2,21 +2,17 @@
 
 import { useState, useTransition } from "react";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import LinearProgress from "@mui/material/LinearProgress";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import RadioGroup from "@mui/material/RadioGroup";
 import Radio from "@mui/material/Radio";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
-import FormLabel from "@mui/material/FormLabel";
 import Box from "@mui/material/Box";
 import type { ProbeAnswer, ProbeQuestion } from "@/lib/services/types";
 import { submitProbeAction } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
+import { Eyebrow, SkipButton } from "@/components/ui";
 
 type Props = {
   questions: ProbeQuestion[];
@@ -29,9 +25,9 @@ export default function ProbeClient({ questions }: Props) {
 
   if (questions.length === 0) {
     return (
-      <Typography variant="body1">
+      <Box sx={{ fontSize: 15.5, color: "var(--ink-2)" }}>
         No probe questions available. Please reload.
-      </Typography>
+      </Box>
     );
   }
 
@@ -64,97 +60,131 @@ export default function ProbeClient({ questions }: Props) {
 
   return (
     <Stack spacing={3}>
+      {/* Quiet progress: an eyebrow "question N of M" with the competency as
+          middot metadata, over the calm teal dot-row (no LinearProgress bar). */}
       <Box>
-        <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="caption" color="text.secondary">
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="baseline"
+          sx={{ mb: "10px" }}
+        >
+          <Eyebrow>
             Question {index + 1} of {questions.length}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {current.competencyTag}
-          </Typography>
+          </Eyebrow>
+          <Box className="kc-meta">{current.competencyTag}</Box>
         </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={((index + 1) / questions.length) * 100}
-        />
+        <Box className="kc-progress" aria-hidden="true">
+          {questions.map((q, i) => (
+            <span
+              key={q.id}
+              className={"kc-pdot" + (i <= index ? " on" : "")}
+            />
+          ))}
+        </Box>
       </Box>
 
-      <Card variant="outlined">
-        <CardContent>
-          <Stack spacing={3}>
-            <Typography variant="h6">{current.prompt}</Typography>
+      <Box
+        sx={{
+          bgcolor: "background.paper",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-lg)",
+          boxShadow: "var(--shadow-sm)",
+          p: "24px 26px",
+        }}
+      >
+        <Stack spacing={3}>
+          {/* The prompt is the voice of this step — set in Fraunces. */}
+          <Box
+            component="h2"
+            sx={{
+              m: 0,
+              fontFamily: "var(--font-display)",
+              fontVariationSettings: "var(--soft-ui)",
+              fontWeight: 500,
+              fontSize: "clamp(20px, 2.6vw, 26px)",
+              lineHeight: 1.2,
+              letterSpacing: "-.01em",
+              color: "var(--ink)",
+            }}
+          >
+            {current.prompt}
+          </Box>
 
-            {current.kind === "open" ? (
-              <Stack spacing={0.5}>
-                <TextField
-                  multiline
-                  minRows={4}
-                  fullWidth
-                  placeholder="Type your answer here. It is okay to say 'I am not sure'."
-                  value={currentValue}
-                  onChange={(e) => setAnswer(e.target.value)}
-                />
-                <Box sx={{ alignSelf: "flex-start" }}>
-                  <MicButton
-                    onTranscript={(t) =>
-                      setAnswer(
-                        currentValue.trim().length > 0
-                          ? `${currentValue.replace(/\s+$/, "")} ${t}`
-                          : t,
-                      )
-                    }
-                    disabled={isPending}
-                  />
-                </Box>
-              </Stack>
-            ) : (
-              <FormControl>
-                <FormLabel>Pick the best answer</FormLabel>
-                <RadioGroup
-                  value={currentValue}
-                  onChange={(e) => setAnswer(e.target.value)}
-                >
-                  {(current.options ?? []).map((opt) => (
-                    <FormControlLabel
-                      key={opt}
-                      value={opt}
-                      control={<Radio />}
-                      label={opt}
-                    />
-                  ))}
-                </RadioGroup>
-              </FormControl>
-            )}
-
-            <Stack direction="row" spacing={2} justifyContent="space-between">
-              <Button
-                variant="text"
-                onClick={() => setIndex((i) => Math.max(0, i - 1))}
-                disabled={index === 0 || isPending}
-              >
-                Back
-              </Button>
-              {isLast ? (
-                <Button
-                  variant="contained"
-                  onClick={submit}
-                  disabled={!canAdvance || isPending}
-                >
-                  {isPending ? "Scoring…" : "Submit"}
-                </Button>
-              ) : (
-                <Button
-                  variant="contained"
-                  onClick={next}
-                  disabled={!canAdvance}
-                >
-                  Next
-                </Button>
-              )}
+          {current.kind === "open" ? (
+            <Stack spacing={1} alignItems="flex-start">
+              <TextField
+                multiline
+                minRows={4}
+                fullWidth
+                placeholder="Type your answer here. It’s okay to say ‘I’m not sure’."
+                value={currentValue}
+                onChange={(e) => setAnswer(e.target.value)}
+              />
+              <MicButton
+                onTranscript={(t) =>
+                  setAnswer(
+                    currentValue.trim().length > 0
+                      ? `${currentValue.replace(/\s+$/, "")} ${t}`
+                      : t,
+                  )
+                }
+                disabled={isPending}
+              />
             </Stack>
+          ) : (
+            <FormControl>
+              <Eyebrow sx={{ mb: "8px" }}>Pick the closest answer</Eyebrow>
+              <RadioGroup
+                value={currentValue}
+                onChange={(e) => setAnswer(e.target.value)}
+              >
+                {(current.options ?? []).map((opt) => (
+                  <FormControlLabel
+                    key={opt}
+                    value={opt}
+                    control={<Radio />}
+                    label={opt}
+                  />
+                ))}
+              </RadioGroup>
+            </FormControl>
+          )}
+
+          <Stack
+            direction="row"
+            spacing={2}
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <SkipButton
+              onClick={() => setIndex((i) => Math.max(0, i - 1))}
+              disabled={index === 0 || isPending}
+            >
+              Back
+            </SkipButton>
+            {isLast ? (
+              <Button
+                variant="contained"
+                color="kcInk"
+                onClick={submit}
+                disabled={!canAdvance || isPending}
+              >
+                {isPending ? "Scoring…" : "Submit"}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                color="kcInk"
+                onClick={next}
+                disabled={!canAdvance}
+              >
+                Continue
+              </Button>
+            )}
           </Stack>
-        </CardContent>
-      </Card>
+        </Stack>
+      </Box>
     </Stack>
   );
 }
