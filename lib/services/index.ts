@@ -12,6 +12,7 @@ import { LiveGoalInterviewer } from "@/lib/services/live/liveGoalInterviewer";
 import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
 import { LivePathOutliner } from "@/lib/services/live/livePathOutliner";
 import { LiveCheckpointEvaluator } from "@/lib/services/live/liveCheckpointEvaluator";
+import { LivePathAdjuster } from "@/lib/services/live/livePathAdjuster";
 
 export * from "@/lib/services/types";
 
@@ -40,7 +41,8 @@ type ServiceName =
   | "goalInterviewer"
   | "knowledgeProbe"
   | "pathOutliner"
-  | "checkpointEvaluator";
+  | "checkpointEvaluator"
+  | "pathAdjuster";
 
 type ServiceMode = "mock" | "live";
 
@@ -50,6 +52,7 @@ const LIVE_ENV_FLAG: Record<ServiceName, string> = {
   knowledgeProbe: "LIVE_KNOWLEDGE_PROBE",
   pathOutliner: "LIVE_PATH_OUTLINER",
   checkpointEvaluator: "LIVE_CHECKPOINT_EVALUATOR",
+  pathAdjuster: "LIVE_PATH_ADJUSTER",
 };
 
 const fallbackOnce = new Set<string>();
@@ -124,6 +127,9 @@ function buildLivePathOutliner(): Services["pathOutliner"] {
 function buildLiveCheckpointEvaluator(): Services["checkpointEvaluator"] {
   return new LiveCheckpointEvaluator(getSharedClient());
 }
+function buildLivePathAdjuster(): Services["pathAdjuster"] {
+  return new LivePathAdjuster(getSharedClient());
+}
 
 function buildIntentParser(): { impl: Services["intentParser"]; mode: ServiceMode } {
   if (wantsLive("intentParser")) {
@@ -190,12 +196,26 @@ function buildCheckpointEvaluator(): { impl: Services["checkpointEvaluator"]; mo
   return { impl: new MockCheckpointEvaluator(), mode: "mock" };
 }
 
+function buildPathAdjuster(): { impl: Services["pathAdjuster"]; mode: ServiceMode } {
+  if (wantsLive("pathAdjuster")) {
+    try {
+      return { impl: buildLivePathAdjuster(), mode: "live" };
+    } catch {
+      warnFallback("pathAdjuster", "build_failed");
+    }
+  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
+    warnFallback("pathAdjuster", "no_api_key");
+  }
+  return { impl: new MockPathAdjuster(), mode: "mock" };
+}
+
 export function getServices(): Services {
   const intentParser = buildIntentParser();
   const goalInterviewer = buildGoalInterviewer();
   const knowledgeProbe = buildKnowledgeProbe();
   const pathOutliner = buildPathOutliner();
   const checkpointEvaluator = buildCheckpointEvaluator();
+  const pathAdjuster = buildPathAdjuster();
 
   // The aggregate mode reports "live" only when every service is live. Mixed-mode (some
   // live, some mock) reports "mock" so the UI cannot accidentally claim guarantees a
@@ -205,18 +225,16 @@ export function getServices(): Services {
     goalInterviewer.mode === "live" &&
     knowledgeProbe.mode === "live" &&
     pathOutliner.mode === "live" &&
-    checkpointEvaluator.mode === "live";
+    checkpointEvaluator.mode === "live" &&
+    pathAdjuster.mode === "live";
 
-  // pathAdjuster: wired to mock here as a placeholder so the Services type is
-  // satisfied. WAVE 2 (T6) replaces this with the live/mock builder pattern and
-  // folds it into the allLive computation once LivePathAdjuster exists.
   return {
     intentParser: intentParser.impl,
     goalInterviewer: goalInterviewer.impl,
     knowledgeProbe: knowledgeProbe.impl,
     pathOutliner: pathOutliner.impl,
     checkpointEvaluator: checkpointEvaluator.impl,
-    pathAdjuster: new MockPathAdjuster(),
+    pathAdjuster: pathAdjuster.impl,
     mode: allLive ? "live" : "mock",
   };
 }
