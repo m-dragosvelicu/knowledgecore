@@ -11,6 +11,9 @@ import MicTextField from "@/components/journey/MicTextField";
 
 type Props = {
   goalpostId: string;
+  // The resolved journey id (from ?j), submitted as a hidden field so the
+  // override mutates and advances the journey the learner actually opened.
+  intentId: string;
   action: (formData: FormData) => void | Promise<void>;
 };
 
@@ -19,7 +22,7 @@ type Props = {
  * the evaluation does not seem right, give a reason, and force an advance. The
  * override is recorded server-side as a calibration signal, not hidden.
  */
-export default function OverrideControl({ goalpostId, action }: Props) {
+export default function OverrideControl({ goalpostId, intentId, action }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,6 +41,7 @@ export default function OverrideControl({ goalpostId, action }: Props) {
       )}
       <Collapse in={open}>
         <form action={action}>
+          <input type="hidden" name="j" value={intentId} />
           <input type="hidden" name="goalpostId" value={goalpostId} />
           <input type="hidden" name="newDecision" value="advance" />
           <Stack spacing={2} sx={{ mt: 1 }}>

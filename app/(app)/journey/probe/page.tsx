@@ -20,7 +20,7 @@ export default async function ProbePage({
 
   const subject = await prisma.subject.findUnique({ where: { intentId: intent.id } });
   const outcome = await prisma.expectedOutcome.findUnique({ where: { intentId: intent.id } });
-  if (!subject || !outcome) redirect("/journey/outcome");
+  if (!subject || !outcome) redirect(`/journey/outcome?j=${intent.id}`);
 
   const services = getServices();
   const canDo = outcome!.canDoStatements as unknown as CanDoStatement[];
@@ -58,7 +58,7 @@ export default async function ProbePage({
       </Box>
 
       <Box className="kc-fade" sx={{ animationDelay: ".12s" }}>
-        <ProbeClient questions={questions} />
+        <ProbeClient questions={questions} intentId={intent.id} />
       </Box>
     </Box>
   );

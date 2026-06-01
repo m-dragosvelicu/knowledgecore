@@ -114,6 +114,7 @@ export default async function IntentPage({
         <Box className="kc-fade" sx={{ mt: "22px", animationDelay: ".18s" }}>
           {/* Accept the interpretation as-is and proceed. */}
           <form action={confirmIntentAction}>
+            {intent && <input type="hidden" name="j" value={intent.id} />}
             <SaveAndLeaveRow>
               <SubmitButton
                 variant="contained"
@@ -138,6 +139,7 @@ export default async function IntentPage({
             Refine it below and we&rsquo;ll read it again.
           </Box>
           <form action={submitIntentAction}>
+            {intent && <input type="hidden" name="j" value={intent.id} />}
             <Stack spacing={2} alignItems="flex-start">
               <MicTextField
                 name="rawText"
@@ -226,6 +228,7 @@ export default async function IntentPage({
         sx={{ mt: "28px", animationDelay: ".16s" }}
       >
         <form action={submitIntentAction}>
+          {intent && <input type="hidden" name="j" value={intent.id} />}
           <Stack spacing={1.5} alignItems="flex-start">
             <MicTextField
               name="rawText"

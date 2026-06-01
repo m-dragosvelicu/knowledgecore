@@ -97,6 +97,9 @@ function NarratedWait({ artifact }: { artifact: string }) {
 
 type Props = {
   stepId: string;
+  // The resolved journey id (from ?j), submitted as a hidden field so the
+  // action evaluates and advances the journey the learner actually opened.
+  intentId: string;
   action: (formData: FormData) => void | Promise<void>;
   // Rendered markdown of the prompt (server-rendered, passed as children).
   prompt: React.ReactNode;
@@ -111,11 +114,12 @@ type Props = {
  * slow live evaluator runs it replaces the editor with a warm narrated wait that
  * echoes the learner's own submission and disables the submit (no-feedback bug).
  */
-export default function ExperienceForm({ stepId, action, prompt }: Props) {
+export default function ExperienceForm({ stepId, intentId, action, prompt }: Props) {
   const [artifact, setArtifact] = useState("");
 
   return (
     <form action={action}>
+      <input type="hidden" name="j" value={intentId} />
       <input type="hidden" name="stepId" value={stepId} />
       <ExperienceBody
         prompt={prompt}

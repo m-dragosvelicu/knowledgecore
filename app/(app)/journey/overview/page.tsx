@@ -38,8 +38,8 @@ export default async function OverviewPage({
     }),
   ]);
 
-  if (!subject) redirect("/journey/intent");
-  if (!path) redirect("/journey/path");
+  if (!subject) redirect(`/journey/intent?j=${intent.id}`);
+  if (!path) redirect(`/journey/path?j=${intent.id}`);
 
   const canDoStatements =
     (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [];
@@ -163,7 +163,7 @@ export default async function OverviewPage({
         <SaveAndLeaveRow>
           <Button
             component={Link}
-            href="/journey/goalpost"
+            href={`/journey/goalpost?j=${intent.id}`}
             variant="contained"
             size="large"
           >
@@ -174,7 +174,7 @@ export default async function OverviewPage({
           Not quite what you meant?{" "}
           <Box
             component={Link}
-            href="/journey/path"
+            href={`/journey/path?j=${intent.id}`}
             sx={{ color: "primary.main", textDecoration: "underline" }}
           >
             Revisit your path

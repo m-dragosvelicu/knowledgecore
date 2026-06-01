@@ -37,6 +37,7 @@ export default async function BeginPage({
   // Guest path: summarise the journey they are about to commit to.
   const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
+  const j = intent.id;
 
   const [subject, path] = await Promise.all([
     prisma.subject.findUnique({ where: { intentId: intent.id } }),
@@ -47,7 +48,7 @@ export default async function BeginPage({
   ]);
   // The gate only makes sense once the path overview exists; otherwise send the
   // guest back to finish the public flow.
-  if (!subject || !path) redirect("/journey/path");
+  if (!subject || !path) redirect(`/journey/path?j=${j}`);
 
   const goalpostCount = path.goalposts.length;
   const totalMinutes = path.goalposts.reduce(
@@ -122,7 +123,7 @@ export default async function BeginPage({
       </Box>
 
       <Stack className="kc-fade" sx={{ mt: "28px", animationDelay: ".16s" }}>
-        <BeginClient />
+        <BeginClient intentId={intent.id} />
       </Stack>
     </Box>
   );

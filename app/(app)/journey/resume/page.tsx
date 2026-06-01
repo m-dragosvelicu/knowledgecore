@@ -93,7 +93,7 @@ export default async function ResumePage({
   }
 
   const goalpost = await getCurrentGoalpost(intent!.id);
-  if (!goalpost) redirect("/journey/path");
+  if (!goalpost) redirect(`/journey/path?j=${intent!.id}`);
 
   const [subject, lastEval] = await Promise.all([
     prisma.subject.findUnique({

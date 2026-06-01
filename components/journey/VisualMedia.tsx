@@ -31,7 +31,10 @@ type Props = {
    * Server action that records the not-helpful signal for this visual id. When
    * omitted (e.g. read-only review), the feedback control is hidden.
    */
-  onNotHelpful?: (visualId: string) => void | Promise<void>;
+  onNotHelpful?: (visualId: string, intentId?: string | null) => void | Promise<void>;
+  // The resolved journey id (from ?j), forwarded to onNotHelpful so the signal
+  // is recorded against the journey the learner actually opened.
+  intentId?: string | null;
 };
 
 // The caption is the quiet middot-meta voice (.kc-meta): Hanken, muted ink. It
@@ -54,10 +57,12 @@ function Caption({ children }: { children: React.ReactNode }) {
 // wiring to the learner profile (onNotHelpful) is unchanged: presentation only.
 function NotHelpful({
   visualId,
+  intentId,
   onNotHelpful,
 }: {
   visualId: string;
-  onNotHelpful?: (visualId: string) => void | Promise<void>;
+  intentId?: string | null;
+  onNotHelpful?: (visualId: string, intentId?: string | null) => void | Promise<void>;
 }) {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
@@ -76,7 +81,7 @@ function NotHelpful({
       aria-label="Mark this visual as not helpful"
       onClick={() =>
         startTransition(async () => {
-          await onNotHelpful(visualId);
+          await onNotHelpful(visualId, intentId);
           setDone(true);
         })
       }
@@ -86,7 +91,7 @@ function NotHelpful({
   );
 }
 
-export default function VisualMedia({ visual, onNotHelpful }: Props) {
+export default function VisualMedia({ visual, onNotHelpful, intentId }: Props) {
   // The gate could not resolve a safe/usable visual: render nothing (the lesson
   // text stands alone). No broken affordance, no arbitrary fallback image.
   if (visual.medium === "none") return null;
@@ -217,7 +222,7 @@ export default function VisualMedia({ visual, onNotHelpful }: Props) {
         {visual.medium === "svg" && <Caption>{visual.caption}</Caption>}
 
         <Box>
-          <NotHelpful visualId={visual.id} onNotHelpful={onNotHelpful} />
+          <NotHelpful visualId={visual.id} intentId={intentId} onNotHelpful={onNotHelpful} />
         </Box>
       </Stack>
     </Box>

@@ -31,7 +31,14 @@ import SolidButton from "@/components/ui/SolidButton";
 
 type Mode = "create" | "signin";
 
-export default function BeginClient() {
+type Props = {
+  // The resolved journey id (from ?j). The id is stable across the account
+  // claim (the row is re-owned, not recreated), so the resumed acceptPathAction
+  // operates on the journey the guest actually built.
+  intentId: string;
+};
+
+export default function BeginClient({ intentId }: Props) {
   const [mode, setMode] = useState<Mode>("create");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -43,7 +50,7 @@ export default function BeginClient() {
   // the pending begin. acceptPathAction redirects on success, so control does
   // not return here in the happy path.
   async function resumeBegin() {
-    await acceptPathAction();
+    await acceptPathAction(intentId);
   }
 
   async function handleSubmit(e: React.FormEvent) {

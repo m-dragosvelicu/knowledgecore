@@ -18,6 +18,10 @@ export const auth = betterAuth({
     // TODO(auth): wire a real transactional email provider (Resend/SES) and
     // implement password reset. Stubbed until email infra exists.
   },
+  // DEV-ONLY: trust localhost and any ngrok tunnel origin for phone preview.
+  ...(process.env.NODE_ENV !== "production"
+    ? { trustedOrigins: ["http://localhost:3000", "https://*.ngrok-free.app"] }
+    : {}),
   plugins: [
     // Try-before-signup: a first-visit guest gets a real (isAnonymous=true) User
     // row + a normal session cookie, so the entire pre-journey flow and the

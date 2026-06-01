@@ -153,12 +153,21 @@ function NodeCard({ node }: { node: TrailNode }) {
 // tappable for read-only review; the current goalpost links into the live
 // execution loop; locked goalposts are inert (tooltip). Unchanged from before
 // the restyle -- only the surrounding marks moved to the hand-drawn language.
-function NodeCardLink({ node }: { node: TrailNode }) {
+function NodeCardLink({
+  node,
+  intentId,
+}: {
+  node: TrailNode;
+  intentId?: string | null;
+}) {
+  // Carry the journey id into the goalpost so a trail tap stays on the journey
+  // the learner is viewing rather than drifting onto the most-recent one.
+  const jParam = intentId ? `&j=${intentId}` : "";
   if (node.state === "completed") {
     return (
       <Box
         component={Link}
-        href={`/journey/goalpost?review=${node.id}`}
+        href={`/journey/goalpost?review=${node.id}${jParam}`}
         sx={{ display: "flex", flex: 1, minWidth: 0, textDecoration: "none" }}
         aria-label={`Review goalpost ${node.order}: ${node.title}`}
       >
@@ -170,7 +179,7 @@ function NodeCardLink({ node }: { node: TrailNode }) {
     return (
       <Box
         component={Link}
-        href="/journey/goalpost"
+        href={intentId ? `/journey/goalpost?j=${intentId}` : "/journey/goalpost"}
         sx={{ display: "flex", flex: 1, minWidth: 0, textDecoration: "none" }}
         aria-label={`Continue goalpost ${node.order}: ${node.title}`}
       >
@@ -191,7 +200,14 @@ function NodeCardLink({ node }: { node: TrailNode }) {
   );
 }
 
-export default function PathTrail({ nodes }: { nodes: TrailNode[] }) {
+export default function PathTrail({
+  nodes,
+  intentId,
+}: {
+  nodes: TrailNode[];
+  // The resolved journey id (from ?j), forwarded into each node's link.
+  intentId?: string | null;
+}) {
   return (
     <Box role="list" aria-label="Your learning path">
       {nodes.map((node, i) => {
@@ -237,7 +253,7 @@ export default function PathTrail({ nodes }: { nodes: TrailNode[] }) {
             </Box>
 
             <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
-              <NodeCardLink node={node} />
+              <NodeCardLink node={node} intentId={intentId} />
               {node.state === "completed" && node.score != null && (
                 <Box sx={{ flex: "none", mt: 0.5 }} aria-hidden>
                   <TrailScore value={node.score} />

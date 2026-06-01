@@ -38,7 +38,7 @@ export default async function PathPage({
   const outcome = await prisma.expectedOutcome.findUnique({
     where: { intentId: intent.id },
   });
-  if (!subject || !assessment) redirect("/journey/probe");
+  if (!subject || !assessment) redirect(`/journey/probe?j=${intent.id}`);
 
   const canDoStatements =
     (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [];
@@ -62,7 +62,7 @@ export default async function PathPage({
   });
 
   if (!path) {
-    await generatePathAction();
+    await generatePathAction(intent.id);
     path = await prisma.learningPath.findUnique({
       where: { intentId: intent.id },
       include: pathInclude,
@@ -160,7 +160,7 @@ export default async function PathPage({
         </Typography>
       </Stack>
 
-      <PathTrail nodes={nodes} />
+      <PathTrail nodes={nodes} intentId={intent.id} />
 
       {!accepted && (
         <>
@@ -240,7 +240,7 @@ export default async function PathPage({
               clarifying dialogue. "Looks good, start" -> acceptPathAction ->
               goalpost 1 (lazy Call B). "Not quite right" -> reused dialogue
               engine -> existing Path Adjuster -> re-present here. */}
-          <PathConfirmationGate revisionCount={path.revisionCount} />
+          <PathConfirmationGate revisionCount={path.revisionCount} intentId={intent.id} />
 
           <Accordion
             variant="outlined"

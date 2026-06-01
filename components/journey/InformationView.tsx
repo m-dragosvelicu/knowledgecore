@@ -8,6 +8,9 @@ import { Eyebrow } from "@/components/ui";
 
 type Props = {
   stepId: string;
+  // The resolved journey id (from ?j), submitted as a hidden field so the
+  // action mutates and advances the journey the learner actually opened.
+  intentId: string;
   action: (formData: FormData) => void | Promise<void>;
   // Server-rendered markdown content.
   content: React.ReactNode;
@@ -47,6 +50,7 @@ function approxReadMinutes(dwellSeconds: number): number {
  */
 export default function InformationView({
   stepId,
+  intentId,
   action,
   content,
   dwellSeconds = DEFAULT_DWELL_SECONDS,
@@ -157,6 +161,7 @@ export default function InformationView({
 
         <Box>
           <form action={action}>
+            <input type="hidden" name="j" value={intentId} />
             <input type="hidden" name="stepId" value={stepId} />
             <SubmitButton
               variant="contained"

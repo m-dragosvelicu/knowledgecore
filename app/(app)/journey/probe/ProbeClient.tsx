@@ -17,9 +17,12 @@ import { Eyebrow, SkipButton } from "@/components/ui";
 
 type Props = {
   questions: ProbeQuestion[];
+  // The resolved journey id (from ?j), threaded so scoring writes to and
+  // advances the journey the learner actually opened, not the most-recent one.
+  intentId: string;
 };
 
-export default function ProbeClient({ questions }: Props) {
+export default function ProbeClient({ questions, intentId }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
@@ -55,7 +58,7 @@ export default function ProbeClient({ questions }: Props) {
     // Send the exact questions the learner saw so scoring is stateless and never
     // regenerates mismatched questions (the root cause of the all-0/4 bug).
     startTransition(async () => {
-      await submitProbeAction(questions, payload);
+      await submitProbeAction(questions, payload, intentId);
     });
   }
 

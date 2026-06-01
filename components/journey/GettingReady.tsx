@@ -9,12 +9,15 @@ import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 
 type Props = {
   goalpostId: string;
+  // The resolved journey id (from ?j), forwarded to the action so generation
+  // runs against the journey the learner actually opened.
+  intentId: string;
   title: string;
   /**
    * Server action that generates (Call B) and persists this goalpost's lesson
    * content against the freshest learner profile. Idempotent.
    */
-  action: (goalpostId: string) => Promise<void>;
+  action: (goalpostId: string, intentId?: string | null) => Promise<void>;
 };
 
 /**
@@ -32,7 +35,7 @@ type Props = {
  * underline) and a Fraunces line, so it reads as the product taking a calm beat
  * rather than a system loading. Retry/error path unchanged.
  */
-export default function GettingReady({ goalpostId, title, action }: Props) {
+export default function GettingReady({ goalpostId, intentId, title, action }: Props) {
   const router = useRouter();
   const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +46,7 @@ export default function GettingReady({ goalpostId, title, action }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        await action(goalpostId);
+        await action(goalpostId, intentId);
         if (!cancelled) router.refresh();
       } catch {
         if (!cancelled) {
@@ -54,7 +57,7 @@ export default function GettingReady({ goalpostId, title, action }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [action, goalpostId, router]);
+  }, [action, goalpostId, intentId, router]);
 
   return (
     <Box

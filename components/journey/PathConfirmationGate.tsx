@@ -32,6 +32,9 @@ type Props = {
    * "adjust as you go" message persists across the re-presented overview.
    */
   revisionCount: number;
+  // The resolved journey id (from ?j), threaded into accept / clarify / revise
+  // so the gate operates on the journey the learner actually opened.
+  intentId: string;
 };
 
 type Mode = "gate" | "dialogue";
@@ -90,7 +93,7 @@ function AskHeadline({ children }: { children: React.ReactNode }) {
  * (wobble) button, and the clarifying dialogue is the styled turn-taking cards.
  * Logic is unchanged.
  */
-export default function PathConfirmationGate({ revisionCount }: Props) {
+export default function PathConfirmationGate({ revisionCount, intentId }: Props) {
   const [mode, setMode] = useState<Mode>("gate");
   const [transcript, setTranscript] = useState<InterviewTurn[]>([]);
   const [question, setQuestion] = useState<string>("");
@@ -103,7 +106,7 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
 
   function looksGood() {
     startTransition(async () => {
-      await acceptPathAction();
+      await acceptPathAction(intentId);
     });
   }
 
@@ -112,11 +115,11 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
   // OutcomeClient / Goal Interview loop).
   function runTurn(nextTranscript: InterviewTurn[]) {
     startTransition(async () => {
-      const step = await advancePathConfirmationAction(nextTranscript);
+      const step = await advancePathConfirmationAction(nextTranscript, intentId);
       if (step.kind === "complete") {
         // Hand the concern to the existing Path Adjuster; the action revises the
         // path and redirects back here to re-present the revised overview.
-        await revisePathFromConfirmationAction(step.concern);
+        await revisePathFromConfirmationAction(step.concern, intentId);
       } else {
         setQuestion(step.question);
         setTranscript([

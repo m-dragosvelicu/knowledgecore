@@ -39,6 +39,9 @@ type Complete = {
 
 type Props = {
   defaultMotivation: Motivation | null;
+  // The resolved journey id (from ?j), threaded into every action so the
+  // interview operates on and advances the journey the learner actually opened.
+  intentId: string;
 };
 
 // A heading set in Fraunces at the light/medium display weight — the voice that
@@ -92,7 +95,7 @@ function Surface({
   );
 }
 
-export default function OutcomeClient({ defaultMotivation }: Props) {
+export default function OutcomeClient({ defaultMotivation, intentId }: Props) {
   const [phase, setPhase] = useState<Phase>("motivation");
   const [motivation, setMotivation] = useState<Motivation | "">(
     defaultMotivation ?? "",
@@ -109,7 +112,7 @@ export default function OutcomeClient({ defaultMotivation }: Props) {
     if (motivation === "") return;
     const mot = motivation;
     startTransition(async () => {
-      const step = await advanceInterviewAction(mot, nextTranscript);
+      const step = await advanceInterviewAction(mot, nextTranscript, intentId);
       if (step.kind === "complete") {
         setComplete({
           canDoStatements: step.canDoStatements,
@@ -143,7 +146,7 @@ export default function OutcomeClient({ defaultMotivation }: Props) {
   function finalize() {
     if (!complete) return;
     startTransition(async () => {
-      await finalizeOutcomeAction(complete.canDoStatements, complete.successCriterion);
+      await finalizeOutcomeAction(complete.canDoStatements, complete.successCriterion, intentId);
     });
   }
 

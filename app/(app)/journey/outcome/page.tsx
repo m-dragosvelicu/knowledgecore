@@ -16,7 +16,7 @@ export default async function OutcomePage({
   const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
   const subject = await prisma.subject.findUnique({ where: { intentId: intent.id } });
-  if (!subject) redirect("/journey/intent");
+  if (!subject) redirect(`/journey/intent?j=${intent.id}`);
   const goal = await prisma.learningGoal.findUnique({ where: { intentId: intent.id } });
 
   return (
@@ -47,7 +47,7 @@ export default async function OutcomePage({
       </Box>
 
       <Box className="kc-fade" sx={{ animationDelay: ".12s" }}>
-        <OutcomeClient defaultMotivation={goal?.motivation ?? null} />
+        <OutcomeClient defaultMotivation={goal?.motivation ?? null} intentId={intent.id} />
       </Box>
     </Box>
   );

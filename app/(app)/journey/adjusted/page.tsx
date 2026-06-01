@@ -31,7 +31,7 @@ export default async function AdjustedPage({
     where: { intentId: intent.id },
     select: { id: true },
   });
-  if (!path) redirect("/journey/goalpost");
+  if (!path) redirect(`/journey/goalpost?j=${intent.id}`);
 
   const revision = await prisma.pathRevision.findFirst({
     where: { pathId: path!.id },
@@ -94,7 +94,7 @@ export default async function AdjustedPage({
       <SaveAndLeaveRow>
         <SolidButton
           component={Link}
-          href="/journey/goalpost"
+          href={`/journey/goalpost?j=${intent.id}`}
           tone="ink"
           size="large"
         >

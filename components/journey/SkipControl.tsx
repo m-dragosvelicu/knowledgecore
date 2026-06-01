@@ -10,6 +10,9 @@ import SubmitButton from "@/components/journey/SubmitButton";
 
 type Props = {
   goalpostId: string;
+  // The resolved journey id (from ?j), submitted as a hidden field so the skip
+  // mutates and advances the journey the learner actually opened.
+  intentId: string;
   action: (formData: FormData) => void | Promise<void>;
 };
 
@@ -19,7 +22,7 @@ type Props = {
  * NOT a window.confirm dialog — before the learner can submit the skip. The
  * notice makes the trade-off explicit: prerequisites may surface later.
  */
-export default function SkipControl({ goalpostId, action }: Props) {
+export default function SkipControl({ goalpostId, intentId, action }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,6 +41,7 @@ export default function SkipControl({ goalpostId, action }: Props) {
       )}
       <Collapse in={open}>
         <form action={action}>
+          <input type="hidden" name="j" value={intentId} />
           <input type="hidden" name="goalpostId" value={goalpostId} />
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">

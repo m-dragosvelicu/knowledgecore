@@ -92,7 +92,7 @@ export default async function GoalpostPage({
   // being dropped back into the goalpost. The review sub-view below is exempt
   // so a paused journey can still be browsed read-only from the path trail.
   if (intent.status === "paused" && !params.review) {
-    redirect("/journey/resume");
+    redirect(`/journey/resume?j=${intent.id}`);
   }
 
   // -----------------------------------------------------------------------
@@ -129,16 +129,17 @@ export default async function GoalpostPage({
           decisionLabel={latest ? DECISION_LABELS[latest.decision] : null}
           decisionColor={latest ? DECISION_COLORS[latest.decision] : "default"}
           rationale={latest?.rationale ?? null}
+          intentId={intent.id}
         />
       );
     }
-    redirect("/journey/path");
+    redirect(`/journey/path?j=${intent.id}`);
   }
 
-  if (intent.status === "complete") redirect("/journey/complete");
+  if (intent.status === "complete") redirect(`/journey/complete?j=${intent.id}`);
 
   const goalpost = await getCurrentGoalpost(intent.id);
-  if (!goalpost) redirect("/journey/path");
+  if (!goalpost) redirect(`/journey/path?j=${intent.id}`);
 
   const informationStep = goalpost!.steps.find((s) => s.type === StepType.information);
   const experienceStep = goalpost!.steps.find((s) => s.type !== StepType.information);
@@ -169,7 +170,7 @@ export default async function GoalpostPage({
         objective={goalpost!.objective}
         estimatedMinutes={goalpost!.estimatedMinutes}
         experienceLabel={EXPERIENCE_LABELS[expType]}
-        beginHref="/journey/goalpost?phase=information"
+        beginHref={`/journey/goalpost?phase=information&j=${intent.id}`}
       />
     );
   }
@@ -223,6 +224,7 @@ export default async function GoalpostPage({
           {header}
           <GettingReady
             goalpostId={goalpost!.id}
+            intentId={intent.id}
             title={goalpost!.title}
             action={prepareGoalpostContentAction}
           />
@@ -258,6 +260,7 @@ export default async function GoalpostPage({
         {header}
         <InformationView
           stepId={informationStep.id}
+          intentId={intent.id}
           action={completeInformationStepAction}
           content={
             <>
@@ -268,6 +271,7 @@ export default async function GoalpostPage({
                     <VisualMedia
                       key={v.id}
                       visual={v}
+                      intentId={intent.id}
                       onNotHelpful={markVisualNotHelpfulAction}
                     />
                   ))}
@@ -278,7 +282,7 @@ export default async function GoalpostPage({
           dwellSeconds={dwellSeconds}
         />
         {/* §9.2 skip-with-confirm: available during the information phase. */}
-        <SkipControl goalpostId={goalpost!.id} action={skipGoalpostAction} />
+        <SkipControl goalpostId={goalpost!.id} intentId={intent.id} action={skipGoalpostAction} />
       </Stack>
     );
   }
@@ -304,12 +308,13 @@ export default async function GoalpostPage({
         >
           <ExperienceForm
             stepId={experienceStep.id}
+            intentId={intent.id}
             action={submitExperienceStepAction}
             prompt={<Markdown>{prompt}</Markdown>}
           />
         </Box>
         {/* §9.2 skip-with-confirm: available during the experience phase. */}
-        <SkipControl goalpostId={goalpost!.id} action={skipGoalpostAction} />
+        <SkipControl goalpostId={goalpost!.id} intentId={intent.id} action={skipGoalpostAction} />
       </Stack>
     );
   }
@@ -426,6 +431,7 @@ export default async function GoalpostPage({
           outlined actions, because they keep you working rather than move you on. */}
       {decision === Decision.advance && (
         <form action={advanceGoalpostAction}>
+          <input type="hidden" name="j" value={intent.id} />
           <input type="hidden" name="goalpostId" value={goalpost!.id} />
           <SaveAndLeaveRow>
             <SubmitButton
@@ -446,6 +452,7 @@ export default async function GoalpostPage({
             You&rsquo;re close. Another pass through the build will close the gap.
           </Typography>
           <form action={repeatGoalpostAction}>
+            <input type="hidden" name="j" value={intent.id} />
             <input type="hidden" name="goalpostId" value={goalpost!.id} />
             <SubmitButton
               variant="outlined"
@@ -457,6 +464,7 @@ export default async function GoalpostPage({
           </form>
           <OverrideControl
             goalpostId={goalpost!.id}
+            intentId={intent.id}
             action={overrideDecisionAction}
           />
         </Stack>
@@ -469,6 +477,7 @@ export default async function GoalpostPage({
             retrying. We&rsquo;ll revise the path to better fit where you are.
           </Typography>
           <form action={adjustPlanAction}>
+            <input type="hidden" name="j" value={intent.id} />
             <input type="hidden" name="goalpostId" value={goalpost!.id} />
             <SubmitButton
               variant="outlined"
@@ -480,6 +489,7 @@ export default async function GoalpostPage({
           </form>
           <OverrideControl
             goalpostId={goalpost!.id}
+            intentId={intent.id}
             action={overrideDecisionAction}
           />
         </Stack>

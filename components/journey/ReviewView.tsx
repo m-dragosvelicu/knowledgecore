@@ -26,6 +26,9 @@ type Props = {
   decisionLabel: string | null;
   decisionColor: "success" | "warning" | "info" | "default";
   rationale: string | null;
+  // The resolved journey id (from ?j), so "Back to your trail" returns to the
+  // same journey rather than the most-recent one.
+  intentId?: string | null;
 };
 
 // The calm reading measure + size, matching InformationView (the kit checkpoint
@@ -53,6 +56,7 @@ export default function ReviewView({
   userArtifact,
   decisionLabel,
   rationale,
+  intentId,
 }: Props) {
   return (
     <Stack spacing={3}>
@@ -152,7 +156,7 @@ export default function ReviewView({
 
       <Button
         component={Link}
-        href="/journey/path"
+        href={intentId ? `/journey/path?j=${intentId}` : "/journey/path"}
         variant="text"
         sx={{ alignSelf: "flex-start", px: 0 }}
       >
