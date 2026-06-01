@@ -23,6 +23,9 @@ type Props = {
   // Continue / refresher are server actions defined inline in the resume page.
   continueAction: (formData: FormData) => void | Promise<void>;
   refresherAction: (formData: FormData) => void | Promise<void>;
+  // The journey id, carried as a hidden form field so the continue/refresher
+  // writes target the journey the learner resumed (addressable resume).
+  intentId: string;
   subjectName: string | null;
   order: number;
   title: string;
@@ -44,6 +47,7 @@ function describeGap(idleDays: number): string {
 export default function WarmUpRecap({
   continueAction,
   refresherAction,
+  intentId,
   subjectName,
   order,
   title,
@@ -147,6 +151,7 @@ export default function WarmUpRecap({
               sx={{ pt: 0.5 }}
             >
               <form action={continueAction}>
+                <input type="hidden" name="j" value={intentId} />
                 <SubmitButton
                   variant="contained"
                   color="kcInk"
@@ -157,6 +162,7 @@ export default function WarmUpRecap({
                 </SubmitButton>
               </form>
               <form action={refresherAction}>
+                <input type="hidden" name="j" value={intentId} />
                 <SubmitButton
                   variant="text"
                   size="large"
@@ -172,6 +178,7 @@ export default function WarmUpRecap({
 
       {!offerRefresher && (
         <form action={continueAction}>
+          <input type="hidden" name="j" value={intentId} />
           <SubmitButton
             variant="contained"
             color="kcInk"

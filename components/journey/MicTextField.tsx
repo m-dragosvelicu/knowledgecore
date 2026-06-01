@@ -59,7 +59,7 @@ export default function MicTextField({
   }
 
   return (
-    <Stack spacing={0.5}>
+    <Stack spacing={0.5} sx={{ width: "100%" }}>
       {aboveLabel && (
         <Typography
           component="label"

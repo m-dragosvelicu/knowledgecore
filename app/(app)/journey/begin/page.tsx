@@ -17,7 +17,12 @@ import BeginClient from "./BeginClient";
 // (secondary). On success the onLinkAccount hook re-owns the journey atomically
 // and the client resumes the pending begin (acceptPathAction), landing the
 // learner in goalpost 1 with their journey intact.
-export default async function BeginPage() {
+export default async function BeginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ j?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
   const session = await getCurrentSession();
 
   // A real account that somehow lands here just proceeds into goalpost 1.
@@ -30,7 +35,7 @@ export default async function BeginPage() {
   }
 
   // Guest path: summarise the journey they are about to commit to.
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
 
   const [subject, path] = await Promise.all([

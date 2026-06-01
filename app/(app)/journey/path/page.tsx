@@ -20,10 +20,15 @@ import PathTrail, { type TrailNode } from "@/components/journey/PathTrail";
 import PathConfirmationGate from "@/components/journey/PathConfirmationGate";
 import { GoalpostStatus } from "@prisma/client";
 
-export default async function PathPage() {
+export default async function PathPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ j?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/"); // public pre-journey route; guests allowed
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
 
   const subject = await prisma.subject.findUnique({ where: { intentId: intent.id } });

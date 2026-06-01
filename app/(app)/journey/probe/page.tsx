@@ -7,10 +7,15 @@ import type { CanDoStatement } from "@/lib/services/types";
 import { Eyebrow } from "@/components/ui";
 import ProbeClient from "./ProbeClient";
 
-export default async function ProbePage() {
+export default async function ProbePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ j?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/"); // public pre-journey route; guests allowed
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
 
   const subject = await prisma.subject.findUnique({ where: { intentId: intent.id } });

@@ -26,32 +26,37 @@ import WarmUpRecap from "@/components/journey/WarmUpRecap";
 // Resolve the active intent id and its current goalpost, enforcing the journey
 // is genuinely resumable. Shared by the page and both server actions so the
 // writes target exactly what the learner saw.
-async function loadResumeContext() {
+async function loadResumeContext(intentId?: string | null) {
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  // Addressable resume: honor the `?j=<id>` param (passed by the page) / the
+  // hidden form field (on the action submit) so the warm-up recap and its
+  // continue/refresher writes target the journey the learner actually clicked,
+  // not whichever was touched most recently. getOrCreateActiveIntent enforces
+  // ownership (userId match) on the explicit id and falls back safely.
+  const intent = await getOrCreateActiveIntent(session.user.id, intentId);
   if (!intent) redirect("/journey/intent");
   return { intent };
 }
 
-async function continueAction(_formData: FormData): Promise<void> {
+async function continueAction(formData: FormData): Promise<void> {
   "use server";
-  void _formData;
-  const { intent } = await loadResumeContext();
+  const intentId = (formData.get("j") as string | null) ?? undefined;
+  const { intent } = await loadResumeContext(intentId);
   if (intent!.status === "paused") {
     await prisma.learningIntent.update({
       where: { id: intent!.id },
       data: { status: "in_progress" },
     });
   }
-  redirect("/journey/goalpost");
+  redirect(`/journey/goalpost?j=${intent!.id}`);
 }
 
-async function refresherAction(_formData: FormData): Promise<void> {
+async function refresherAction(formData: FormData): Promise<void> {
   "use server";
-  void _formData;
-  const { intent } = await loadResumeContext();
+  const intentId = (formData.get("j") as string | null) ?? undefined;
+  const { intent } = await loadResumeContext(intentId);
   if (intent!.status === "paused") {
     await prisma.learningIntent.update({
       where: { id: intent!.id },
@@ -69,11 +74,16 @@ async function refresherAction(_formData: FormData): Promise<void> {
       data: { completedAt: null },
     });
   }
-  redirect("/journey/goalpost");
+  redirect(`/journey/goalpost?j=${intent!.id}`);
 }
 
-export default async function ResumePage() {
-  const { intent } = await loadResumeContext();
+export default async function ResumePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ j?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
+  const { intent } = await loadResumeContext(params.j);
 
   // Only a `paused` journey warrants the warm-up recap. Anything else (a fresh
   // in_progress journey that did not cross the 7d idle line, or a wizard stage)
@@ -107,6 +117,7 @@ export default async function ResumePage() {
     <WarmUpRecap
       continueAction={continueAction}
       refresherAction={refresherAction}
+      intentId={intent!.id}
       subjectName={subject?.canonicalName ?? null}
       order={goalpost!.order}
       title={goalpost!.title}

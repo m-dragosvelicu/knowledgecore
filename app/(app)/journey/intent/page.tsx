@@ -11,7 +11,7 @@ import { getCurrentSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 
-type SearchParams = Promise<{ confirm?: string; note?: string }>;
+type SearchParams = Promise<{ confirm?: string; note?: string; j?: string }>;
 
 export default async function IntentPage({
   searchParams,
@@ -25,7 +25,7 @@ export default async function IntentPage({
   // deliberately do not mint a guest just for a bare GET, to avoid bot bloat).
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/");
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  const intent = await getOrCreateActiveIntent(session.user.id, params.j);
 
   // -----------------------------------------------------------------------
   // Confirm / refine sub-view (L0.md §3 Stage 2 ambiguity surfacing). Shown

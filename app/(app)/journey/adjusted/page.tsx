@@ -14,11 +14,16 @@ import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 //
 // Slice 4 restyle: warm surface, eyebrow + headline underline, the rationale as
 // a teal-edged pull-quote, on the one-teal vocabulary (no info-blue accent).
-export default async function AdjustedPage() {
+export default async function AdjustedPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ j?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
 
   const path = await prisma.learningPath.findUnique({

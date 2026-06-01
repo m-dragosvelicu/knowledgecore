@@ -68,6 +68,7 @@ type SearchParams = Promise<{
   phase?: string;
   begin?: string;
   review?: string;
+  j?: string;
 }>;
 
 export default async function GoalpostPage({
@@ -82,7 +83,7 @@ export default async function GoalpostPage({
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
 
   // §9.5 multi-session continuity: a journey that lazily transitioned to

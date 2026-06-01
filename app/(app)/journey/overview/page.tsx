@@ -18,10 +18,15 @@ import type { CanDoStatement } from "@/lib/services/types";
 // "that's not quite right" correction is, per the design, a conversation rather
 // than hand-editing -- in L0 we keep it minimal: a link back to revisit the
 // intent/path with a one-line note. No path hand-editing is implemented.
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ j?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
-  const intent = await getOrCreateActiveIntent(session.user.id);
+  const intent = await getOrCreateActiveIntent(session.user.id, params.j);
   if (!intent) redirect("/journey/intent");
 
   const [subject, outcome, path] = await Promise.all([

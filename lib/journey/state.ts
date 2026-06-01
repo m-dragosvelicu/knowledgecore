@@ -62,7 +62,28 @@ export async function applyInactivityTransitions(
 
 export async function getOrCreateActiveIntent(
   userId: string,
+  intentId?: string | null,
 ): Promise<LearningIntent | null> {
+  // Addressable resume (bug: clicking a journey card opened the most-recent
+  // journey, not the clicked one). When the caller passes an explicit intent id
+  // (from the `?j=<id>` route param), load THAT journey -- but only if it
+  // belongs to the requesting user. Ownership is enforced in the `where` clause
+  // (userId must match), so a user can never open another user's journey by
+  // guessing an id. A non-terminal status is still required so we don't resume a
+  // complete/abandoned journey into the wizard.
+  if (intentId) {
+    const byId = await prisma.learningIntent.findFirst({
+      where: {
+        id: intentId,
+        userId,
+        status: { notIn: ["complete", "abandoned"] },
+      },
+    });
+    if (byId) return applyInactivityTransitions(byId);
+    // Not found / not owned / terminal: fall through to the most-recent
+    // behavior so a stale or foreign id never strands the learner.
+  }
+
   const intent = await prisma.learningIntent.findFirst({
     where: {
       userId,
@@ -76,22 +97,28 @@ export async function getOrCreateActiveIntent(
 
 export function nextWizardRoute(intent: LearningIntent | null): string {
   if (!intent) return "/journey/intent";
+  // Make the route ADDRESSABLE by journey id. Each wizard stage resolves which
+  // journey to load via getOrCreateActiveIntent, which honors a `?j=<id>` param
+  // (falling back to most-recent when absent). Without this, every card linked
+  // to a generic, id-less route and the page then loaded whichever journey was
+  // touched most recently -- so clicking journey A could open journey B.
+  const withId = (path: string) => `${path}?j=${intent.id}`;
   switch (intent.status) {
     case "created":
-      return "/journey/intent";
+      return withId("/journey/intent");
     case "goal_assessed":
-      return "/journey/outcome";
+      return withId("/journey/outcome");
     case "outcome_assessed":
-      return "/journey/probe";
+      return withId("/journey/probe");
     case "knowledge_assessed":
-      return "/journey/path";
+      return withId("/journey/path");
     case "path_outlined":
-      return "/journey/path";
+      return withId("/journey/path");
     case "in_progress":
-      return "/journey/goalpost";
+      return withId("/journey/goalpost");
     case "paused":
       // §9.5: a resumed journey gets a warm-up recap before the goalpost.
-      return "/journey/resume";
+      return withId("/journey/resume");
     case "complete":
       return "/journey/complete";
     case "abandoned":
