@@ -13,6 +13,7 @@ import {
   revisePathFromConfirmationAction,
 } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
+import DialogueTurns from "@/components/journey/DialogueTurns";
 import SolidButton from "@/components/ui/SolidButton";
 import WobbleButton from "@/components/ui/WobbleButton";
 import { Eyebrow } from "@/components/ui";
@@ -222,55 +223,15 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
         </Typography>
       </Stack>
 
-      {transcript.length > 0 && (
-        <Stack spacing={1.5}>
-          {transcript.map((t, i) => {
-            const isAsk = t.role === "assistant";
-            return (
-              <Box
-                key={i}
-                sx={{
-                  alignSelf: isAsk ? "flex-start" : "flex-end",
-                  maxWidth: "86%",
-                  bgcolor: isAsk ? "background.paper" : "var(--surface-2)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "var(--r-md)",
-                  boxShadow: isAsk ? "var(--shadow-sm)" : "none",
-                  p: "14px 18px",
-                }}
-              >
-                <Box className="kc-meta" sx={{ mb: "6px" }}>
-                  {isAsk ? "Your guide" : "You"}
-                </Box>
-                <Box
-                  sx={
-                    isAsk
-                      ? {
-                          fontFamily: "var(--font-display)",
-                          fontVariationSettings: "var(--soft-ui)",
-                          fontWeight: 500,
-                          fontSize: 17,
-                          lineHeight: 1.35,
-                          color: "var(--ink)",
-                        }
-                      : {
-                          fontSize: 15.5,
-                          lineHeight: 1.5,
-                          color: "var(--ink)",
-                        }
-                  }
-                >
-                  {t.content}
-                </Box>
-              </Box>
-            );
-          })}
-        </Stack>
-      )}
+      {/* Earlier turns render above as a compact transcript. The ACTIVE question
+          is emitted exactly once -- as the input-card heading below -- so
+          DialogueTurns drops the trailing active question (no double-render). */}
+      <DialogueTurns transcript={transcript} />
 
       {question ? (
         <Surface>
           <Stack spacing={2}>
+            <Eyebrow>Your guide</Eyebrow>
             <AskHeadline>{question}</AskHeadline>
             <TextField
               multiline

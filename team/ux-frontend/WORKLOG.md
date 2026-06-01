@@ -1,5 +1,67 @@
 # UX/Frontend WORKLOG
 
+## 2026-06-01 — Dedup the active question in the turn-taking dialogue (shared engine)
+
+Branch: `feat/home-nav-journeys-fixes`. No push, no co-authors, no commit to main.
+
+Founder-reported (screenshot): on the goal-interview step the current question
+rendered TWICE — once as a small "Your guide" chat bubble, and AGAIN as the big
+Fraunces heading on the input card directly below it. Same sentence, two competing
+elements.
+
+### Root cause (shared rendering pattern, double-emitted in two clients)
+The turn-taking dialogue is rendered by two clients that share the same inline
+pattern: `OutcomeClient` (Goal Interview) and `PathConfirmationGate` (the path
+confirmation "not quite right" clarifying dialogue). In BOTH, `runTurn` appends
+the new guide question to the running `transcript` as the trailing `assistant`
+turn AND stores it in `question`. The render then drew the WHOLE transcript as
+"Your guide"/"You" bubbles (so the trailing active question became a bubble) and
+ALSO drew `question` as the `AskHeadline` on the input card — the duplicate. The
+transcript always ends with the active question because the client re-sends the
+full transcript each stateless turn.
+
+The third surface named in the brief — the Checkpoint Socratic remediation — does
+NOT currently render this turn-taking transcript primitive. In the shipped M6a
+build the `repeat` decision re-runs the Experience build (`ExperienceForm`, which
+shows its prompt once in the reading voice, no "Your guide" bubble + heading
+pair), and `adjust_plan` hands off to the Path Adjuster. Live transcript dialogue
+exists only in the two clients above (confirmed: only OutcomeClient,
+PathConfirmationGate, and the new DialogueTurns reference role==="assistant"
+turn rendering / the "You" bubble label anywhere in app + components). The fix is
+made in a SHARED component so when Socratic remediation adopts the turn-taking
+primitive (M6c) it is deduped by construction.
+
+### Fix (presentation only; logic, server actions, and questions unchanged)
+New shared component `components/journey/DialogueTurns.tsx` — the single source of
+truth for the transcript bubbles. It renders ONLY the PRIOR turns: it drops the
+trailing active assistant question via the exported pure helper `priorTurns()`
+(slice off the last turn iff it is an `assistant` turn). The ACTIVE question is
+now emitted EXACTLY ONCE, by the input card's `AskHeadline`. Per the founder
+decision the input card is one collapsed unit: a "Your guide" eyebrow ->
+the question in Fraunces (once) -> the answer input + mic + Continue/Send.
+
+- `app/(app)/journey/outcome/OutcomeClient.tsx`: replaced the inline transcript
+  loop with `<DialogueTurns transcript={transcript} />`; added a "Your guide"
+  `Eyebrow` above the `AskHeadline` on the input card.
+- `components/journey/PathConfirmationGate.tsx`: same swap; added the "Your guide"
+  eyebrow on the dialogue input card.
+
+### Verification
+- `tsc --noEmit`: 0 errors (exit 0).
+- `next build`: compiled, 19/19 routes, middleware bundled (exit 0).
+- All 9 verify scripts pass (none in the diff path, none regressed):
+  decision 9/9, loop ALL PASS, presenter 18/18, learner-profile 24/24,
+  adaptation 18/18, path-confirmation ALL PASS, stt 11/11, visual-media 50/50,
+  landing-flow 27/27.
+- Dedup confirmed two ways with a multi-turn transcript [Q1, A1, ACTIVE]:
+  (1) `priorTurns()` unit checks — active question excluded, earlier Q1/A1 kept
+  once each; (2) `renderToStaticMarkup(<DialogueTurns/>)` served-HTML inspection —
+  the active question string appears ZERO times in the transcript region and
+  EXACTLY ONCE across the full surface (the heading). The earlier guide question
+  renders as one "Your guide" bubble and the prior answer as one "You" bubble, so
+  genuine multi-turn history is preserved above the input card. Temp verify
+  scripts removed after running.
+
 ## 2026-06-01 — Fix nested-<form> hydration error + dead hero submit on landing
 
 Branch: `feat/home-nav-journeys-fixes`. No push, no co-authors, no commit to main.
