@@ -269,7 +269,7 @@ export default async function HomePage() {
               className="kc-fade"
               sx={{ mb: "14px", fontSize: 12.5, color: "var(--ink-3)", animationDelay: ".1s" }}
             >
-              Starting a new journey sets aside the one in progress.
+              Starting a new journey keeps your others intact.
             </Box>
 
             <Box className="kc-fade" sx={{ mb: { xs: "44px", sm: "66px" }, animationDelay: ".16s" }}>
