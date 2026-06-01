@@ -8,12 +8,16 @@
 // underline beneath them, plus the pill input with the teal focus ring. The
 // section fades up on load (staggered via .kc-fade + a delay).
 //
-// The SearchPill manages its own text; we mirror it into a hidden input inside
-// a real <form> bound to startJourneyWithIntentAction so submit starts a fresh
-// journey carrying the typed intent (server action, progressive-enhancement
-// friendly). Mirrors design-system/ui_kits/web-app/Home.jsx (the hero section).
+// The SearchPill is a self-contained <form> (its design contract; it is reused
+// standalone). The hero must NOT wrap it in a second <form> — that nests
+// <form> inside <form>, which React rejects with a hydration error and then
+// regenerates the tree, dropping the submit wiring (so "Begin" did nothing).
+// Instead we drive submission from SearchPill's onSubmit: lazily mint a guest,
+// then call the startJourneyWithIntentAction server action programmatically with
+// a constructed FormData (the same client-invokes-server-action pattern as
+// BeginClient). Mirrors design-system/ui_kits/web-app/Home.jsx (the hero section).
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import { SearchPill, HeadlineUnderline, Eyebrow } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
@@ -22,17 +26,17 @@ import { startJourneyWithIntentAction } from "@/app/(app)/journey/_actions";
 export default function HomeHero() {
   const [intent, setIntent] = useState("");
   const [busy, setBusy] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
 
   // First-visit bootstrap (landing-flow plan, section 2a): a visitor with no
   // session gets a guest (anonymous) session the moment they actually submit the
   // hero — NOT on page render, so bots/crawlers that only load the page never
   // mint a guest user. With a session already present (guest or real) the
-  // anonymous call is skipped. We only submit the server action once an owner
+  // anonymous call is skipped. We only call the server action once an owner
   // exists, so startJourneyWithIntentAction's ownerContext resolves a userId
   // instead of bouncing to /signin.
   async function ensureSessionThenSubmit(text: string) {
-    if (text.trim().length < 3 || busy) return;
+    const rawText = text.trim();
+    if (rawText.length < 3 || busy) return;
     setBusy(true);
     try {
       const current = await authClient.getSession();
@@ -42,9 +46,16 @@ export default function HomeHero() {
     } catch {
       // If the guest bootstrap fails we still submit: the server action will
       // redirect to /signin, which is a safe, honest fallback.
+    }
+    try {
+      const formData = new FormData();
+      formData.set("rawText", rawText);
+      // Server action redirects on success (into the wizard); control does not
+      // return here in the happy path. A thrown NEXT_REDIRECT is expected and
+      // handled by the framework, so it is not caught.
+      await startJourneyWithIntentAction(formData);
     } finally {
       setBusy(false);
-      formRef.current?.requestSubmit();
     }
   }
 
@@ -81,13 +92,7 @@ export default function HomeHero() {
         </HeadlineUnderline>
       </Box>
 
-      <Box
-        component="form"
-        ref={formRef}
-        action={startJourneyWithIntentAction}
-        sx={{ mt: "36px" }}
-      >
-        <input type="hidden" name="rawText" value={intent} />
+      <Box sx={{ mt: "36px" }}>
         <SearchPill
           value={intent}
           onChange={setIntent}

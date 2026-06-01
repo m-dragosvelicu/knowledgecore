@@ -1,5 +1,60 @@
 # UX/Frontend WORKLOG
 
+## 2026-06-01 — Fix nested-<form> hydration error + dead hero submit on landing
+
+Branch: `feat/home-nav-journeys-fixes`. No push, no co-authors, no commit to main.
+
+Two founder-reported runtime bugs that the verify scripts and served-HTML checks
+missed (both on the PUBLIC landing seen by a fresh anonymous visitor):
+
+1. Console hydration error: "In HTML, <form> cannot be a descendant of <form>".
+2. "Started a journey, gave a subject, it did nothing." — the hero Begin submit
+   did not start a journey.
+
+### Root cause (one cause, two symptoms)
+`HomeHero` wrapped `<SearchPill>` in its OWN `<form action={startJourneyWithIntentAction}>`,
+but `SearchPill` (components/ui/PillInput.tsx) is itself a `<form onSubmit=...>`
+(its design contract; it is reused standalone in /specimens). That nested
+`<form>` inside `<form>` — exactly the hydration error. React then regenerated
+the broken tree on the client, which dropped the outer form's `action` + the
+`formRef.requestSubmit()` wiring, so Begin did nothing. So bug 2 was CAUSED by
+bug 1, as suspected. (AccountMenu's hidden sign-out form was investigated and is
+NOT a source: AppHeader has no form and is rendered at layout/page top level, and
+the menu only renders for a real account, not the anonymous landing path.)
+
+### Fix (one file)
+`components/HomeHero.tsx`: removed the redundant outer `<form>` wrapper (kept a
+plain `<Box>` for the margin). Submission is now driven from `SearchPill`'s
+`onSubmit`: `ensureSessionThenSubmit` mints the guest (unchanged) and then calls
+the `startJourneyWithIntentAction` server action PROGRAMMATICALLY with a
+constructed `FormData` — the same client-invokes-server-action pattern already
+used in `journey/begin/BeginClient.tsx` (`await acceptPathAction()`). Dropped the
+now-unused `useRef`/`formRef` and hidden `rawText` input. `SearchPill` is left
+exactly as-is (its self-contained form is its contract; /specimens still works).
+
+### Proof — actual flow walk (MOCK mode, local DB :5440, dev on :3210)
+BEFORE/AFTER served-HTML nested-form check (curl + form-depth parser):
+- BEFORE (stashed fix): 2 `<form>` tags, max nesting depth 2 -> NESTED FORM.
+- AFTER (fix): 1 `<form>` tag, max nesting depth 1 -> no nested form.
+
+Live walk in a real browser as a fresh anonymous visitor:
+- Loaded `/`, console had NO hydration/nested-form error (only unrelated MetaMask
+  extension warnings).
+- Typed "the ideas behind Art Nouveau", clicked Begin -> app minted a guest,
+  created the LearningIntent + Subject, and REDIRECTED to `/journey/outcome`
+  (step 2 "Outcome" active, Intent checked, "YOUR SUBJECT: The Ideas Behind Art
+  Nouveau", "Running in mock mode" banner). No hydration error during the flow.
+- DB before: anon_users=0, intents=2. After the walk: anon_users grew, a new
+  intent `rawText="the ideas behind Art Nouveau"`, `status=goal_assessed`, owner
+  isAnonymous=true, subject "The Ideas Behind Art Nouveau". Test guests cleaned up
+  afterward (back to anon_users=0, intents=2).
+
+### Gate (all green)
+`bun run typecheck` -> 0 errors. `bun run build` -> success (19 routes). All nine
+verify scripts pass: decision 9/9, loop ALL PASS, presenter 18/18,
+learner-profile 24/24, adaptation 18/18, path-confirmation ALL PASS, stt 11/11,
+visual-media 50/50, landing-flow 27/27.
+
 ## 2026-06-01 — Close D2 rate-limit gap on guest STT (/api/transcribe)
 
 Branch: `feat/home-nav-journeys-fixes`. No push, no co-authors, no commit to main.
