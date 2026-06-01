@@ -4,15 +4,17 @@ import Link from "next/link";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import { auth, getCurrentSession } from "@/lib/auth";
-import { WobbleButton, SkipButton } from "@/components/ui";
+import AccountMenu from "@/components/AccountMenu";
 
 // Shared top chrome — the "silent plumbing" tier. Concrete, no hand marks on the
 // burger or avatar (those are reserved for the warm/expressive surfaces); a
 // quiet hover lift + soft shadow on the burger, a 2px teal ring on the avatar.
 // The wordmark is LIVE TYPE (Fraunces 600, SOFT 30, letter-spacing -.015em), not
-// an image. Account is a workbench (wobble) action; Sign out is the lightest
-// skip tier. Server component: it reads the session and owns the sign-out
-// server action so callers do not thread email/handlers through.
+// an image. The avatar is now the ONLY top-right affordance: clicking it opens a
+// calm dropdown card (AccountMenu) with "Profile" and "Sign out". The inline
+// Account (wobble) + Sign out (skip) actions were removed from the nav bar.
+// Server component: it reads the session and owns the sign-out server action,
+// passing it into the client AccountMenu so callers do not thread handlers.
 //
 // Ported from design-system/ui_kits/web-app/Shell.jsx (.top / .burger / .word /
 // .avatar) and design-system/source/knowledgecore-home-v4.html.
@@ -101,58 +103,16 @@ export default async function AppHeader() {
         </Stack>
 
         <Stack direction="row" alignItems="center" spacing="6px">
-          {/* Account — workbench (wobble) tier. */}
-          <Box
-            component={Link}
-            href="/account"
-            sx={{ textDecoration: "none", display: "inline-flex" }}
-          >
-            <WobbleButton bare>Account</WobbleButton>
-          </Box>
-
-          {/* Sign out — lightest skip tier; the server action lives on the form. */}
-          <Box
-            component="form"
-            action={async () => {
+          {/* Avatar dropdown — the only top-right affordance. The sign-out
+              server action is bound here and threaded into the client menu. */}
+          <AccountMenu
+            initial={initial}
+            signOut={async () => {
               "use server";
               await auth.api.signOut({ headers: await headers() });
               redirect("/signin");
             }}
-            sx={{ display: "inline-flex" }}
-          >
-            <SkipButton type="submit">Sign out</SkipButton>
-          </Box>
-
-          {/* Avatar — concrete plumbing: ink circle, 2px teal ring on hover,
-              quiet lift. Links to the account page. */}
-          <Box
-            component={Link}
-            href="/account"
-            aria-label="Account"
-            sx={{
-              width: 46,
-              height: 46,
-              ml: "10px",
-              borderRadius: "50%",
-              bgcolor: "var(--ink)",
-              color: "var(--surface)",
-              display: "grid",
-              placeContent: "center",
-              fontWeight: 600,
-              fontSize: 15,
-              cursor: "pointer",
-              flex: "none",
-              border: "2px solid transparent",
-              textDecoration: "none",
-              transition: ".25s",
-              "&:hover": {
-                borderColor: "var(--teal)",
-                transform: "translateY(-1px)",
-              },
-            }}
-          >
-            {initial}
-          </Box>
+          />
         </Stack>
       </Stack>
     </Box>

@@ -12,7 +12,6 @@ import {
   FeaturedCard,
   SolidButton,
   WobbleButton,
-  SkipButton,
   Eyebrow,
   SectionLabel,
   HeadlineUnderline,
@@ -184,7 +183,14 @@ export default async function HomePage() {
         {active ? (
           // ---- Returning user with an active journey: welcome-back dashboard ----
           <>
-            <Box className="kc-fade" sx={{ mb: "14px", animationDelay: ".06s" }}>
+            <Stack
+              className="kc-fade"
+              direction={{ xs: "column", sm: "row" }}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+              spacing="14px"
+              sx={{ mb: "14px", animationDelay: ".06s" }}
+            >
               <Box
                 component="h2"
                 sx={{
@@ -199,6 +205,26 @@ export default async function HomePage() {
               >
                 Pick up where you left off
               </Box>
+
+              {/* Start a new journey — moved UP to a prominent, easy-to-find slot
+                  in the top section (was a buried skip-tier link at the bottom).
+                  Workbench (wobble) tier with a resting outline so it reads as a
+                  real, obvious affordance. The form runs startNewJourneyAction,
+                  which sets aside the journey in progress. */}
+              <Box
+                component="form"
+                action={startNewJourneyAction}
+                sx={{ display: "inline-flex", flex: "none" }}
+              >
+                <WobbleButton type="submit">Start a new journey</WobbleButton>
+              </Box>
+            </Stack>
+
+            <Box
+              className="kc-fade"
+              sx={{ mb: "14px", fontSize: 12.5, color: "var(--ink-3)", animationDelay: ".1s" }}
+            >
+              Starting a new journey sets aside the one in progress.
             </Box>
 
             <Box className="kc-fade" sx={{ mb: { xs: "44px", sm: "66px" }, animationDelay: ".16s" }}>
@@ -291,7 +317,7 @@ export default async function HomePage() {
                   >
                     Your journeys
                   </Box>
-                  <Box component={Link} href="/" sx={{ textDecoration: "none", display: "inline-flex" }}>
+                  <Box component={Link} href="/journeys" sx={{ textDecoration: "none", display: "inline-flex" }}>
                     <WobbleButton bare>View all journeys</WobbleButton>
                   </Box>
                 </Stack>
@@ -302,16 +328,6 @@ export default async function HomePage() {
                 </Box>
               </Box>
             )}
-
-            {/* Start a different journey — quiet skip tier; sets aside the current one. */}
-            <Box sx={{ mt: { xs: "32px", sm: "44px" } }}>
-              <Box component="form" action={startNewJourneyAction} sx={{ display: "inline-flex" }}>
-                <SkipButton type="submit">Start a different journey</SkipButton>
-              </Box>
-              <Box sx={{ mt: "2px", pl: "18px", fontSize: 12.5, color: "var(--ink-3)" }}>
-                Starting a new journey sets aside the one in progress.
-              </Box>
-            </Box>
           </>
         ) : (
           // ---- No active journey: the hero question is the entry point ----
@@ -320,21 +336,30 @@ export default async function HomePage() {
 
             {past.length > 0 && (
               <Box className="kc-fade" sx={{ animationDelay: ".22s" }}>
-                <Box
-                  component="h2"
-                  sx={{
-                    m: 0,
-                    mb: "14px",
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 500,
-                    fontSize: 25,
-                    letterSpacing: "-.01em",
-                    fontVariationSettings: '"SOFT" 30',
-                    color: "var(--ink)",
-                  }}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mb: "14px" }}
                 >
-                  Your journeys
-                </Box>
+                  <Box
+                    component="h2"
+                    sx={{
+                      m: 0,
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 500,
+                      fontSize: 25,
+                      letterSpacing: "-.01em",
+                      fontVariationSettings: '"SOFT" 30',
+                      color: "var(--ink)",
+                    }}
+                  >
+                    Your journeys
+                  </Box>
+                  <Box component={Link} href="/journeys" sx={{ textDecoration: "none", display: "inline-flex" }}>
+                    <WobbleButton bare>View all journeys</WobbleButton>
+                  </Box>
+                </Stack>
                 <Box sx={{ borderTop: "1px solid var(--line)" }}>
                   {past.map((intent) => (
                     <JourneyRow key={intent.id} intent={intent} now={now} />
