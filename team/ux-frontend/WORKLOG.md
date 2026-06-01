@@ -1,5 +1,33 @@
 # UX/Frontend WORKLOG
 
+## 2026-06-01 — Close D2 rate-limit gap on guest STT (/api/transcribe)
+
+Branch: `feat/home-nav-journeys-fixes`. No push, no co-authors, no commit to main.
+
+QA gap: anonymous guests reach `/api/transcribe` (the MicButton is on the outcome
+and probe pre-journey steps) and each press is a real Gemini-audio call, but
+`stt_transcribe` was NOT in `GUEST_PURPOSES`, so guest transcription bypassed the
+D2 budget. Closed it.
+
+Changes:
+- `lib/journey/guestRateLimit.ts`: added `stt_transcribe` to `GUEST_PURPOSES` so
+  guest transcription counts in the same rolling-window budget (WINDOW_MS/MAX_CALLS
+  unchanged).
+- `app/api/transcribe/route.ts`: after the session check, call
+  `assertGuestLlmBudget(isAnonymousSession(session))` BEFORE transcribing
+  (mirrors the pre-journey server actions). Over-budget returns the same graceful
+  `GuestRateLimitError` message as a `429`. No-op for real (non-anonymous)
+  accounts — they are never limited. Nothing else about STT changed.
+- `scripts/verify-landing-flow.ts`: added section (4b) proving with ONLY
+  `stt_transcribe` rows that a guest's transcription now counts toward the budget
+  and is refused over the cap with the graceful typed error, while a real account
+  is unaffected; teardown broadened to clear any `${TAG}`-prefixed `LlmCall.model`.
+
+Gate (all green): `bun run typecheck` -> 0 errors; `bun run build` -> success (19
+routes, `/api/transcribe` builds); `verify:stt` 11/11; `verify:landing-flow` 27/27
+(was 24, +3 STT checks); `verify:path-confirmation` ALL PASS; `verify:visual-media`
+50/50.
+
 ## 2026-06-01 — Try-before-signup landing flow (anonymous guest -> account gate -> claim)
 
 Branch: `feat/home-nav-journeys-fixes` (built additively on top of the home/header
@@ -168,3 +196,53 @@ design-system. No push, no co-authors, no commit to main.
   deleteMany = 1 row; every dependent row -> 0 (no orphans); the LlmCall pointing
   at the deleted evaluation SURVIVED with `evaluationId` nulled (SetNull). Test
   user + data cleaned up afterward.
+
+## 2026-06-01 — QA independent sign-off: round-1 UX fixes + landing flow (GO WITH CAVEAT)
+
+Independent end-to-end re-verification of `feat/home-nav-journeys-fixes` @ bff3f2b
+(2 commits ahead of origin/main @ 2c04862: b1ea4c2 round-1 UX + bff3f2b landing
+flow). Re-ran the whole suite from scratch; did not trust the build agents.
+Read-only git + local DB only. Deliverable:
+`CEO/round1-landing-QA-signoff-2026-06-01.html` (house style, TOC).
+
+### Suite (all green, exact)
+- `tsc --noEmit`: 0 errors (exit 0)
+- `next build`: compiled, 19/19 pages, middleware bundled (exit 0)
+- `verify:landing-flow` (NEW): 23 passed, 0 failed
+- `verify:path-confirmation`: ALL PASS
+- `verify:stt`: 11 passed, 0 failed
+- `verify:visual-media`: 50 passed, 0 failed
+- No pre-existing verify script regressed.
+
+### Security audit
+- Anonymous guest blocked from every learning surface + /account at BOTH layers:
+  middleware allow-list (optimistic) + requireRealUserId/isAnonymousSession on the
+  goalpost page, /account, acceptPathAction, and ALL goalpost-mutating actions +
+  delete. Live test confirms guest predicate -> 307 to /journey/begin; real -> proceeds.
+- Gate fires at acceptPathAction (begin) ONLY; intent/interview/outcome/probe/path
+  all accept a guest via ownerContext/requireOwnerId. Confirmed.
+- claimAnonymousJourney: single $transaction, both updateMany scoped by
+  where:{userId:anonymousUserId} — own-journey only, no caller-supplied target,
+  cannot claim another user's intent. New-account AND existing-account merge (D3
+  keep-both) both verified live.
+- Guest rate limit: throws typed GuestRateLimitError over budget, never limits real
+  accounts (verified). GLOBAL window count is a documented design choice, not a bug.
+- deleteJourneyAction: deleteMany scoped by {id,userId} — ownership enforced
+  server-side, zero rows for non-owner.
+- No audio/secrets persisted (transcribe = in-request Uint8Array -> transcript JSON
+  only; verify:stt asserts no leak). Markdown + SVG sanitizers NOT in the diff vs
+  main — unchanged.
+
+### Prod-backup file
+- `knowledgecore_prod_backup_2026-06-01.sql`: UNTRACKED (`?? ` in git status), NOT
+  in git ls-files, NOT staged, NOT in either commit. Safe. BUT not in .gitignore —
+  a future `git add -A` would catch it. Recommend deleting or gitignoring it.
+
+### Git state
+- `git fetch` clean. feat branch = 2 ahead / 0 behind origin/main; merge-base ==
+  origin/main (2c04862). Clean fast-forward, no rebase needed.
+
+### Verdict: GO WITH CAVEAT
+Ship. Two non-blocking hygiene follow-ups: (1) gitignore/delete the prod-DB dump;
+(2) /api/transcribe (guest-reachable on outcome/probe) is outside GUEST_PURPOSES —
+add stt_transcribe to the rate-limit set. Neither is in the commits under review.

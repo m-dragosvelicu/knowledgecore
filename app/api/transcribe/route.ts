@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { getTranscriber } from "@/lib/services";
+import {
+  assertGuestLlmBudget,
+  GuestRateLimitError,
+} from "@/lib/journey/guestRateLimit";
 
 /**
  * L1 Slice 3 — speech-to-text route.
@@ -29,10 +33,25 @@ export const runtime = "nodejs";
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(request: Request): Promise<Response> {
-  // Authenticated learners only (mirrors the rest of the app).
+  // Authenticated learners only (mirrors the rest of the app). Anonymous guests
+  // count here too: the MicButton is reachable on the outcome and probe
+  // pre-journey steps, so a guest session is valid but must obey the D2 budget.
   const session = await getCurrentSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // D2 — a guest's transcription is a real Gemini call, so gate it against the
+  // same rolling-window guest LLM budget the pre-journey actions use. No-op for
+  // real (non-anonymous) accounts. Refuse over-budget with the same graceful
+  // message the wizard shows, as a 429.
+  try {
+    await assertGuestLlmBudget(isAnonymousSession(session));
+  } catch (err) {
+    if (err instanceof GuestRateLimitError) {
+      return NextResponse.json({ error: err.message }, { status: 429 });
+    }
+    throw err;
   }
 
   let form: FormData;

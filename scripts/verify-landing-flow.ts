@@ -20,7 +20,7 @@
  */
 import { prisma } from "@/lib/db";
 import { claimAnonymousJourney, isAnonymousSession } from "@/lib/auth";
-import { assertGuestLlmBudget, GuestRateLimitError } from "@/lib/journey/guestRateLimit";
+import { assertGuestLlmBudget, GuestRateLimitError, GUEST_LLM_LIMIT } from "@/lib/journey/guestRateLimit";
 import { cleanupOrphanedGuests } from "@/scripts/cleanup-guests";
 
 const TAG = `lf-verify-${Date.now()}`;
@@ -183,6 +183,48 @@ async function main() {
   // Clean up the tagged log rows immediately so other windows are not affected.
   await prisma.llmCall.deleteMany({ where: { model: `${TAG}-model` } });
 
+  // ---- (4b) D2 covers GUEST STT (stt_transcribe is a budgeted purpose) -------
+  // The MicButton is reachable by anonymous guests on the outcome/probe steps and
+  // each press is a real Gemini-audio call, so guest transcription must count
+  // toward — and be gated by — the same window budget. Prove it with ONLY
+  // stt_transcribe rows: if stt_transcribe were not in GUEST_PURPOSES these would
+  // not count and the guest would wrongly be allowed.
+  check(
+    "stt_transcribe is a guest-budgeted purpose",
+    GUEST_LLM_LIMIT.GUEST_PURPOSES.includes("stt_transcribe"),
+    GUEST_LLM_LIMIT.GUEST_PURPOSES.join(","),
+  );
+  await prisma.llmCall.createMany({
+    data: Array.from({ length: GUEST_LLM_LIMIT.MAX_CALLS + 5 }, () => ({
+      purpose: "stt_transcribe" as const,
+      model: `${TAG}-stt`,
+      inputTokens: 1,
+      outputTokens: 1,
+      costMicroUsd: 0,
+      latencyMs: 1,
+      success: true,
+    })),
+  });
+  let guestSttRefused = false;
+  let guestSttGraceful = false;
+  try {
+    await assertGuestLlmBudget(true);
+  } catch (e) {
+    guestSttRefused = true;
+    guestSttGraceful = e instanceof GuestRateLimitError;
+  }
+  check("guest transcription over the cap is refused (STT counts)", guestSttRefused === true);
+  check("guest STT refusal is the same graceful typed error", guestSttGraceful === true);
+  // A real account is NEVER limited, even with the STT window over the cap.
+  let realSttLimited = false;
+  try {
+    await assertGuestLlmBudget(false);
+  } catch {
+    realSttLimited = true;
+  }
+  check("real account is unaffected by the STT budget", realSttLimited === false);
+  await prisma.llmCall.deleteMany({ where: { model: `${TAG}-stt` } });
+
   // ---- (5) orphaned-guest cleanup -------------------------------------------
   // A STALE guest (idle > window) with a journey; a FRESH guest; a real account.
   const staleGuest = await prisma.user.create({
@@ -221,14 +263,14 @@ main()
   .then(async () => {
     console.log(`\n${ok} passed, ${fail} failed`);
     await prisma.user.deleteMany({ where: { email: { contains: TAG } } }).catch(() => {});
-    await prisma.llmCall.deleteMany({ where: { model: `${TAG}-model` } }).catch(() => {});
+    await prisma.llmCall.deleteMany({ where: { model: { startsWith: TAG } } }).catch(() => {});
     await prisma.$disconnect();
     if (fail > 0) process.exit(1);
   })
   .catch(async (e) => {
     console.error("[verify-landing-flow] FAILED:", e instanceof Error ? e.stack : e);
     await prisma.user.deleteMany({ where: { email: { contains: TAG } } }).catch(() => {});
-    await prisma.llmCall.deleteMany({ where: { model: `${TAG}-model` } }).catch(() => {});
+    await prisma.llmCall.deleteMany({ where: { model: { startsWith: TAG } } }).catch(() => {});
     await prisma.$disconnect();
     process.exit(1);
   });

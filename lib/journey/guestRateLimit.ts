@@ -20,12 +20,17 @@ import type { LlmCallPurpose } from "@prisma/client";
 // ---------------------------------------------------------------------------
 
 // The cost-bearing LLM purposes a guest can drive from the pre-journey flow.
+// stt_transcribe is included because the MicButton (on the outcome and probe
+// pre-journey steps) is reachable by anonymous guests and each press is a real
+// Gemini-audio call, so guest transcription must count against the same budget
+// (D2). The /api/transcribe route enforces the cap before transcribing.
 const GUEST_PURPOSES: LlmCallPurpose[] = [
   "intent_parse",
   "goal_interview",
   "knowledge_probe_questions",
   "knowledge_probe_score",
   "path_outline",
+  "stt_transcribe",
 ];
 
 // Rolling window + cap. ~one honest run-through is a handful of intent parses, a
