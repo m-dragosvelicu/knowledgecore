@@ -17,6 +17,7 @@ import { StepType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getLessonContentGenerator } from "@/lib/services";
 import { readOrCreateProfile } from "./profileStore";
+import { resolveJourneySourceIds, scrubSourceIds } from "./researchBundle";
 import type { Competency } from "@/lib/services/types";
 import type { VisualNeed } from "@/lib/services/visualMedia";
 
@@ -121,10 +122,20 @@ export async function ensureLessonContent(
       profile,
     });
 
+    // L2 Phase 0 — PROVENANCE: thread REAL sourceIds (was always []). Phase 0
+    // grounds the information step in the WHOLE bound bundle (per-claim citation
+    // extraction is a later phase): resolve every Source reachable from a ready
+    // bundle the journey is bound to, then scrub against that same set so only
+    // valid, journey-reachable ids are ever written (R-4 integrity invariant). A
+    // journey bound to no ready bundle (older journeys) resolves to [] — exactly
+    // as today, so nothing breaks. Best-effort: a resolution failure returns [].
+    const boundSourceIds = await resolveJourneySourceIds(intentId);
+    const sourceIds = await scrubSourceIds(intentId, boundSourceIds);
+
     const nextPayload: InfoPayload = {
       ...payload,
       content: lesson.content,
-      sourceIds: payload.sourceIds ?? [],
+      sourceIds,
       contentGeneratedAt: new Date().toISOString(),
       supportLevel: lesson.supportLevel,
       workedExamples: lesson.workedExamples,
