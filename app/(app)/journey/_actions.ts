@@ -50,6 +50,28 @@ async function requireActiveIntentId(userId: string): Promise<string> {
   return intent.id;
 }
 
+// Recency touch (resume-card fix): the home "pick up where you left off" card and
+// getOrCreateActiveIntent both order non-terminal journeys by `updatedAt desc`.
+// During the long-lived `in_progress` phase, per-goalpost actions write Step /
+// Goalpost / CheckpointEvaluation rows but NOT the LearningIntent row, so
+// `updatedAt` froze at path-acceptance and stopped tracking real activity — the
+// resume target went stale when more than one journey reached in_progress. This
+// bumps the intent's `@updatedAt` so it reflects the genuinely most-recently
+// worked / left journey. Best-effort: a recency touch must never break the flow.
+async function touchIntentRecency(intentId: string): Promise<void> {
+  try {
+    await prisma.learningIntent.update({
+      where: { id: intentId },
+      data: { updatedAt: new Date() },
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[journey] failed to bump intent recency: ${(err as Error).message}`,
+    );
+  }
+}
+
 // L0.md §7: a repeat / adjust_plan is a signal that the initial assessment
 // under-estimated effort (or missed a prerequisite). Record it on the
 // KnowledgeAssessment for later calibration. Best-effort; never blocks the flow.
@@ -657,13 +679,14 @@ const completeStepSchema = z.object({ stepId: z.string() });
 
 export async function completeInformationStepAction(formData: FormData): Promise<void> {
   const userId = await requireRealUserId();
-  await requireActiveIntentId(userId);
+  const intentId = await requireActiveIntentId(userId);
   const { stepId } = completeStepSchema.parse({ stepId: formData.get("stepId") });
 
   await prisma.step.update({
     where: { id: stepId },
     data: { completedAt: new Date() },
   });
+  await touchIntentRecency(intentId);
   redirect("/journey/goalpost");
 }
 
@@ -757,6 +780,7 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     );
   }
 
+  await touchIntentRecency(intentId);
   redirect("/journey/goalpost");
 }
 
@@ -807,6 +831,7 @@ async function doAdvance(
           `generate on entry. ${(err as Error).message}`,
       );
     }
+    await touchIntentRecency(intentId);
     return "/journey/goalpost";
   }
 
@@ -848,6 +873,7 @@ export async function skipGoalpostAction(formData: FormData): Promise<void> {
       where: { id: next.id },
       data: { status: GoalpostStatus.in_progress },
     });
+    await touchIntentRecency(intentId);
     redirect("/journey/goalpost");
   }
 
@@ -982,6 +1008,7 @@ export async function repeatGoalpostAction(formData: FormData): Promise<void> {
     );
   }
 
+  await touchIntentRecency(intentId);
   redirect("/journey/goalpost");
 }
 
@@ -1065,6 +1092,8 @@ export async function adjustPlanAction(formData: FormData): Promise<void> {
     `Plan revised at goalpost "${goalpost!.title}" - a coverage or prerequisite gap was surfaced that the assessment missed.`,
   );
 
+  await touchIntentRecency(intentId);
+
   // L0.md §7 Q7: show a must-acknowledge "we've adjusted your path" notice
   // before dropping the learner into the revised path.
   redirect("/journey/adjusted");
@@ -1108,6 +1137,7 @@ export async function overrideDecisionAction(formData: FormData): Promise<void> 
     const target = await doAdvance(intentId, userId, parsed.goalpostId);
     redirect(target);
   }
+  await touchIntentRecency(intentId);
   redirect("/journey/goalpost");
 }
 
@@ -1123,6 +1153,9 @@ export async function prepareGoalpostContentAction(goalpostId: string): Promise<
   const intentId = await requireActiveIntentId(userId);
   const parsed = goalpostIdSchema.parse({ goalpostId });
   await ensureLessonContent(intentId, userId, parsed.goalpostId);
+  // Entering a goalpost is a recency signal too, so a learner who opens a
+  // journey and leaves still has it surface as the resume target.
+  await touchIntentRecency(intentId);
 }
 
 // ---------------------------------------------------------------------------
