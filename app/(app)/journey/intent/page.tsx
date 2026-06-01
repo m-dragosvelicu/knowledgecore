@@ -19,8 +19,12 @@ export default async function IntentPage({
   searchParams?: SearchParams;
 }) {
   const params = (await searchParams) ?? {};
+  // Public pre-journey route: a guest (anonymous) session is a first-class owner
+  // here. A visitor with NO session at all is sent to the landing hero rather
+  // than /signin — the hero is where the guest session is minted on submit (we
+  // deliberately do not mint a guest just for a bare GET, to avoid bot bloat).
   const session = await getCurrentSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/");
   const intent = await getOrCreateActiveIntent(session.user.id);
 
   // -----------------------------------------------------------------------

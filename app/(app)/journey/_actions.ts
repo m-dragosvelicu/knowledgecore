@@ -2,7 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { requireOwnerId, requireRealUserId } from "@/lib/auth-guards";
+import { assertGuestLlmBudget } from "@/lib/journey/guestRateLimit";
 import { prisma, getOrCreateActiveIntent, getCurrentGoalpost } from "@/lib/journey/state";
 import { getServices, getPathConfirmationInterviewer } from "@/lib/services";
 import type {
@@ -29,12 +31,15 @@ import {
 } from "@/lib/journey/profileStore";
 import { ensureLessonContent } from "@/lib/journey/lessonGeneration";
 
-async function requireUserId(): Promise<string> {
+// Pre-journey owner context: a real OR guest (anonymous) owner id plus whether
+// the owner is a guest, so the cost-bearing pre-journey stages can apply the D2
+// guest LLM rate limit. Redirects to /signin only when there is no session.
+async function ownerContext(): Promise<{ userId: string; isAnonymous: boolean }> {
   const session = await getCurrentSession();
   if (!session?.user?.id) {
     redirect("/signin");
   }
-  return session.user.id;
+  return { userId: session.user.id, isAnonymous: isAnonymousSession(session) };
 }
 
 async function requireActiveIntentId(userId: string): Promise<string> {
@@ -71,7 +76,7 @@ async function appendRecalibrationFlag(intentId: string, flag: string): Promise<
 // ---------------------------------------------------------------------------
 
 export async function startNewJourneyAction(): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   // Mark any in-progress journey as abandoned so the new one is the active one.
   await prisma.learningIntent.updateMany({
     where: { userId, status: { notIn: ["complete", "abandoned"] } },
@@ -96,8 +101,9 @@ const heroIntentSchema = z.object({
 });
 
 export async function startJourneyWithIntentAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const { userId, isAnonymous } = await ownerContext();
   const parsed = heroIntentSchema.parse({ rawText: formData.get("rawText") });
+  await assertGuestLlmBudget(isAnonymous);
 
   // Set aside any non-terminal journey so the new one is the active one.
   await prisma.learningIntent.updateMany({
@@ -139,10 +145,11 @@ const submitIntentSchema = z.object({
 });
 
 export async function submitIntentAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const { userId, isAnonymous } = await ownerContext();
   const parsed = submitIntentSchema.parse({
     rawText: formData.get("rawText"),
   });
+  await assertGuestLlmBudget(isAnonymous);
 
   const services = getServices();
   const subject = await services.intentParser.parse(parsed.rawText);
@@ -186,7 +193,7 @@ export async function submitIntentAction(formData: FormData): Promise<void> {
 // subject was already persisted by submitIntentAction; this just acknowledges
 // the learner accepted the parser's best interpretation.
 export async function confirmIntentAction(): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireOwnerId();
   const intentId = await requireActiveIntentId(userId);
   const subject = await prisma.subject.findUnique({ where: { intentId } });
   if (!subject) redirect("/journey/intent");
@@ -245,9 +252,10 @@ export async function advanceInterviewAction(
   motivation: Motivation,
   transcript: InterviewTurn[],
 ): Promise<InterviewStep> {
-  const userId = await requireUserId();
+  const { userId, isAnonymous } = await ownerContext();
   const intentId = await requireActiveIntentId(userId);
   const parsed = advanceInterviewSchema.parse({ motivation, transcript });
+  await assertGuestLlmBudget(isAnonymous);
 
   const subject = await prisma.subject.findUnique({ where: { intentId } });
   if (!subject) redirect("/journey/intent");
@@ -310,7 +318,7 @@ export async function finalizeOutcomeAction(
   canDoStatements: CanDoStatement[],
   successCriterion: string,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireOwnerId();
   const intentId = await requireActiveIntentId(userId);
   const parsed = finalizeOutcomeSchema.parse({ canDoStatements, successCriterion });
 
@@ -361,9 +369,10 @@ export async function submitProbeAction(
   questions: ProbeQuestion[],
   answers: ProbeAnswer[],
 ): Promise<void> {
-  const userId = await requireUserId();
+  const { userId, isAnonymous } = await ownerContext();
   const intentId = await requireActiveIntentId(userId);
   const parsed = probeSubmissionSchema.parse({ questions, answers });
+  await assertGuestLlmBudget(isAnonymous);
 
   const services = getServices();
   // Stateless scoring: pass the exact questions the learner answered. No
@@ -399,13 +408,14 @@ export async function submitProbeAction(
 // ---------------------------------------------------------------------------
 
 export async function generatePathAction(): Promise<void> {
-  const userId = await requireUserId();
+  const { userId, isAnonymous } = await ownerContext();
   const intentId = await requireActiveIntentId(userId);
 
   const existing = await prisma.learningPath.findUnique({ where: { intentId } });
   if (existing) {
     return;
   }
+  await assertGuestLlmBudget(isAnonymous);
 
   const subject = await prisma.subject.findUnique({ where: { intentId } });
   const goal = await prisma.learningGoal.findUnique({ where: { intentId } });
@@ -451,7 +461,14 @@ export async function generatePathAction(): Promise<void> {
 }
 
 export async function acceptPathAction(): Promise<void> {
-  const userId = await requireUserId();
+  // THE ACCOUNT GATE (landing-flow plan, section 3a — primary, server-side).
+  // "Looks good, start" is the one transition from the public path overview into
+  // goalpost 1. requireRealUserId rejects an anonymous guest and redirects them
+  // to the create-account step (/journey/begin); only a real account proceeds
+  // into goalpost 1. After the guest creates an account / signs in there, the
+  // onLinkAccount claim re-owns the journey and /journey/begin re-invokes this
+  // action — which now sees a real user and proceeds.
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
 
   await prisma.learningPath.update({
@@ -504,9 +521,10 @@ const confirmationTranscriptSchema = z.array(interviewTurnSchema);
 export async function advancePathConfirmationAction(
   transcript: InterviewTurn[],
 ): Promise<PathConfirmationStep> {
-  const userId = await requireUserId();
+  const { userId, isAnonymous } = await ownerContext();
   const intentId = await requireActiveIntentId(userId);
   const parsedTranscript = confirmationTranscriptSchema.parse(transcript);
+  await assertGuestLlmBudget(isAnonymous);
 
   const [subject, outcome, path] = await Promise.all([
     prisma.subject.findUnique({ where: { intentId } }),
@@ -564,9 +582,10 @@ const NEUTRAL_SCORES: RubricScores = {
 export async function revisePathFromConfirmationAction(
   concern: string,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const { userId, isAnonymous } = await ownerContext();
   const intentId = await requireActiveIntentId(userId);
   const parsed = revisePathSchema.parse({ concern });
+  await assertGuestLlmBudget(isAnonymous);
 
   const [subject, goal, outcome, assessment, path] = await Promise.all([
     prisma.subject.findUnique({ where: { intentId } }),
@@ -637,7 +656,7 @@ export async function revisePathFromConfirmationAction(
 const completeStepSchema = z.object({ stepId: z.string() });
 
 export async function completeInformationStepAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   await requireActiveIntentId(userId);
   const { stepId } = completeStepSchema.parse({ stepId: formData.get("stepId") });
 
@@ -654,7 +673,7 @@ const submitExperienceSchema = z.object({
 });
 
 export async function submitExperienceStepAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
   const parsed = submitExperienceSchema.parse({
     stepId: formData.get("stepId"),
@@ -804,7 +823,7 @@ async function doAdvance(
 // "activate next or finish" tail. getCurrentGoalpost already excludes skipped
 // goalposts, so the next non-terminal goalpost becomes the active one.
 export async function skipGoalpostAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
   const { goalpostId } = goalpostIdSchema.parse({
     goalpostId: formData.get("goalpostId"),
@@ -840,7 +859,7 @@ export async function skipGoalpostAction(formData: FormData): Promise<void> {
 }
 
 export async function advanceGoalpostAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
   const { goalpostId } = goalpostIdSchema.parse({
     goalpostId: formData.get("goalpostId"),
@@ -903,7 +922,7 @@ function buildSocraticRetryPrompt(
 }
 
 export async function repeatGoalpostAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
   const { goalpostId } = goalpostIdSchema.parse({
     goalpostId: formData.get("goalpostId"),
@@ -969,7 +988,7 @@ export async function repeatGoalpostAction(formData: FormData): Promise<void> {
 // --- adjust_plan: minimal-edit revision of the remaining path (live PathAdjuster)
 
 export async function adjustPlanAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
   const { goalpostId } = goalpostIdSchema.parse({
     goalpostId: formData.get("goalpostId"),
@@ -1060,7 +1079,7 @@ const overrideSchema = z.object({
 });
 
 export async function overrideDecisionAction(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
   const parsed = overrideSchema.parse({
     goalpostId: formData.get("goalpostId"),
@@ -1100,7 +1119,7 @@ export async function overrideDecisionAction(formData: FormData): Promise<void> 
 // ---------------------------------------------------------------------------
 
 export async function prepareGoalpostContentAction(goalpostId: string): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId);
   const parsed = goalpostIdSchema.parse({ goalpostId });
   await ensureLessonContent(intentId, userId, parsed.goalpostId);
@@ -1121,7 +1140,7 @@ const visualFeedbackSchema = z.object({ visualId: z.string().min(1) });
 
 export async function markVisualNotHelpfulAction(visualId: string): Promise<void> {
   try {
-    const userId = await requireUserId();
+    const userId = await requireRealUserId();
     const intentId = await requireActiveIntentId(userId);
     const parsed = visualFeedbackSchema.parse({ visualId });
     await recordVisualNotHelpful(intentId, userId, parsed.visualId);

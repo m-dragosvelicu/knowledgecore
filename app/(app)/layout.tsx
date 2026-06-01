@@ -29,8 +29,12 @@ function statusToStep(status: JourneyStatus | undefined): number {
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await getCurrentSession();
+  // No session at all: send to the landing hero (the public entry + guest
+  // bootstrap point) rather than the bare sign-in tabs. The per-page guards and
+  // the optimistic middleware still protect the gated learning surfaces; this
+  // layout wraps both the public pre-journey routes and the gated ones.
   if (!session?.user?.id) {
-    redirect("/signin");
+    redirect("/");
   }
   const intent = await getOrCreateActiveIntent(session.user.id);
   const activeStep = statusToStep(intent?.status);

@@ -5,7 +5,8 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import SubmitButton from "@/components/journey/SubmitButton";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma } from "@/lib/journey/state";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
@@ -19,6 +20,7 @@ import { GoalpostStatus } from "@prisma/client";
 export default async function CompletePage() {
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
+  if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
 
   // Find the most recently completed journey, with everything we need to map
   // can-do statements to the evidence the learner actually produced.

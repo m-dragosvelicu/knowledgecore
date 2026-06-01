@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import { auth, getCurrentSession } from "@/lib/auth";
+import { auth, getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import AccountMenu from "@/components/AccountMenu";
 
 // Shared top chrome — the "silent plumbing" tier. Concrete, no hand marks on the
@@ -20,6 +20,10 @@ import AccountMenu from "@/components/AccountMenu";
 // .avatar) and design-system/source/knowledgecore-home-v4.html.
 export default async function AppHeader() {
   const session = await getCurrentSession();
+  // A guest (anonymous plugin) has a session but no real account, so it gets the
+  // "Sign in" affordance, not the avatar menu. Only a real account sees the
+  // AccountMenu (Profile / Sign out).
+  const hasRealAccount = !!session?.user?.id && !isAnonymousSession(session);
   const name = session?.user?.name?.trim() ?? "";
   const email = session?.user?.email ?? "";
   // Avatar initial: first letter of the name, else the email, else a dot.
@@ -103,16 +107,48 @@ export default async function AppHeader() {
         </Stack>
 
         <Stack direction="row" alignItems="center" spacing="6px">
-          {/* Avatar dropdown — the only top-right affordance. The sign-out
-              server action is bound here and threaded into the client menu. */}
-          <AccountMenu
-            initial={initial}
-            signOut={async () => {
-              "use server";
-              await auth.api.signOut({ headers: await headers() });
-              redirect("/signin");
-            }}
-          />
+          {hasRealAccount ? (
+            // Avatar dropdown — the only top-right affordance for a real account.
+            // The sign-out server action is bound here and threaded into the
+            // client menu.
+            <AccountMenu
+              initial={initial}
+              signOut={async () => {
+                "use server";
+                await auth.api.signOut({ headers: await headers() });
+                redirect("/signin");
+              }}
+            />
+          ) : (
+            // Guest / no real account: a quiet "Sign in" link instead of the
+            // avatar. Beginning to learn is what asks the visitor to create an
+            // account; this is the calm secondary path for a returning customer.
+            <Box
+              component={Link}
+              href="/signin"
+              sx={{
+                fontFamily: "var(--font-body)",
+                fontWeight: 600,
+                fontSize: 14.5,
+                color: "var(--ink)",
+                textDecoration: "none",
+                px: "16px",
+                py: "9px",
+                borderRadius: "var(--r-sm)",
+                border: "1px solid var(--line)",
+                bgcolor: "background.paper",
+                transition: ".25s",
+                "&:hover": {
+                  borderColor: "var(--teal)",
+                  color: "var(--teal-deep)",
+                  transform: "translateY(-1px)",
+                  boxShadow: "var(--shadow-sm)",
+                },
+              }}
+            >
+              Sign in
+            </Box>
+          )}
         </Stack>
       </Stack>
     </Box>

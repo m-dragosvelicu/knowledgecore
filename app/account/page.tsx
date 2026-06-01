@@ -5,7 +5,8 @@ import Stack from "@mui/material/Stack";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Divider from "@mui/material/Divider";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { GATE_REDIRECT } from "@/lib/auth-guards";
 import AppHeader from "@/components/AppHeader";
 import { Eyebrow, WobbleButton } from "@/components/ui";
 
@@ -25,6 +26,7 @@ export default async function AccountPage() {
   if (!session?.user?.id) {
     redirect("/signin");
   }
+  if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
   const { email, name } = session.user;
 
   return (

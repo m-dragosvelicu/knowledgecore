@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { GATE_REDIRECT } from "@/lib/auth-guards";
 import {
   getCurrentGoalpost,
   getOrCreateActiveIntent,
@@ -28,6 +29,7 @@ import WarmUpRecap from "@/components/journey/WarmUpRecap";
 async function loadResumeContext() {
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
+  if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");
   return { intent };

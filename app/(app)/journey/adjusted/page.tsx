@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import SolidButton from "@/components/ui/SolidButton";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
@@ -16,6 +17,7 @@ import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 export default async function AdjustedPage() {
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
+  if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");
 

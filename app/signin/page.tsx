@@ -52,7 +52,7 @@ function SignInInner() {
         { name: name.trim() || email, email, password },
         {
           onSuccess,
-          onError: (ctx) => onError(ctx.error.message),
+          onError: (ctx: { error: { message: string } }) => onError(ctx.error.message),
         }
       );
     } else {
@@ -60,7 +60,7 @@ function SignInInner() {
         { email, password },
         {
           onSuccess,
-          onError: (ctx) => onError(ctx.error.message),
+          onError: (ctx: { error: { message: string } }) => onError(ctx.error.message),
         }
       );
     }

@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentSession } from "@/lib/auth";
+import { requireRealUserId } from "@/lib/auth-guards";
 import { prisma } from "@/lib/journey/state";
 
 const deleteJourneySchema = z.object({
@@ -29,11 +28,7 @@ const deleteJourneySchema = z.object({
  * row first. We never trust the client about ownership.
  */
 export async function deleteJourneyAction(formData: FormData): Promise<void> {
-  const session = await getCurrentSession();
-  if (!session?.user?.id) {
-    redirect("/signin");
-  }
-  const userId = session.user.id;
+  const userId = await requireRealUserId();
 
   const { intentId } = deleteJourneySchema.parse({
     intentId: formData.get("intentId"),

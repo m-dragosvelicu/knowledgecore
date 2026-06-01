@@ -7,7 +7,7 @@ import OutcomeClient from "./OutcomeClient";
 
 export default async function OutcomePage() {
   const session = await getCurrentSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/"); // public pre-journey route; guests allowed
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");
   const subject = await prisma.subject.findUnique({ where: { intentId: intent.id } });

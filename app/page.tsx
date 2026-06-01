@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import type { JourneyStatus } from "@prisma/client";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { prisma, nextWizardRoute } from "@/lib/journey/state";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 import AppHeader from "@/components/AppHeader";
 import HomeHero from "@/components/HomeHero";
+import HowItWorks from "@/components/HowItWorks";
 import {
   FeaturedCard,
   SolidButton,
@@ -138,12 +138,53 @@ function JourneyRow({ intent, now }: { intent: IntentRow; now: Date }) {
 
 export default async function HomePage() {
   const session = await getCurrentSession();
-  if (!session?.user?.id) {
-    redirect("/signin");
+  const hasRealAccount = !!session?.user?.id && !isAnonymousSession(session);
+
+  // PUBLIC LANDING (landing-flow plan, section 1c). A visitor with no real
+  // account — whether they have no session at all, or an anonymous guest session
+  // — sees the start-a-journey hero as the page hero, a thin "how it works"
+  // strip, and a quiet sign-in link. The hero submit lazily bootstraps a guest
+  // session (HomeHero) and carries the in-progress journey through the wizard.
+  if (!hasRealAccount) {
+    return (
+      <Box sx={{ minHeight: "100vh", bgcolor: "transparent", position: "relative", zIndex: 2 }}>
+        <AppHeader />
+        <Box
+          component="main"
+          sx={{
+            maxWidth: 1060,
+            mx: "auto",
+            px: { xs: "22px", sm: "40px" },
+            pb: { xs: "80px", sm: "100px" },
+          }}
+        >
+          <HomeHero />
+          <HowItWorks />
+          <Box
+            className="kc-fade"
+            sx={{ mt: "40px", fontSize: 13.5, color: "var(--ink-3)", animationDelay: ".34s" }}
+          >
+            Already have an account?{" "}
+            <Box
+              component={Link}
+              href="/signin"
+              sx={{
+                color: "var(--teal-deep)",
+                textDecoration: "none",
+                fontWeight: 600,
+                "&:hover": { textDecoration: "underline" },
+              }}
+            >
+              Sign in
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    );
   }
 
   const intents = (await prisma.learningIntent.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session!.user.id },
     include: {
       subject: true,
       path: {

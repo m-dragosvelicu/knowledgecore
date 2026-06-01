@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import type { JourneyStatus } from "@prisma/client";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma, nextWizardRoute } from "@/lib/journey/state";
 import AppHeader from "@/components/AppHeader";
 import HomeHero from "@/components/HomeHero";
@@ -112,6 +113,7 @@ export default async function JourneysPage() {
   if (!session?.user?.id) {
     redirect("/signin");
   }
+  if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
 
   const intents = (await prisma.learningIntent.findMany({
     where: { userId: session.user.id },

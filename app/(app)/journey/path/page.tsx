@@ -22,7 +22,7 @@ import { GoalpostStatus } from "@prisma/client";
 
 export default async function PathPage() {
   const session = await getCurrentSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/"); // public pre-journey route; guests allowed
   const intent = await getOrCreateActiveIntent(session.user.id);
   if (!intent) redirect("/journey/intent");
 
