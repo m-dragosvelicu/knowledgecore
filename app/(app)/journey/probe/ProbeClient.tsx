@@ -12,6 +12,7 @@ import Box from "@mui/material/Box";
 import type { ProbeAnswer, ProbeQuestion } from "@/lib/services/types";
 import { submitProbeAction } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
+import { SaveAndLeaveLink } from "@/components/journey/SaveAndLeave";
 import { Eyebrow, SkipButton } from "@/components/ui";
 
 type Props = {
@@ -156,13 +157,17 @@ export default function ProbeClient({ questions }: Props) {
             spacing={2}
             justifyContent="space-between"
             alignItems="center"
+            sx={{ mt: "10px", pt: "18px", borderTop: "1px solid var(--line)" }}
           >
-            <SkipButton
-              onClick={() => setIndex((i) => Math.max(0, i - 1))}
-              disabled={index === 0 || isPending}
-            >
-              Back
-            </SkipButton>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <SaveAndLeaveLink />
+              <SkipButton
+                onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                disabled={index === 0 || isPending}
+              >
+                Back
+              </SkipButton>
+            </Stack>
             {isLast ? (
               <Button
                 variant="contained"

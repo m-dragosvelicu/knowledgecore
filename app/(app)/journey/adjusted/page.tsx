@@ -7,6 +7,7 @@ import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import SolidButton from "@/components/ui/SolidButton";
+import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 
 // L0.md §7 Q7: a must-acknowledge "we've adjusted your path" notice. No
@@ -90,14 +91,16 @@ export default async function AdjustedPage({
         </Stack>
       </Box>
 
-      <SolidButton
-        component={Link}
-        href="/journey/goalpost"
-        tone="ink"
-        size="large"
-      >
-        Got it, continue
-      </SolidButton>
+      <SaveAndLeaveRow>
+        <SolidButton
+          component={Link}
+          href="/journey/goalpost"
+          tone="ink"
+          size="large"
+        >
+          Got it, continue
+        </SolidButton>
+      </SaveAndLeaveRow>
     </Stack>
   );
 }

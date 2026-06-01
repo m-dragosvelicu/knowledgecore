@@ -16,6 +16,7 @@ import MicButton from "@/components/journey/MicButton";
 import DialogueTurns from "@/components/journey/DialogueTurns";
 import SolidButton from "@/components/ui/SolidButton";
 import WobbleButton from "@/components/ui/WobbleButton";
+import { SaveAndLeaveLink } from "@/components/journey/SaveAndLeave";
 import { Eyebrow } from "@/components/ui";
 
 // Soft cap on CORRECTION ROUNDS (a round = one full clarifying dialogue that
@@ -180,20 +181,28 @@ export default function PathConfirmationGate({ revisionCount }: Props) {
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={2}
-          alignItems={{ sm: "center" }}
-          sx={{ pt: 0.5 }}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          sx={{ mt: "10px", pt: "18px", borderTop: "1px solid var(--line)" }}
         >
-          <SolidButton
-            tone="ink"
-            size="large"
-            onClick={looksGood}
-            disabled={isPending}
+          <SaveAndLeaveLink />
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems={{ xs: "flex-start", sm: "center" }}
           >
-            {isPending ? "Setting up your first goalpost…" : "Looks good, start"}
-          </SolidButton>
-          <WobbleButton onClick={openDialogue} disabled={isPending}>
-            Not quite right
-          </WobbleButton>
+            <WobbleButton onClick={openDialogue} disabled={isPending}>
+              Not quite right
+            </WobbleButton>
+            <SolidButton
+              tone="ink"
+              size="large"
+              onClick={looksGood}
+              disabled={isPending}
+            >
+              {isPending ? "Setting up your first goalpost…" : "Looks good, start"}
+            </SolidButton>
+          </Stack>
         </Stack>
 
         {atSoftCap && (

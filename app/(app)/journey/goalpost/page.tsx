@@ -29,6 +29,7 @@ import VisualMedia from "@/components/journey/VisualMedia";
 import GettingReady from "@/components/journey/GettingReady";
 import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
 import SubmitButton from "@/components/journey/SubmitButton";
+import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import ExperienceForm from "@/components/journey/ExperienceForm";
 import InformationView from "@/components/journey/InformationView";
 import OverrideControl from "@/components/journey/OverrideControl";
@@ -426,14 +427,16 @@ export default async function GoalpostPage({
       {decision === Decision.advance && (
         <form action={advanceGoalpostAction}>
           <input type="hidden" name="goalpostId" value={goalpost!.id} />
-          <SubmitButton
-            variant="contained"
-            color="kcInk"
-            size="large"
-            pendingLabel="Moving you forward…"
-          >
-            Continue to the next goalpost
-          </SubmitButton>
+          <SaveAndLeaveRow>
+            <SubmitButton
+              variant="contained"
+              color="kcInk"
+              size="large"
+              pendingLabel="Moving you forward…"
+            >
+              Continue to the next goalpost
+            </SubmitButton>
+          </SaveAndLeaveRow>
         </form>
       )}
 

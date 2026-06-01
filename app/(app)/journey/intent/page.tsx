@@ -2,6 +2,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import SubmitButton from "@/components/journey/SubmitButton";
 import MicTextField from "@/components/journey/MicTextField";
+import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import {
   confirmIntentAction,
@@ -113,13 +114,15 @@ export default async function IntentPage({
         <Box className="kc-fade" sx={{ mt: "22px", animationDelay: ".18s" }}>
           {/* Accept the interpretation as-is and proceed. */}
           <form action={confirmIntentAction}>
-            <SubmitButton
-              variant="contained"
-              size="large"
-              pendingLabel="Setting your direction…"
-            >
-              Yes, that&rsquo;s right
-            </SubmitButton>
+            <SaveAndLeaveRow>
+              <SubmitButton
+                variant="contained"
+                size="large"
+                pendingLabel="Setting your direction…"
+              >
+                Yes, that&rsquo;s right
+              </SubmitButton>
+            </SaveAndLeaveRow>
           </form>
         </Box>
 
@@ -141,11 +144,22 @@ export default async function IntentPage({
                 aboveLabel="Refine your learning intent"
                 placeholder="e.g., classical mechanics for a first-year physics course"
                 multiline
-                minRows={3}
+                minRows={5}
                 required
                 fullWidth
                 defaultValue={intent?.rawText ?? ""}
+                containerSx={{ maxWidth: 620 }}
+                sx={{
+                  "& .MuiInputBase-root": { p: "16px 18px" },
+                  "& .MuiInputBase-input": {
+                    fontFamily: "var(--font-body)",
+                    fontSize: 17.5,
+                    lineHeight: 1.55,
+                  },
+                }}
               />
+            </Stack>
+            <SaveAndLeaveRow>
               <SubmitButton
                 variant="outlined"
                 size="large"
@@ -153,7 +167,7 @@ export default async function IntentPage({
               >
                 Read it again
               </SubmitButton>
-            </Stack>
+            </SaveAndLeaveRow>
           </form>
         </Box>
       </Box>
@@ -218,10 +232,19 @@ export default async function IntentPage({
               aboveLabel="Your learning intent"
               placeholder="Try: linear algebra basics for machine learning"
               multiline
-              minRows={3}
+              minRows={5}
               required
               fullWidth
               defaultValue={intent?.rawText ?? ""}
+              containerSx={{ maxWidth: 620 }}
+              sx={{
+                "& .MuiInputBase-root": { p: "16px 18px" },
+                "& .MuiInputBase-input": {
+                  fontFamily: "var(--font-body)",
+                  fontSize: 17.5,
+                  lineHeight: 1.55,
+                },
+              }}
             />
             <Box
               component="p"
@@ -230,15 +253,16 @@ export default async function IntentPage({
               Tip · try &ldquo;linear algebra basics for machine learning&rdquo;
               to see the rich pre-baked example.
             </Box>
+          </Stack>
+          <SaveAndLeaveRow>
             <SubmitButton
               variant="contained"
               size="large"
               pendingLabel="Reading your intent…"
-              sx={{ mt: "6px" }}
             >
               Continue
             </SubmitButton>
-          </Stack>
+          </SaveAndLeaveRow>
         </form>
       </Box>
     </Box>

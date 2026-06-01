@@ -7,9 +7,9 @@ import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Divider from "@mui/material/Divider";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import type { CanDoStatement } from "@/lib/services/types";
 
 // B.6 §1.0 (net-new): the Journey Overview -- the journey-level threshold shown
@@ -159,18 +159,17 @@ export default async function OverviewPage({
         </CardContent>
       </Card>
 
-      <Divider />
-
       <Stack spacing={2}>
-        <Button
-          component={Link}
-          href="/journey/goalpost"
-          variant="contained"
-          size="large"
-          sx={{ alignSelf: "flex-start" }}
-        >
-          Start learning
-        </Button>
+        <SaveAndLeaveRow>
+          <Button
+            component={Link}
+            href="/journey/goalpost"
+            variant="contained"
+            size="large"
+          >
+            Start learning
+          </Button>
+        </SaveAndLeaveRow>
         <Typography variant="body2" color="text.secondary">
           Not quite what you meant?{" "}
           <Box

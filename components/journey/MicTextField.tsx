@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import type { TextFieldProps } from "@mui/material/TextField";
+import type { SxProps, Theme } from "@mui/material/styles";
 import MicButton from "@/components/journey/MicButton";
 
 /**
@@ -36,6 +37,12 @@ type Props = Omit<TextFieldProps, "value" | "onChange"> & {
    * collides-with-focus-glow). When set, do NOT also pass the floating `label`.
    */
   aboveLabel?: string;
+  /**
+   * Per-call-site styling for the wrapper Stack (e.g. a max-width so the intent
+   * field reads as a generous centerpiece). Kept opt-in so other call sites
+   * (the contestability override) are not restyled.
+   */
+  containerSx?: SxProps<Theme>;
 };
 
 export default function MicTextField({
@@ -44,6 +51,7 @@ export default function MicTextField({
   micDisabled = false,
   languageHint,
   aboveLabel,
+  containerSx,
   id,
   ...textFieldProps
 }: Props) {
@@ -59,7 +67,10 @@ export default function MicTextField({
   }
 
   return (
-    <Stack spacing={0.5} sx={{ width: "100%" }}>
+    <Stack
+      spacing={0.5}
+      sx={[{ width: "100%" }, ...(Array.isArray(containerSx) ? containerSx : [containerSx])]}
+    >
       {aboveLabel && (
         <Typography
           component="label"

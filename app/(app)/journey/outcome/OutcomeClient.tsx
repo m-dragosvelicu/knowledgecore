@@ -19,6 +19,7 @@ import {
 } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
 import DialogueTurns from "@/components/journey/DialogueTurns";
+import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import { Eyebrow } from "@/components/ui";
 
 const MOTIVATIONS: Array<{ value: Motivation; label: string }> = [
@@ -172,16 +173,17 @@ export default function OutcomeClient({ defaultMotivation }: Props) {
               ))}
             </RadioGroup>
           </FormControl>
-          <Button
-            variant="contained"
-            color="kcInk"
-            size="large"
-            onClick={startInterview}
-            disabled={motivation === "" || isPending}
-            sx={{ alignSelf: "flex-start" }}
-          >
-            {isPending ? "Starting…" : "Start the conversation"}
-          </Button>
+          <SaveAndLeaveRow>
+            <Button
+              variant="contained"
+              color="kcInk"
+              size="large"
+              onClick={startInterview}
+              disabled={motivation === "" || isPending}
+            >
+              {isPending ? "Starting…" : "Start the conversation"}
+            </Button>
+          </SaveAndLeaveRow>
         </Stack>
       </Surface>
     );
@@ -238,16 +240,17 @@ export default function OutcomeClient({ defaultMotivation }: Props) {
           </Stack>
         </Box>
 
-        <Button
-          variant="contained"
-          color="kcInk"
-          size="large"
-          onClick={finalize}
-          disabled={isPending}
-          sx={{ alignSelf: "flex-start" }}
-        >
-          {isPending ? "Designing your knowledge probe…" : "Continue to the knowledge probe"}
-        </Button>
+        <SaveAndLeaveRow>
+          <Button
+            variant="contained"
+            color="kcInk"
+            size="large"
+            onClick={finalize}
+            disabled={isPending}
+          >
+            {isPending ? "Designing your knowledge probe…" : "Continue to the knowledge probe"}
+          </Button>
+        </SaveAndLeaveRow>
       </Stack>
     );
   }
