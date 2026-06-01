@@ -1,5 +1,57 @@
 # UX/Frontend WORKLOG
 
+## 2026-06-01 — Fix hand-drawn underline stretching the full line instead of hugging the text
+
+Branch: `feat/home-nav-journeys-fixes`. No push, no co-authors, no commit to main.
+
+### Bug
+Founder screenshot: the self-drawing teal wobble underline ran across the ENTIRE
+container width (e.g. under "The default mode network", "YOUR TRAIL" headings) instead
+of hugging the text with a small overshoot.
+
+### Root cause
+`HeadlineUnderline` (components/ui/Type.tsx) was `display:inline-block` with no width
+constraint. The `HandUnderline` SVG inside it is `width:100%` of the wrapper, so the
+underline is only ever as wide as that wrapper. Two contexts blew the wrapper out to the
+full column width:
+- As a flex item in a MUI `<Stack>` (the "Your trail" h1 on /journey/path and most
+  journey headings), the default `align-items:stretch` stretched the inline-block to the
+  full cross-axis width.
+- When the child is a BLOCK heading (`<Box component="h3">` on the homepage card,
+  `Typography component="h1">`), the block child fills the inline-block.
+Either way the SVG width became the column width, not the text width.
+
+### Fix
+Single point of change in `HeadlineUnderline`: add `width:fit-content` + `maxWidth:100%`
+to the wrapper span. `fit-content` forces shrink-to-fit even as a flex item and even with
+a block child, so the wrapper hugs the rendered text; `maxWidth:100%` keeps it wrapping
+inside narrow columns. The SVG stays `width:100%` of the (now text-width) wrapper and its
+`viewBox 0 0 360 16` + `preserveAspectRatio:none` scales the path to that width, keeping
+the natural small end-overshoot of the wobble. Draw-on animation (pathLength +
+stroke-dashoffset on the path) and the `#rough` hand are untouched and width-independent;
+prefers-reduced-motion still resolved by `.kc-draw`. Two-line headings: wrapper hugs the
+text block, underline sits under the last line via the existing `bottom:-7`.
+Fix is in the shared wrapper, so all 14 `HeadlineUnderline` call sites (hero, homepage
+card, trail, journey titles, specimens, journey sub-views) are fixed consistently. The
+inline-`<span>`-child sites (hero "actually know?", begin "start learning") were already
+correct and stay correct.
+
+### Files changed
+- `components/ui/Type.tsx` — `HeadlineUnderline` wrapper sizing + doc comment.
+
+### Verification (all green)
+- `tsc --noEmit`: 0 errors (exit 0)
+- `next build`: compiled + type-checked, 19/19 routes (exit 0)
+- verify-{decision, loop, presenter, learner-profile, adaptation, path-confirmation,
+  stt, visual-media, landing-flow}: all exit 0 (9/9)
+- Rendered-HTML proof (SSR + live `next start`): wrapper now serializes
+  `display:inline-block;width:fit-content;max-width:100%`, child unchanged, SVG `kc-uline`
+  `width:100%`. Live homepage `/` serves the hero underline wrapper at fit-content,
+  hugging "actually know?". Before: wrapper had no width -> stretched to column. After:
+  fit-content -> text width.
+- Note: the founder's dev server on :3000 was 500ing from this shared working copy
+  (expected per brief); left it untouched, confirmed against a separate clean build.
+
 ## 2026-06-01 — Dedup the active question in the turn-taking dialogue (shared engine)
 
 Branch: `feat/home-nav-journeys-fixes`. No push, no co-authors, no commit to main.

@@ -54,6 +54,18 @@ export function SectionLabel({
  *   <HeadlineUnderline>
  *     <Typography variant="h3" component="span">The ideas behind Art Nouveau</Typography>
  *   </HeadlineUnderline>
+ *
+ * Sizing: the wrapper shrink-wraps to the rendered TEXT width via
+ * `width: fit-content` (with `maxWidth: 100%` so it still wraps inside narrow
+ * columns). `fit-content` is what keeps the underline hugging the text even when
+ * the wrapper lands as a flex item (e.g. inside a MUI <Stack>, whose default
+ * `align-items: stretch` would otherwise blow a plain inline-block out to the
+ * full column width) or when its child is a block-level heading (an <h1>/<h3>
+ * that would fill an inline-block). The HandUnderline SVG is width:100% of this
+ * wrapper, so it inherits the text width and scales its path to match; the
+ * draw-on animation lives on the path (pathLength + stroke-dashoffset) and is
+ * unaffected by the width. On a two-line heading the wrapper hugs the wider
+ * line's text block and the underline sits under the last line.
  * ------------------------------------------------------------------------- */
 export function HeadlineUnderline({
   children,
@@ -71,6 +83,8 @@ export function HeadlineUnderline({
       style={{
         position: "relative",
         display: "inline-block",
+        width: "fit-content",
+        maxWidth: "100%",
         margin: "0 0 2px",
       }}
     >
