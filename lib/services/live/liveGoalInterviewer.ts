@@ -49,6 +49,11 @@ Output contract (always a single JSON object):
 Can-do statement rules (only for kind="complete"):
 - Each "text" must start with "I can" and describe an observable, assessable
   capability, not a vague feeling.
+- Write each statement in SENTENCE CASE: capitalize only the first word and
+  genuine proper nouns (names of people, places, named theories/movements,
+  languages, branded technologies — e.g. "Art Nouveau", "French", "Python").
+  Do NOT Title-Case Every Word; ordinary technical terms stay lowercase
+  mid-sentence (e.g. "default mode network", "balance sheet").
 - Tailor difficulty and framing to the motivation and what the learner told you
   (work -> applied/practical; curiosity -> conceptual; school -> exam-style).
 - Tag each with the closest Bloom level: remember, understand, apply, analyze,

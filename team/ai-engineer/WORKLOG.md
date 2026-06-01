@@ -1,5 +1,62 @@
 # AI Engineer — WORKLOG
 
+## 2026-06-01 — Goalpost (+ can-do) title sentence-case fix (branch feat/goalpost-title-casing)
+
+**Root cause (confirmed):** the live path outliner's SYSTEM prompt had NO casing
+instruction, so Gemini Title-Cased every goalpost `title`/`objective` it generated. The
+design system mandates SENTENCE CASE for titles/headings/statements (proper nouns kept).
+The display layer was NOT the culprit (the only `text-transform:capitalize` rules are on
+small status chips, not titles). The intent parser already emits sentence case; this gap
+was downstream of it in the curriculum step.
+
+**Files changed**
+1. `lib/services/live/livePathOutliner.ts` — added a "TITLE & HEADING CASING — CRITICAL"
+   block to SYSTEM instructing sentence case for every goalpost `title` and `objective`:
+   capitalize ONLY the first word and genuine proper nouns (Art Nouveau, French, React,
+   Python), do NOT Title-Case Every Word, ordinary technical terms stay lowercase
+   mid-sentence (default mode network, balance sheet, dot product), with 3 worked examples.
+2. `lib/services/live/liveGoalInterviewer.ts` — the can-do statements are the "you'll be
+   able to" achievement copy on the path/outcome pages. They already start with "I can"
+   (first word fine) but nouns mid-sentence were at risk of Title Case, so added the same
+   sentence-case rule to the can-do statement rules.
+3. `lib/services/mock/mockPathOutliner.ts` — generic fallback title was `${subject} -
+   Goalpost ${i}`, which now starts lowercase (subjects are sentence-cased, e.g. "the
+   default mode network - Goalpost 1"). Changed to `Foundations of ${subject} (part ${i})`
+   so it leads with a capitalized word and reads sensibly. Hardcoded linear-algebra titles
+   were already sentence case (left untouched).
+
+**Outcome generator:** the "you'll be able to" / "Where this trail ends" HEADINGS on
+`app/(app)/journey/path/page.tsx` and `outcome/OutcomeClient.tsx` are static UI copy
+(already sentence case) — not generated, not touched. The generated outcome PROSE is the
+goal interviewer's can-do statements, which DID get the sentence-case instruction (item 2).
+Eyebrows/labels left uppercase per the design system.
+
+**Before/after (proven against live Gemini, GOOGLE_GENAI_API_KEY present):**
+- "the default mode network": BEFORE "Anatomy and Core Hubs of the DMN" / "Cognitive
+  Functions: The Self and Mental Time Travel" / "DMN Dysregulation in Clinical Cases" ->
+  AFTER "Discovering the brain's default state" / "The cognitive roles of internal
+  mentation" / "Applying default mode network dynamics to clinical and behavioral states".
+- "Art Nouveau": BEFORE "The Whiplash Line and Total Art (Gesamtkunstwerk)" / "Materials
+  and Motifs: Translating Nature into Industry" / "Designing the Nouveau: Applying the
+  Aesthetic to a Modern Object" -> AFTER "The roots and key characteristics of Art Nouveau"
+  / "Identifying Art Nouveau across different media" / "Applying Art Nouveau principles to
+  a modern design challenge" (proper noun preserved).
+- "reading a balance sheet": BEFORE "The Foundation: Mastering the Accounting Equation" /
+  "Liquidity and the Art of Short-Term Survival" / "Financial Diagnosis: Evaluating
+  Leverage and Overall Health" -> AFTER "The anatomy of a balance sheet and the accounting
+  equation" / "Measuring financial health with liquidity and leverage ratios" / "Evaluating
+  business stability and creditworthiness".
+- Can-do statements (Art Nouveau, live): "I can recall at least three major Art Nouveau
+  artists...", "I can explain the core design principles and motifs of Art Nouveau...",
+  "I can analyze a building's facade..." — sentence case, proper noun preserved.
+- MOCK fallback: "Foundations of the default mode network (part 1/2/3)" — sensible.
+
+**Verify:** tsc 0; `next build` clean (18 routes); all 9 verify-* PASS (decision 9, loop,
+presenter 18, learner-profile 24, adaptation 18, path-confirmation, stt 11, visual-media 50,
+landing-flow 27). Throwaway proof script removed after the run.
+
+**Blockers:** none. Branch committed locally, not pushed (founder rule).
+
 ## 2026-06-01 — Subject extraction + sentence-case fix (branch feat/home-nav-journeys-fixes)
 
 **Work done**

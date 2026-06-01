@@ -100,7 +100,10 @@ const LINEAR_ALGEBRA_PATH: GoalpostPlan[] = [
 function genericPath(subject: string): GoalpostPlan[] {
   return [1, 2, 3].map((i) => ({
     order: i,
-    title: `${subject} - Goalpost ${i}`,
+    // Subjects are now sentence-cased (e.g. "the default mode network"), so a
+    // leading "${subject}" would start the title lowercase. Lead with a
+    // sentence-cased verb phrase and append the subject as written.
+    title: `Foundations of ${subject} (part ${i})`,
     objective: `Build the foundational ${subject} skill targeted at level ${i}.`,
     estimatedMinutes: 45,
     steps: [

@@ -81,6 +81,17 @@ take less than 20 minutes is too thin (merge it); one over 120 minutes is too
 big (split it). Give a realistic, honest per-goalpost estimate inside these
 bounds.
 
+TITLE & HEADING CASING — CRITICAL. Write every goalpost "title" and "objective"
+in SENTENCE CASE: capitalize ONLY the first word and genuine proper nouns (names
+of people, places, named theories/movements, languages, branded technologies —
+e.g. "Art Nouveau", "French", "React", "Python", "the Default Mode Network" only
+if that exact name is a proper noun). Do NOT Title-Case Every Word. Ordinary
+technical terms stay lowercase mid-sentence (e.g. "default mode network",
+"balance sheet", "dot product"). Examples:
+  - "Understanding brain networks and the default mode network" (NOT "Understanding Brain Networks and the Default Mode Network")
+  - "Reading a balance sheet" (NOT "Reading a Balance Sheet")
+  - "The ideas behind Art Nouveau" (NOT "The Ideas Behind Art Nouveau")
+
 Rules:
 - Order goalposts 1..3 from foundational to ambitious.
 - Number the information step order 1 and the experience step order 2.`;
