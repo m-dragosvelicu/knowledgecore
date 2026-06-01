@@ -15,7 +15,7 @@ import type {
   ProbeAnswer,
   ProbeQuestion,
 } from "@/lib/services/types";
-import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision } from "@prisma/client";
+import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision, Prisma } from "@prisma/client";
 import { deriveDecision } from "@/lib/journey/decision";
 import {
   applyPathAdjustment,
@@ -298,6 +298,31 @@ export async function advanceInterviewAction(
   const subject = await prisma.subject.findUnique({ where: { intentId } });
   if (!subject) redirect(`/journey/intent?j=${intentId}`);
 
+  const services = getServices();
+  const step = await services.goalInterviewer.interview({
+    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+    motivation: parsed.motivation,
+    transcript: parsed.transcript,
+  });
+
+  // RESUME SUPPORT — persist the outcome sub-state as it is produced so a learner
+  // who saves & leaves mid-outcome returns to their position (not the motivation
+  // question). The transcript we store is the conversation INCLUDING the question
+  // this turn just produced, so on re-hydration the outcome page can render the
+  // dialogue exactly where it left off. On completion we also stash the
+  // synthesized (not-yet-confirmed) outcome so resume lands on the confirm screen.
+  const nextTranscript: InterviewTurn[] =
+    step.kind === "complete"
+      ? parsed.transcript
+      : [...parsed.transcript, { role: "assistant", content: step.question }];
+  const draftOutcome =
+    step.kind === "complete"
+      ? {
+          canDoStatements: step.canDoStatements,
+          successCriterion: step.successCriterion,
+        }
+      : null;
+
   // Persist what we know so far. elaboration is required (non-null) in the
   // schema, so default to a placeholder until the learner has answered.
   const elaboration = latestUserText(parsed.transcript) || "(in progress)";
@@ -307,6 +332,8 @@ export async function advanceInterviewAction(
     update: {
       motivation: parsed.motivation,
       elaboration,
+      interviewTranscript: nextTranscript as unknown as object,
+      draftOutcome: draftOutcome as unknown as object,
       ...(horizonDays !== null
         ? { timeHorizon: elaboration, timeHorizonDays: horizonDays }
         : {}),
@@ -315,17 +342,18 @@ export async function advanceInterviewAction(
       intentId,
       motivation: parsed.motivation,
       elaboration,
+      interviewTranscript: nextTranscript as unknown as object,
+      draftOutcome: draftOutcome as unknown as object,
       timeHorizon: horizonDays !== null ? elaboration : null,
       timeHorizonDays: horizonDays,
     },
   });
 
-  const services = getServices();
-  return services.goalInterviewer.interview({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    motivation: parsed.motivation,
-    transcript: parsed.transcript,
-  });
+  // Recency touch: an interview turn is genuine activity on this journey, so it
+  // should become the resume target (parity with the in_progress per-step touch).
+  await touchIntentRecency(intentId);
+
+  return step;
 }
 
 const finalizeOutcomeSchema = z.object({
@@ -372,6 +400,13 @@ export async function finalizeOutcomeAction(
       canDoStatements: parsed.canDoStatements,
       successCriterion: parsed.successCriterion,
     },
+  });
+
+  // The confirmed ExpectedOutcome is now authoritative; clear the resume draft so
+  // a later return to the outcome stage never re-hydrates a stale pre-confirm draft.
+  await prisma.learningGoal.updateMany({
+    where: { intentId },
+    data: { draftOutcome: Prisma.DbNull },
   });
 
   await prisma.learningIntent.update({

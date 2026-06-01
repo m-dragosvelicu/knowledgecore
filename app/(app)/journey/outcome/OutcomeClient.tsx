@@ -42,7 +42,22 @@ type Props = {
   // The resolved journey id (from ?j), threaded into every action so the
   // interview operates on and advances the journey the learner actually opened.
   intentId: string;
+  // RESUME SUPPORT — the outcome sub-state persisted progressively to LearningGoal
+  // (interviewTranscript / draftOutcome). When present, the flow re-hydrates to the
+  // learner's position instead of restarting at the motivation question. The
+  // transcript is the running conversation INCLUDING the trailing active question
+  // (DialogueTurns drops it from the history; phase 2 shows it as the input heading).
+  resumeTranscript: InterviewTurn[] | null;
+  resumeDraftOutcome: Complete | null;
 };
+
+// Last assistant turn = the active question to re-display when resuming mid-interview.
+function lastAssistantQuestion(transcript: InterviewTurn[]): string {
+  for (let i = transcript.length - 1; i >= 0; i--) {
+    if (transcript[i].role === "assistant") return transcript[i].content;
+  }
+  return "";
+}
 
 // A heading set in Fraunces at the light/medium display weight — the voice that
 // asks the questions through this flow. Used for the motivation prompt, the
@@ -95,15 +110,37 @@ function Surface({
   );
 }
 
-export default function OutcomeClient({ defaultMotivation, intentId }: Props) {
-  const [phase, setPhase] = useState<Phase>("motivation");
+export default function OutcomeClient({
+  defaultMotivation,
+  intentId,
+  resumeTranscript,
+  resumeDraftOutcome,
+}: Props) {
+  // RESUME SUPPORT — derive the starting phase/state from what was persisted:
+  //   draft outcome present        -> "complete" (land on the confirm screen),
+  //   a transcript with turns       -> "interview" (resume the conversation),
+  //   otherwise                     -> "motivation" (fresh start).
+  const hasTranscript = !!resumeTranscript && resumeTranscript.length > 0;
+  const initialPhase: Phase = resumeDraftOutcome
+    ? "complete"
+    : hasTranscript
+      ? "interview"
+      : "motivation";
+
+  const [phase, setPhase] = useState<Phase>(initialPhase);
   const [motivation, setMotivation] = useState<Motivation | "">(
     defaultMotivation ?? "",
   );
-  const [transcript, setTranscript] = useState<InterviewTurn[]>([]);
-  const [question, setQuestion] = useState<string>("");
+  const [transcript, setTranscript] = useState<InterviewTurn[]>(
+    resumeTranscript ?? [],
+  );
+  const [question, setQuestion] = useState<string>(
+    hasTranscript ? lastAssistantQuestion(resumeTranscript!) : "",
+  );
   const [draft, setDraft] = useState<string>("");
-  const [complete, setComplete] = useState<Complete | null>(null);
+  const [complete, setComplete] = useState<Complete | null>(
+    resumeDraftOutcome ?? null,
+  );
   const [isPending, startTransition] = useTransition();
 
   // Runs one interview turn against the server, appending the (optional) new

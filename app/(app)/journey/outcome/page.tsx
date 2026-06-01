@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import type { CanDoStatement, InterviewTurn } from "@/lib/services/types";
 import { Eyebrow } from "@/components/ui";
 import OutcomeClient from "./OutcomeClient";
 
@@ -18,6 +19,18 @@ export default async function OutcomePage({
   const subject = await prisma.subject.findUnique({ where: { intentId: intent.id } });
   if (!subject) redirect(`/journey/intent?j=${intent.id}`);
   const goal = await prisma.learningGoal.findUnique({ where: { intentId: intent.id } });
+
+  // RESUME SUPPORT — re-hydrate the outcome sub-state persisted progressively by
+  // advanceInterviewAction so a learner who saved & left mid-outcome returns to
+  // their position (the conversation so far, or the generated outcome ready to
+  // confirm), NOT the motivation question. Both are JSON columns on LearningGoal.
+  const resumeTranscript =
+    (goal?.interviewTranscript as unknown as InterviewTurn[] | null) ?? null;
+  const resumeDraftOutcome =
+    (goal?.draftOutcome as unknown as {
+      canDoStatements: CanDoStatement[];
+      successCriterion: string;
+    } | null) ?? null;
 
   return (
     <Box sx={{ maxWidth: 760 }}>
@@ -47,7 +60,12 @@ export default async function OutcomePage({
       </Box>
 
       <Box className="kc-fade" sx={{ animationDelay: ".12s" }}>
-        <OutcomeClient defaultMotivation={goal?.motivation ?? null} intentId={intent.id} />
+        <OutcomeClient
+          defaultMotivation={goal?.motivation ?? null}
+          intentId={intent.id}
+          resumeTranscript={resumeTranscript}
+          resumeDraftOutcome={resumeDraftOutcome}
+        />
       </Box>
     </Box>
   );

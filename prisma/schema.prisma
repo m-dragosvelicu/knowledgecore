@@ -207,6 +207,17 @@ model LearningGoal {
   timeHorizonDays Int?
   /// L0 §4 — user-provided constraints (e.g. deadlines, prerequisites to skip).
   externalConstraints String?
+  /// Resume support — the running goal-interview transcript, a JSON array of
+  /// `{ role: "assistant" | "user"; content: string }`. Persisted progressively
+  /// each turn so a learner who saves & leaves mid-outcome returns to the exact
+  /// point in the conversation instead of restarting at the motivation question.
+  interviewTranscript Json?
+  /// Resume support — the synthesized but not-yet-confirmed outcome from the end
+  /// of the interview: `{ canDoStatements: {text, bloomLevel}[]; successCriterion }`.
+  /// Written when the interview reaches "complete"; lets resume land on the
+  /// confirm-outcome screen rather than restarting. Cleared/superseded once the
+  /// learner confirms (finalizeOutcomeAction writes the authoritative ExpectedOutcome).
+  draftOutcome Json?
 }
 
 /// `canDoStatements` is a JSON array of `{ text: string; bloomLevel: string }`
