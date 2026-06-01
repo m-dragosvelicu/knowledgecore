@@ -138,7 +138,7 @@ export default async function IntentPage({
             <Stack spacing={2} alignItems="flex-start">
               <MicTextField
                 name="rawText"
-                label="Refine your learning intent"
+                aboveLabel="Refine your learning intent"
                 placeholder="e.g., classical mechanics for a first-year physics course"
                 multiline
                 minRows={3}
@@ -215,7 +215,7 @@ export default async function IntentPage({
           <Stack spacing={1.5} alignItems="flex-start">
             <MicTextField
               name="rawText"
-              label="Your learning intent"
+              aboveLabel="Your learning intent"
               placeholder="Try: linear algebra basics for machine learning"
               multiline
               minRows={3}

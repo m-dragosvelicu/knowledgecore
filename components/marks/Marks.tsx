@@ -95,15 +95,25 @@ export function HandUnderline({
  * ScoreBadge — a roughened ellipse (NOT a perfect circle) wrapping a Fraunces
  * figure and an uppercase sublabel. The ellipse path is run through the shared
  * #rough displacement filter for the inky edge.
+ *
+ * The roughened ellipse is the SCORE mark: it should only wrap a genuine score
+ * (e.g. a checkpoint evaluation result). For un-scored values — like a plain
+ * goalpost PROGRESS count in the journey lists — pass `ring={false}` to render
+ * the same Fraunces figure + uppercase sublabel WITHOUT the circle, so progress
+ * is never mistaken for a score. `ring` defaults to true to keep the genuine
+ * score call sites (trail, complete page, specimens) visually unchanged.
  * ------------------------------------------------------------------------- */
 export function ScoreBadge({
   big,
   sub,
   color = TEAL,
+  ring = true,
 }: {
   big: React.ReactNode;
   sub?: React.ReactNode;
   color?: string;
+  /** Wrap the figure in the roughened score ellipse. False = un-circled progress. */
+  ring?: boolean;
 }) {
   return (
     <div
@@ -117,22 +127,24 @@ export function ScoreBadge({
         height: 58,
       }}
     >
-      <svg
-        width="84"
-        height="58"
-        viewBox="0 0 84 58"
-        aria-hidden="true"
-        focusable="false"
-        style={{ position: "absolute", inset: 0, filter: "url(#rough)" }}
-      >
-        <path
-          d="M12 29 C 12 13, 40 10, 53 11 C 73 13, 74 26, 71 34 C 67 50, 40 52, 25 49 C 12 46, 11 39, 14 29"
-          fill="none"
-          stroke={color}
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
+      {ring && (
+        <svg
+          width="84"
+          height="58"
+          viewBox="0 0 84 58"
+          aria-hidden="true"
+          focusable="false"
+          style={{ position: "absolute", inset: 0, filter: "url(#rough)" }}
+        >
+          <path
+            d="M12 29 C 12 13, 40 10, 53 11 C 73 13, 74 26, 71 34 C 67 50, 40 52, 25 49 C 12 46, 11 39, 14 29"
+            fill="none"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
       <div style={{ position: "relative", textAlign: "center", lineHeight: 1 }}>
         <div
           style={{

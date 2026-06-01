@@ -32,6 +32,13 @@ export type JourneyListRowData = {
   /** Big glyph for the score badge (e.g. "3/5", "Done", "—"). */
   badgeBig: string;
   badgeSub: string;
+  /**
+   * Whether the badge value is a genuine SCORE (wrap in the roughened ellipse)
+   * vs. plain goalpost PROGRESS (render un-circled). The journey lists only ever
+   * surface goalpost progress, so this is false there; the ellipse is reserved
+   * for real score contexts (trail, complete page).
+   */
+  scored?: boolean;
   /** Resolved route for the row link (nextWizardRoute on the server). */
   href: string;
 };
@@ -91,7 +98,7 @@ export default function JourneyListRow({ data }: { data: JourneyListRowData }) {
         </Box>
 
         <Box sx={{ flex: "none" }}>
-          <ScoreBadge big={data.badgeBig} sub={data.badgeSub} />
+          <ScoreBadge big={data.badgeBig} sub={data.badgeSub} ring={data.scored ?? false} />
         </Box>
       </Box>
 

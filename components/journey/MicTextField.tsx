@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import type { TextFieldProps } from "@mui/material/TextField";
 import MicButton from "@/components/journey/MicButton";
@@ -27,6 +28,14 @@ type Props = Omit<TextFieldProps, "value" | "onChange"> & {
   /** Disable the mic only (the field stays editable). */
   micDisabled?: boolean;
   languageHint?: string;
+  /**
+   * Render a clean, standalone label ABOVE the field (its own line, with
+   * breathing room) instead of MUI's notched/floating label. This keeps the
+   * label out of the teal focus ring + rounded border, where the floating
+   * variant collided with the glow and became hard to read (bugs: intent-label
+   * collides-with-focus-glow). When set, do NOT also pass the floating `label`.
+   */
+  aboveLabel?: string;
 };
 
 export default function MicTextField({
@@ -34,9 +43,13 @@ export default function MicTextField({
   defaultValue = "",
   micDisabled = false,
   languageHint,
+  aboveLabel,
+  id,
   ...textFieldProps
 }: Props) {
   const [value, setValue] = useState<string>(defaultValue);
+  const generatedId = useId();
+  const fieldId = id ?? `mic-field-${generatedId}`;
 
   function appendTranscript(text: string) {
     setValue((prev) => {
@@ -47,8 +60,25 @@ export default function MicTextField({
 
   return (
     <Stack spacing={0.5}>
+      {aboveLabel && (
+        <Typography
+          component="label"
+          htmlFor={fieldId}
+          sx={{
+            mb: "8px",
+            fontFamily: "var(--font-body)",
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1.35,
+            color: "var(--ink)",
+          }}
+        >
+          {aboveLabel}
+        </Typography>
+      )}
       <TextField
         {...textFieldProps}
+        id={fieldId}
         name={name}
         value={value}
         onChange={(e) => setValue(e.target.value)}

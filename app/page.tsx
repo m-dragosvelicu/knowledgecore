@@ -123,12 +123,16 @@ function JourneyRow({ intent, now }: { intent: IntentRow; now: Date }) {
       </Box>
 
       <Box sx={{ flex: "none" }}>
+        {/* These badges show goalpost PROGRESS, not a genuine score, so they
+            render un-circled (ring={false}). The roughened score ellipse is
+            reserved for real checkpoint scores (trail, complete page). */}
         {intent.status === "complete" ? (
-          <ScoreBadge big={total > 0 ? `${done}/${total}` : "Done"} sub="goalposts" />
+          <ScoreBadge big={total > 0 ? `${done}/${total}` : "Done"} sub="goalposts" ring={false} />
         ) : (
           <ScoreBadge
             big={total > 0 ? `${done}/${total}` : "—"}
             sub={total > 0 ? "goalposts" : "not built"}
+            ring={false}
           />
         )}
       </Box>

@@ -61,11 +61,15 @@ export default function FeaturedCard({
         />
       )}
 
-      <Box sx={{ p: "24px 26px" }}>{children}</Box>
+      {/* minWidth:0 lets the 1.25fr track honor its share instead of growing to
+          its content's min-content width (the CSS Grid fr-track overflow trap),
+          which previously skewed the column ratio and misaligned the card. */}
+      <Box sx={{ minWidth: 0, p: "24px 26px" }}>{children}</Box>
 
       {side != null && (
         <Box
           sx={{
+            minWidth: 0,
             bgcolor: "var(--surface-2)",
             borderLeft: "1px solid var(--line)",
             display: "flex",

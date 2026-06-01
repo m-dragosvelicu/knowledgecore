@@ -9,19 +9,31 @@ import Typography from "@mui/material/Typography";
 // The journey auto-resumes via getOrCreateActiveIntent, so leaving is lossless
 // and we simply link home. Kept intentionally quiet so it never competes with
 // the primary action on each step.
+//
+// Placement (bugs: save-and-leave-stranded-at-top): it used to sit at the TOP,
+// directly under the step/path indicator, which read as stranded chrome. It now
+// lives in a shared BOTTOM action row at the foot of the wizard, on the same row
+// as each step's primary "Continue" action -- the primary commit reads on the
+// left of the step content, and this calm secondary exit sits on the right of
+// the footer. Shared here so every wizard step gets the same footer placement.
 export default function JourneyLayout({ children }: { children: ReactNode }) {
   return (
     <Box sx={{ position: "relative" }}>
+      {children}
+
       <Box
         sx={{
           display: "flex",
           justifyContent: "flex-end",
-          mb: 1,
+          alignItems: "center",
+          mt: "28px",
+          pt: "18px",
+          borderTop: "1px solid var(--line)",
         }}
       >
         <Tooltip
           title="Your progress is saved automatically. You can pick up exactly where you left off."
-          placement="left"
+          placement="top"
           arrow
         >
           <IconButton
@@ -50,7 +62,6 @@ export default function JourneyLayout({ children }: { children: ReactNode }) {
           </IconButton>
         </Tooltip>
       </Box>
-      {children}
     </Box>
   );
 }
