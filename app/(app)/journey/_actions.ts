@@ -30,6 +30,8 @@ import {
   recordVisualNotHelpful,
 } from "@/lib/journey/profileStore";
 import { ensureLessonContent } from "@/lib/journey/lessonGeneration";
+import { bindJourneyBundle } from "@/lib/journey/researchBundle";
+import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
 
 // Pre-journey owner context: a real OR guest (anonymous) owner id plus whether
 // the owner is a guest, so the cost-bearing pre-journey stages can apply the D2
@@ -568,6 +570,37 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
       data: { status: "in_progress" },
     });
   }
+
+  // L2 Phase 0 — bind this journey to its research bundle at path-confirm (the
+  // founder's "after the learner confirms the path" trigger). Compute the topic
+  // fingerprint from the canonical subject + outcome shape and read-through the
+  // Library cache (HIT binds; MISS creates + fills from the Phase 0 MOCK agent,
+  // which is instant + offline). Best-effort by contract: a failure leaves the
+  // journey ungrounded (downstream sourceIds stay []) but never breaks the spine.
+  try {
+    const [subject, outcome] = await Promise.all([
+      prisma.subject.findUnique({ where: { intentId } }),
+      prisma.expectedOutcome.findUnique({ where: { intentId } }),
+    ]);
+    if (subject) {
+      const outcomeShape = (outcome?.canDoStatements ??
+        []) as unknown as OutcomeShape;
+      const fp = fingerprint(subject.canonicalName, outcomeShape);
+      await bindJourneyBundle({
+        intentId,
+        topicFingerprint: fp,
+        topicLabel: subject.canonicalName,
+        goalpostQueries: path?.goalposts.map((g) => g.objective) ?? [],
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[research-bundle] path-confirm bind failed for intent "${intentId}"; ` +
+        `journey stays ungrounded. ${(err as Error).message}`,
+    );
+  }
+
   redirect(`/journey/goalpost?j=${intentId}`);
 }
 

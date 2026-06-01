@@ -28,6 +28,8 @@ import { LiveOpenverseImageSource } from "@/lib/services/live/liveOpenverseImage
 import { MockImageSource } from "@/lib/services/mock/mockImageSource";
 import { LiveYouTubeVideoSource } from "@/lib/services/live/liveYouTubeVideoSource";
 import { MockVideoSource } from "@/lib/services/mock/mockVideoSource";
+import type { ResearchAgent } from "@/lib/services/research";
+import { MockResearchAgent } from "@/lib/services/mock/mockResearchAgent";
 
 export * from "@/lib/services/types";
 export type { LessonContentGenerator } from "@/lib/services/lessonContent";
@@ -51,6 +53,13 @@ export type {
   ResolvedVisual,
   ImageAttribution,
 } from "@/lib/services/visualMedia";
+export type {
+  ResearchAgent,
+  Bundle,
+  Source,
+  Chunk,
+  GapQueries,
+} from "@/lib/services/research";
 
 /**
  * Service registry.
@@ -485,4 +494,40 @@ export function getVisualResolvers(): {
   videoSource: VideoSource;
 } {
   return { imageSource: getImageSource(), videoSource: getVideoSource() };
+}
+
+// ---------------------------------------------------------------------------
+// L2 Phase 0 — the Research Agent (the source layer behind the Library).
+//
+// Same SEPARATE-selector pattern as the L1 services (the LOCKED `Services` type
+// must not change). Phase 0 ships the MOCK ONLY (deterministic canned bundle,
+// zero network / keys / embeddings), so this DEFAULTS TO MOCK regardless of env.
+// `LIVE_RESEARCH=true` is the forward-compat OPT-IN switch for the live agent
+// that lands in a later phase; until that agent exists the selector logs the
+// opt-in and still returns the mock, so Phase 0 can never accidentally hit the
+// network or require a key.
+// ---------------------------------------------------------------------------
+
+const LIVE_RESEARCH_FLAG = "LIVE_RESEARCH";
+
+function wantsLiveResearch(): boolean {
+  return process.env[LIVE_RESEARCH_FLAG] === "true";
+}
+
+export function getResearchAgent(): ResearchAgent {
+  if (wantsLiveResearch()) {
+    // No live agent exists in Phase 0; the source layer + retrieval land later.
+    // Default to mock so the spine stays offline / key-free and never breaks.
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        event: "service_registry.fallback_to_mock",
+        service: "researchAgent",
+        reason: "build_failed",
+        envFlag: LIVE_RESEARCH_FLAG,
+        hint: "LIVE_RESEARCH=true but no live Research Agent exists in Phase 0; using the mock.",
+      }),
+    );
+  }
+  return new MockResearchAgent();
 }
