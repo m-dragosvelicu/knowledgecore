@@ -116,11 +116,9 @@ async function appendRecalibrationFlag(intentId: string, flag: string): Promise<
 
 export async function startNewJourneyAction(): Promise<void> {
   const userId = await requireRealUserId();
-  // Mark any in-progress journey as abandoned so the new one is the active one.
-  await prisma.learningIntent.updateMany({
-    where: { userId, status: { notIn: ["complete", "abandoned"] } },
-    data: { status: "abandoned" },
-  });
+  // Journeys coexist: starting a new one must NOT touch any other journey. The
+  // new intent simply becomes the resume target because it has the newest
+  // `updatedAt` (getOrCreateActiveIntent orders non-terminal journeys by it).
   // Carry the freshly created journey's id from step one so the wizard never
   // drifts onto a different (most-recent) journey once intake begins.
   const created = await prisma.learningIntent.create({
@@ -134,9 +132,9 @@ export async function startNewJourneyAction(): Promise<void> {
 }
 
 // Start a new journey carrying the intent typed in the home hero pill. Mirrors
-// startNewJourneyAction (abandon any in-progress journey, open a fresh one) but
-// seeds the rawText and runs the same intent-parsing path as submitIntentAction
-// so the learner lands straight in the flow instead of an empty intent box.
+// startNewJourneyAction (open a fresh journey alongside any others) but seeds the
+// rawText and runs the same intent-parsing path as submitIntentAction so the
+// learner lands straight in the flow instead of an empty intent box.
 const heroIntentSchema = z.object({
   rawText: z.string().min(3, "Please describe what you want to learn."),
 });
@@ -146,11 +144,8 @@ export async function startJourneyWithIntentAction(formData: FormData): Promise<
   const parsed = heroIntentSchema.parse({ rawText: formData.get("rawText") });
   await assertGuestLlmBudget(isAnonymous);
 
-  // Set aside any non-terminal journey so the new one is the active one.
-  await prisma.learningIntent.updateMany({
-    where: { userId, status: { notIn: ["complete", "abandoned"] } },
-    data: { status: "abandoned" },
-  });
+  // Journeys coexist: starting a new one must NOT touch any other journey. The
+  // new intent becomes the resume target via its newest `updatedAt`.
 
   const services = getServices();
   const subject = await services.intentParser.parse(parsed.rawText);
