@@ -4,19 +4,33 @@ import { prisma } from "@/lib/db";
 import type { IntentParser, ParsedSubject } from "@/lib/services/types";
 import { parsedSubjectSchema } from "./schemas";
 
-// gemini-3.5-flash is the live default for L0 services. The resolved model id is
-// surfaced from completeStructured via the optional onUsage callback (see
-// lib/llm/types.ts); this constant is the fallback for telemetry when a failure
-// short-circuits the call before any usage callback fires.
-const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+// Intent parsing is a TINY extraction task (one short noun phrase + a one-line
+// scope note), so it runs on the CHEAPEST structured-output-capable Gemini —
+// the Flash-Lite tier — rather than the heavier gemini-3.5-flash used by the
+// generative L0 services. Overridable via GEMINI_INTENT_MODEL. The resolved
+// model id is surfaced from completeStructured via the optional onUsage callback
+// (see lib/llm/types.ts); this constant is the fallback for telemetry when a
+// failure short-circuits the call before any usage callback fires.
+const INTENT_MODEL =
+  process.env.GEMINI_INTENT_MODEL ?? "gemini-3.1-flash-lite";
+const TELEMETRY_MODEL = INTENT_MODEL;
 
 const SYSTEM = `You are the intake step of an AI learning platform. A learner has
-typed, in their own words, what they want to learn. Your job is to turn that raw
-phrase into a single canonical subject and a short scope note.
+typed, in their own words, what they want to learn. Your job is to EXTRACT the
+subject they are after and turn it into a single clean canonical name plus a
+short scope note.
 
-- canonicalName: the standard, well-formed name of the subject (e.g. "Linear
-  Algebra for Machine Learning", "Introductory French", "React Hooks"). Title
-  case. Do not invent scope the learner did not imply.
+- canonicalName: the concise subject NOUN PHRASE the learner is after. STRIP
+  conversational lead-ins and framing such as "I want to learn about", "I'd like
+  to understand", "teach me", "help me with", "how do I", "how does ... work",
+  "can you explain". Keep ONLY the topic itself. Examples:
+    - "I want to learn about the default mode network" -> "the default mode network"
+    - "teach me stoicism for a bad day" -> "stoicism for a bad day"
+    - "how does color actually work" -> "how color works"
+  Use SENTENCE CASE: capitalize only the FIRST word and genuine proper nouns
+  (names of people, places, named theories, languages, branded technologies —
+  e.g. "French", "Art Nouveau", "React", "Python"). Do NOT Title-Case Every
+  Word. Do not invent scope the learner did not imply.
 - scopeNote: one short sentence estimating the breadth/level the learner seems to
   want (e.g. "Estimated scope: introductory, focused on practical application").
 
@@ -86,6 +100,7 @@ export class LiveIntentParser implements IntentParser {
     let usageModel: string | undefined;
     try {
       const raw = await this.llm.completeStructured({
+        model: INTENT_MODEL,
         system: SYSTEM,
         messages: [
           {

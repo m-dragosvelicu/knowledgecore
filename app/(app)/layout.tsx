@@ -62,8 +62,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 "& .MuiAlert-message": { fontSize: 14 },
               }}
             >
-              Running in mock mode. Add GOOGLE_GENAI_API_KEY in .env to enable
-              live LLM generation.
+              Running in mock mode. Responses are placeholder content, not live
+              LLM generation. Mock mode can be on because no GOOGLE_GENAI_API_KEY
+              is set, or because a service has been opted out via a LIVE_* flag.
             </Alert>
           )}
 
