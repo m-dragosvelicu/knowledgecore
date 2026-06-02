@@ -16,6 +16,12 @@ import { LivePathAdjuster } from "@/lib/services/live/livePathAdjuster";
 import type { LessonContentGenerator } from "@/lib/services/lessonContent";
 import { LiveLessonContentGenerator } from "@/lib/services/live/liveLessonContentGenerator";
 import { MockLessonContentGenerator } from "@/lib/services/mock/mockLessonContentGenerator";
+import type { Author, OrchestratorPorts } from "@/lib/journey/lessonOrchestration";
+import { LiveLessonAuthor } from "@/lib/services/live/liveLessonAuthor";
+import { LegacyGeneratorAuthorStub } from "@/lib/services/live/lessonAuthorStub";
+import { buildVisualWorkerStubs } from "@/lib/services/live/visualWorkerStubs";
+import { buildVisualWorkers } from "@/lib/services/live/liveVisualWorkers";
+import type { VisualWorkers } from "@/lib/journey/lessonOrchestration";
 import type { PathConfirmationInterviewer } from "@/lib/services/pathConfirmation";
 import { LivePathConfirmationInterviewer } from "@/lib/services/live/livePathConfirmationInterviewer";
 import { MockPathConfirmationInterviewer } from "@/lib/services/mock/mockPathConfirmationInterviewer";
@@ -320,6 +326,95 @@ export function getLessonContentGenerator(): LessonContentGenerator {
     );
   }
   return new MockLessonContentGenerator();
+}
+
+// ---------------------------------------------------------------------------
+// L1 — Two-Phase Visual Lesson Pipeline (Slice 1: Foundation).
+//
+// The orchestrator (lib/journey/lessonOrchestration.ts) is pure control flow over
+// two PORTS: an Author (Phase 1) and per-medium VisualWorkers (Phase 2). This
+// factory assembles the ports the orchestrator runs with.
+//   - Author    -> SLICE 2 (AI Engineer): the real no-draw Phase-1 Author
+//                  (LiveLessonAuthor). Its structured-output schema has NO draw
+//                  field, so ASCII art is structurally impossible. Falls back to
+//                  the LegacyGeneratorAuthorStub-over-mock when there is no API key
+//                  / live is opted out, so pure-mock and offline runs still work.
+//   - Workers   -> SLICE 3 (AI + Visualization Engineer): the real per-medium
+//                  visual workers (focused SVG authoring + sanitize + retry; Openverse
+//                  image search; YouTube reference embed), each retry-then-drop so a
+//                  failed visual is omitted and the prose still stands (never broken).
+//                  Falls back to buildVisualWorkerStubs (safe-degrading: drop every
+//                  slot) for offline / mock / verify runs.
+// This is the SINGLE swap point; the orchestrator and ensureLessonContent seam
+// stay untouched.
+// ---------------------------------------------------------------------------
+
+function buildLessonAuthor(): Author {
+  // Default-to-live on the Gemini key with the same `LIVE_LESSON_CONTENT=false`
+  // opt-out the legacy Call-B selector uses. When live is unavailable (no key,
+  // opted out, or construction throws) we fall back to bridging the MOCK
+  // single-call generator into a LessonDoc so offline/mock runs keep working.
+  if (wantsLiveLessonContent()) {
+    try {
+      return new LiveLessonAuthor(getSharedClient());
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "service_registry.fallback_to_mock",
+          service: "lessonAuthor",
+          reason: "build_failed",
+          envFlag: LIVE_LESSON_CONTENT_FLAG,
+          hint: "Live Phase-1 Author failed to construct; fell back to the mock-backed author stub.",
+        }),
+      );
+    }
+  }
+  // Mock / offline path: bridge the (mock) single-call generator into a LessonDoc.
+  return new LegacyGeneratorAuthorStub(getLessonContentGenerator());
+}
+
+/**
+ * Build the real Phase-2 visual workers, gated on the SAME default-to-live on the
+ * Gemini key + `LIVE_LESSON_CONTENT=false` opt-out as the Author (the SVG worker
+ * authors via the shared LLM client, so it lives or dies with the live content
+ * path). When live is unavailable (no key, opted out, or construction throws) we
+ * fall back to the safe-degrading stubs so offline / mock / verify runs still
+ * assemble (the stubs drop every SVG slot and search the keyless image/video
+ * sources). The image/video sources keep their OWN `LIVE_IMAGE_SOURCE` /
+ * `LIVE_VIDEO_SOURCE` opt-outs via getVisualResolvers().
+ */
+function buildLessonVisualWorkers(): VisualWorkers {
+  const resolvers = getVisualResolvers();
+  if (wantsLiveLessonContent()) {
+    try {
+      return buildVisualWorkers({
+        llm: getSharedClient(),
+        imageSource: resolvers.imageSource,
+        videoSource: resolvers.videoSource,
+      });
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "service_registry.fallback_to_mock",
+          service: "visualWorkers",
+          reason: "build_failed",
+          envFlag: LIVE_LESSON_CONTENT_FLAG,
+          hint: "Live visual workers failed to construct; fell back to the safe-degrading stubs.",
+        }),
+      );
+    }
+  }
+  // Offline / mock path: the SVG stub drops; image/video stubs use keyless sources.
+  return buildVisualWorkerStubs(resolvers);
+}
+
+export function getLessonOrchestratorPorts(): OrchestratorPorts {
+  return {
+    author: buildLessonAuthor(),
+    workers: buildLessonVisualWorkers(),
+  };
 }
 
 // ---------------------------------------------------------------------------

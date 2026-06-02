@@ -32,10 +32,14 @@ const rubricFocusSchema = z.enum([
   "coverage",
 ]);
 
+// L1 — SKELETON ONLY (redesign §9). Inserted/revised remediation goalposts no
+// longer carry authored information content: the two-phase pipeline overwrites it
+// on entry, the same way it does for Call-A goalposts. The information step stays
+// STRUCTURAL (order + type); `content` is dropped from the schema so the adjuster
+// does not author lesson prose (a second ASCII-art surface). Sources still optional.
 const insertedInformationStepSchema = z.object({
   order: z.number().int(),
   type: z.literal("information"),
-  content: z.string().min(1),
   // Inserted remediation goalposts re-use already-cited sources; default empty.
   sourceIds: z.array(z.string()).nullish(),
 });
@@ -126,10 +130,10 @@ EACH inserted goalpost must have:
 - "title" and "objective": specific to the missing prerequisite, not generic.
 - "estimatedMinutes": a realistic estimate, between 20 and 120.
 - "steps": at least ONE information step AND at least ONE experience step.
-  * information step: { order, type: "information", content }. "content" is a
-    self-contained markdown explainer (~150-350 words) that teaches ONLY the
-    missing prerequisite, with one concrete worked micro-example. This is the
-    only place the learner receives information, so it must stand alone.
+  * information step: { order, type: "information" } only. This is a STRUCTURAL
+    placeholder — do NOT write any lesson text. A separate lesson-authoring step
+    writes the explainer (targeting the missing prerequisite) later, when the
+    learner reaches the inserted goalpost.
   * experience step: { order, type, prompt, rubricFocus }. Pick the type:
     - experience_socratic: explain/reason in their own words
     - experience_applied_problem: solve a concrete problem and show their work
@@ -267,8 +271,12 @@ export class LivePathAdjuster implements PathAdjuster {
             ? {
                 order: step.order,
                 type: step.type,
+                // SKELETON ONLY (redesign §9): the adjuster no longer authors
+                // lesson prose. Empty content + no contentGeneratedAt keeps the
+                // step "not yet generated", so the two-phase pipeline fills the
+                // real LessonDoc when the learner enters this inserted goalpost.
                 payload: {
-                  content: step.content,
+                  content: "",
                   sourceIds: step.sourceIds ?? [],
                 },
               }

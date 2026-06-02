@@ -36,13 +36,17 @@ const SYSTEM = `You are the curriculum-design step of an AI learning platform.
 Design a short learning PATH of 3 goalposts that takes THIS learner from where
 they are now (their assessed competencies) to their stated outcomes.
 
+You design the SKELETON of the path only — titles, objectives, the experience
+tasks, and time estimates. You do NOT write the information/lesson text: a separate
+lesson-authoring step writes each goalpost's explainer later, adapted to the
+learner, when they reach the goalpost. So focus on a well-sequenced, gap-closing
+STRUCTURE; do not draft any lesson prose.
+
 Each goalpost has exactly two steps:
-1. An "information" step: a self-contained explainer the learner reads. Write it
-   as rich markdown of roughly 250-500 words. Be concrete, use at least one
-   worked micro-example, and connect the idea to the learner's motivation. This
-   is the only place the learner receives information, so it must stand alone.
+1. An "information" step: just a structural placeholder (order + type). Do NOT
+   write its content — the lesson-authoring step fills it in later.
 2. An "experience" step: a single active task that forces the learner to USE the
-   idea from the information step. Choose the type:
+   idea the information step will teach. Choose the type:
    - experience_socratic: answer a probing conceptual question in their own words
    - experience_applied_problem: solve a concrete problem and show their work
    - experience_mini_project: build/produce a small artifact
@@ -232,7 +236,12 @@ export class LivePathOutliner implements PathOutliner {
           {
             order: gp.information.order,
             type: gp.information.type,
-            payload: { content: gp.information.content, sourceIds: [] },
+            // SKELETON ONLY (redesign §9): Call A no longer authors lesson prose.
+            // The information step is a structural placeholder; the two-phase
+            // pipeline (ensureLessonContent) overwrites this payload with the real
+            // LessonDoc on entry. Empty content + no contentGeneratedAt marker keeps
+            // the step "not yet generated" so the pipeline runs.
+            payload: { content: "", sourceIds: [] },
           },
           {
             order: gp.experience.order,

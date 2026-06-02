@@ -255,6 +255,57 @@ body {
   background: var(--teal);
 }
 
+/* The stage currently in flight breathes teal<->soft so the wait reads as
+   genuinely LIVE for the whole 40-50s window, never a frozen one-shot. This is
+   continuous motion (the only loop in the system, justified: an honest
+   in-progress signal), and it is NOT the only cue -- the filled ticks ahead of
+   it and the stage label carry the same meaning without relying on the pulse. */
+@keyframes kc-pdot-pulse {
+  0%,
+  100% {
+    background: var(--teal);
+    opacity: 1;
+  }
+  50% {
+    background: var(--teal-soft, var(--teal));
+    opacity: 0.55;
+  }
+}
+.kc-pdot.active {
+  background: var(--teal);
+  animation: kc-pdot-pulse 1.3s ease-in-out infinite;
+}
+
+/* A slim indeterminate sweep under the headline: a teal segment that travels
+   left->right on a loop, so even between poll ticks there is visible, honest
+   motion telling the learner the system is still working. */
+.kc-working {
+  position: relative;
+  height: 3px;
+  width: 100%;
+  max-width: 240px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.kc-working::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: var(--r-pill);
+  background: var(--teal);
+  animation: kc-working-sweep 1.4s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+@keyframes kc-working-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
 /* Draw-in: SVG strokes use pathLength="1" + stroke-dasharray:1, then animate
    stroke-dashoffset 1 -> 0. Apply .kc-draw to the path; delay so an underline
    arrives just after its text. */
@@ -443,5 +494,19 @@ body {
   .kc-draw {
     stroke-dashoffset: 0;
     animation: none;
+  }
+  /* The live progress cues hold their in-progress state without looping: the
+     active tick stays teal, the sweep rests filled. Meaning is preserved (the
+     stage label + filled ticks still advance on each poll); only the loop stops. */
+  .kc-pdot.active {
+    animation: none;
+    background: var(--teal);
+    opacity: 1;
+  }
+  .kc-working::after {
+    animation: none;
+    transform: none;
+    width: 100%;
+    opacity: 0.5;
   }
 }

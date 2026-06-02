@@ -33,6 +33,15 @@ Write rich markdown. Be concrete and worked-example-driven. The explainer is the
 only place the learner receives information for this goalpost, so it must stand
 alone and lead naturally into the experience task you are told about.
 
+NEVER draw diagrams with text. Do NOT render trees, graphs, boxes, arrows, or any
+spatial/structural figure as ASCII art, text-art, or slashes/pipes/dashes inside a
+code fence or monospace block (e.g. "A / \\ B C"). Text-art diagrams look broken and
+are not accessible. When a concept needs a picture or a structure shown, emit it
+ONLY through the visuals channel below as an SVG (visualKind diagram/structural/
+quantitative). Code fences in the markdown are reserved STRICTLY for real code,
+commands, or literal output (e.g. the value sequence a traversal produces) — never
+for drawn shapes.
+
 You will be given a LEARNER PROFILE and an ADAPTATION DIRECTIVE derived from it.
 TREAT THE DIRECTIVE AS BINDING:
 - Honour the requested SUPPORT LEVEL and the MINIMUM number of worked examples.
@@ -157,7 +166,17 @@ export class LiveLessonContentGenerator implements LessonContentGenerator {
           },
         ],
         temperature: 0.6,
-        maxTokens: 4096,
+        // Generous output ceiling, NOT a tuned limit. The LessonContent JSON
+        // (markdown explainer + worked examples + up to 2 visuals INCLUDING raw
+        // inline SVG) routinely overflowed the previous 4096 cap, so Gemini
+        // truncated the JSON mid-object (finishReason=MAX_TOKENS) and every live
+        // generation failed. maxTokens is a hard guillotine, not a hint to the
+        // model, and we are billed for ACTUAL output tokens (not the cap), so a
+        // high ceiling has no cost downside — it only removes truncation. Thinking
+        // is already disabled for structured calls (thinkingConfig.thinkingBudget
+        // = 0 in completeStructured), so this whole budget is visible JSON. Revisit
+        // with a measured per-task limit once llmCall telemetry shows real usage.
+        maxTokens: 32768,
         schema: lessonContentResultSchema,
         schemaName: "LessonContent",
         onUsage: (u, m) => {

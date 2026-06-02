@@ -17,6 +17,7 @@ import {
   markVisualNotHelpfulAction,
   overrideDecisionAction,
   prepareGoalpostContentAction,
+  readGoalpostGenerationStateAction,
   repeatGoalpostAction,
   skipGoalpostAction,
   submitExperienceStepAction,
@@ -25,7 +26,9 @@ import { isLessonContentReady } from "@/lib/journey/lessonGeneration";
 import { getVisualResolvers } from "@/lib/services";
 import { routeVisuals } from "@/lib/services/visual/gate";
 import type { VisualNeed } from "@/lib/services/visualMedia";
+import type { LessonDoc, Section } from "@/lib/services/lessonDoc";
 import VisualMedia from "@/components/journey/VisualMedia";
+import LessonDocView from "@/components/journey/LessonDocView";
 import GettingReady from "@/components/journey/GettingReady";
 import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
 import SubmitButton from "@/components/journey/SubmitButton";
@@ -64,6 +67,27 @@ const EXPERIENCE_LABELS: Record<StepType, string> = {
   experience_applied_problem: "an applied problem",
   experience_mini_project: "a mini-project",
 };
+
+// L1 — Two-Phase Visual Lesson Pipeline (Slice 4). A new-shape information-step
+// payload carries a LessonDoc ({ sections, contentGeneratedAt }) whose visual
+// blocks already hold their RESOLVED payload inline. This narrows such a payload
+// to a LessonDoc the block-walk renderer (LessonDocView) walks in document order.
+// The block-walk REPLACES the old flatten-prose + append-visuals glue; the legacy
+// { content, visuals } path is kept for rows that have not regenerated yet.
+type InfoPayload = {
+  content?: string;
+  visuals?: VisualNeed[];
+  sections?: Section[];
+  contentGeneratedAt?: string;
+} | null;
+
+function lessonDocFromPayload(payload: InfoPayload): LessonDoc | null {
+  if (!Array.isArray(payload?.sections)) return null;
+  return {
+    sections: payload.sections,
+    contentGeneratedAt: payload.contentGeneratedAt ?? "",
+  };
+}
 
 type SearchParams = Promise<{
   phase?: string;
@@ -113,8 +137,16 @@ export default async function GoalpostPage({
     if (reviewed && reviewed.path.intent.userId === session.user.id) {
       const infoStep = reviewed.steps.find((s) => s.type === StepType.information);
       const expStep = reviewed.steps.find((s) => s.type !== StepType.information);
-      const infoContent =
-        (infoStep?.payload as { content?: string } | null)?.content ?? "";
+      const reviewPayload = infoStep?.payload as InfoPayload;
+      // New-shape rows block-walk the LessonDoc read-only (no not-helpful control
+      // in review); legacy rows keep the flat-markdown recap.
+      const reviewDoc = lessonDocFromPayload(reviewPayload);
+      const legacyInfo = reviewPayload?.content ?? "";
+      const information: React.ReactNode | null = reviewDoc ? (
+        <LessonDocView doc={reviewDoc} intentId={intent.id} />
+      ) : legacyInfo ? (
+        <Markdown>{legacyInfo}</Markdown>
+      ) : null;
       const promptContent =
         (expStep?.payload as { prompt?: string } | null)?.prompt ?? "";
       const latest = reviewed.evaluations[0];
@@ -123,7 +155,7 @@ export default async function GoalpostPage({
           order={reviewed.order}
           title={reviewed.title}
           objective={reviewed.objective}
-          information={infoContent ? <Markdown>{infoContent}</Markdown> : null}
+          information={information}
           prompt={promptContent ? <Markdown>{promptContent}</Markdown> : null}
           userArtifact={expStep?.userArtifact ?? null}
           decisionLabel={latest ? DECISION_LABELS[latest.decision] : null}
@@ -227,20 +259,26 @@ export default async function GoalpostPage({
             intentId={intent.id}
             title={goalpost!.title}
             action={prepareGoalpostContentAction}
+            pollAction={readGoalpostGenerationStateAction}
           />
         </Stack>
       );
     }
-    const infoPayload = informationStep.payload as
-      | { content?: string; visuals?: VisualNeed[] }
-      | null;
-    const content = infoPayload?.content ?? "";
-    // L1 Slice 4 — resolve the lesson's visual NEEDS through the gate, server-side:
-    // each visualKind routes to a safe medium (SVG sanitized on its OWN dedicated
-    // path, image sourced license-clean with attribution, video as a reference
-    // embed). The SVG NEVER passes through the markdown sanitizer. `none` results
-    // (no license-clean image, empty SVG after sanitization) render nothing.
-    const visualNeeds = Array.isArray(infoPayload?.visuals) ? infoPayload!.visuals : [];
+    const infoPayload = informationStep.payload as InfoPayload;
+    // L1 — Two-Phase Visual Lesson Pipeline (Slice 4). A freshly generated
+    // goalpost carries a LessonDoc ({ sections, contentGeneratedAt }) whose visual
+    // blocks already hold their RESOLVED payload inline (resolution happened in
+    // the pipeline, not at render). Such a row takes the BLOCK-WALK renderer
+    // (LessonDocView), which interleaves prose and each visual in document order
+    // and never shows a pending/dropped block (reveal invariant, redesign §5).
+    const lessonDoc = lessonDocFromPayload(infoPayload);
+    // Legacy rows (no `sections`): resolve the lesson's visual NEEDS through the
+    // gate server-side (each visualKind -> safe medium) and render the flat
+    // markdown + appended visuals exactly as before. New LessonDoc rows carry
+    // resolved payloads inline, so they skip this gate-resolve path entirely.
+    const legacyContent = lessonDoc ? "" : (infoPayload?.content ?? "");
+    const visualNeeds =
+      !lessonDoc && Array.isArray(infoPayload?.visuals) ? infoPayload!.visuals : [];
     const resolvedVisuals =
       visualNeeds.length > 0
         ? await routeVisuals(visualNeeds, getVisualResolvers())
@@ -263,21 +301,33 @@ export default async function GoalpostPage({
           intentId={intent.id}
           action={completeInformationStepAction}
           content={
-            <>
-              <Markdown>{content}</Markdown>
-              {resolvedVisuals.length > 0 && (
-                <Stack spacing={2} sx={{ mt: 3 }}>
-                  {resolvedVisuals.map((v) => (
-                    <VisualMedia
-                      key={v.id}
-                      visual={v}
-                      intentId={intent.id}
-                      onNotHelpful={markVisualNotHelpfulAction}
-                    />
-                  ))}
-                </Stack>
-              )}
-            </>
+            lessonDoc ? (
+              // New-shape: walk the LessonDoc, interleaving prose and each ready
+              // visual in document order (reveal-invariant guarded inside).
+              <LessonDocView
+                doc={lessonDoc}
+                intentId={intent.id}
+                onNotHelpful={markVisualNotHelpfulAction}
+              />
+            ) : (
+              // Legacy { content, visuals }: flat markdown + gate-resolved visuals
+              // appended in a trailing block, exactly as before.
+              <>
+                <Markdown>{legacyContent}</Markdown>
+                {resolvedVisuals.length > 0 && (
+                  <Stack spacing={2} sx={{ mt: 3 }}>
+                    {resolvedVisuals.map((v) => (
+                      <VisualMedia
+                        key={v.id}
+                        visual={v}
+                        intentId={intent.id}
+                        onNotHelpful={markVisualNotHelpfulAction}
+                      />
+                    ))}
+                  </Stack>
+                )}
+              </>
+            )
           }
           dwellSeconds={dwellSeconds}
         />

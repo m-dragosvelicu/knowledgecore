@@ -110,10 +110,17 @@ export const stepTypeSchema = z.enum([
 ]);
 
 // Information step payload.
+//
+// L1 — SKELETON ONLY (redesign §9). The PathOutliner (Call A) NO LONGER authors
+// the information markdown: the two-phase pipeline (was Call B) overwrites it on
+// entry, so any Call-A content was wasted work AND a second ASCII-art surface. The
+// information step still exists STRUCTURALLY (it keeps its `order` and `type`), but
+// its `content` is no longer produced — it is dropped from the schema so Gemini
+// does not author 250-500 words per goalpost. The outliner fills a placeholder; the
+// pipeline fills the real content lazily.
 export const informationStepSchema = z.object({
   order: z.number().int(),
   type: z.literal("information"),
-  content: z.string().min(1),
 });
 
 // Experience step payload.
@@ -178,9 +185,61 @@ export const visualNeedSchema = z.object({
 // L1 Slice 1 + 4 — Call B (lesson-content) output. The generator returns the
 // markdown information content for one goalpost PLUS its visual needs (each a
 // structured visualKind the gate routes). Structure already exists from Call A.
+//
+// NOTE: this is the LEGACY single-call Call-B schema, kept for the interim
+// LiveLessonContentGenerator (left intact for QA reference). The LIVE path now
+// runs the two-phase pipeline whose Author uses `authoredLessonSchema` below.
 export const lessonContentResultSchema = z.object({
   content: z.string().min(1),
   visuals: z.array(visualNeedSchema).nullish(),
+});
+
+// =====================================================================
+// L1 — Two-Phase Visual Lesson Pipeline (Slice 2): the Phase-1 AUTHOR schema.
+//
+// THE ANTI-ASCII GUARANTEE (redesign §6). This schema is the structured-output
+// contract for the Author call. The decisive property: there is NO field through
+// which the Author can emit a DRAWN figure — no `svgSource`, no `svg`, no `draw`,
+// no ASCII canvas. A visual is described ONLY as { kind, spec }. Because the model
+// literally has no slot to put a picture in, ASCII-art diagrams are STRUCTURALLY
+// IMPOSSIBLE here, not merely forbidden by an unreliable negative instruction.
+// The drawn payload is produced LATER, by a dedicated Phase-2 worker, from `spec`.
+//
+// CONVERTER CONSTRAINT: the Gemini responseSchema converter (lib/llm/gemini.ts)
+// has no oneOf/anyOf, so a block CANNOT be a z.union of two object shapes (it
+// would throw at conversion). A block is therefore modeled as ONE flat object
+// with a `type` enum ("prose" | "visual") and per-variant fields that are nullish
+// at the schema level and normalized in code by `type` — exactly the established
+// pattern used by interviewStepSchema. This keeps the schema converter-safe while
+// preserving the no-draw guarantee (there is still no draw field anywhere).
+//   - type="prose"  -> `md` carries the self-contained markdown.
+//   - type="visual" -> `kind` (closed visualKind) + `spec` (rich description).
+// =====================================================================
+
+export const authoredBlockSchema = z.object({
+  // The block discriminator. A flat enum (NOT a union of object shapes) so the
+  // Gemini converter can represent it.
+  type: z.enum(["prose", "visual"]),
+  // PROSE branch: self-contained markdown. NO verbal visual dependencies
+  // ("see the diagram below") — enforced in the system prompt. Nullish so the
+  // visual branch can omit it; normalized in code.
+  md: z.string().nullish(),
+  // VISUAL branch: the closed visualKind the gate routes on. The Author picks
+  // WHAT kind of picture the concept needs; it does NOT and CANNOT draw it.
+  kind: visualKindSchema.nullish(),
+  // VISUAL branch: a RICH description of what the picture must show (intent,
+  // labels, values, structure) — the Phase-2 worker's input. This is prose ABOUT
+  // a picture, never a picture. There is deliberately no svgSource/draw sibling.
+  spec: z.string().nullish(),
+});
+
+export const authoredSectionSchema = z.object({
+  heading: z.string().min(1),
+  blocks: z.array(authoredBlockSchema).min(1),
+});
+
+export const authoredLessonSchema = z.object({
+  sections: z.array(authoredSectionSchema).min(1),
 });
 
 export const rubricScoresSchema = z.object({
