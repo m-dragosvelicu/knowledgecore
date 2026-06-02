@@ -29,7 +29,12 @@ import {
   recordRetry,
   recordVisualNotHelpful,
 } from "@/lib/journey/profileStore";
-import { ensureLessonContent } from "@/lib/journey/lessonGeneration";
+import {
+  ensureLessonContent,
+  lessonContentText,
+  readLessonGenerationState,
+} from "@/lib/journey/lessonGeneration";
+import type { LessonGenerationState } from "@/lib/journey/lessonGenerationState";
 import { bindJourneyBundle } from "@/lib/journey/researchBundle";
 import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
 
@@ -805,8 +810,7 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
 
   // Find sibling information step content + this experience prompt for the evaluator.
   const informationStep = step.goalpost.steps.find((s) => s.type === StepType.information);
-  const informationContent =
-    (informationStep?.payload as { content?: string } | null)?.content ?? "";
+  const informationContent = lessonContentText(informationStep?.payload ?? null);
   const experiencePrompt =
     (step.payload as { prompt?: string } | null)?.prompt ?? "";
 
@@ -1249,6 +1253,34 @@ export async function prepareGoalpostContentAction(
   // Entering a goalpost is a recency signal too, so a learner who opens a
   // journey and leaves still has it surface as the resume target.
   await touchIntentRecency(intentId);
+}
+
+// ---------------------------------------------------------------------------
+// L1 — Two-Phase Visual Lesson Pipeline (§8 progress channel).
+//
+// The GettingReady screen (Slice 4) POLLS this (~1s) while a goalpost generates.
+// It returns the orchestrator's current generation-state record (stage / label /
+// done / total / status). A server action cannot stream, so the orchestrator
+// writes the record onto the information step and this action reads it back.
+// `status: "ready"` -> the client refreshes into the lesson; `status: "failed"`
+// -> the client shows a real error + Try again instead of looping forever.
+// Ownership is enforced (only the journey's owner can poll its goalpost).
+// ---------------------------------------------------------------------------
+
+export async function readGoalpostGenerationStateAction(
+  goalpostId: string,
+  intentId?: string | null,
+): Promise<LessonGenerationState | null> {
+  const userId = await requireRealUserId();
+  intentId = await requireActiveIntentId(userId, intentId);
+  const parsed = goalpostIdSchema.parse({ goalpostId });
+  // Ownership guard: the polled goalpost must belong to the resolved journey.
+  const goalpost = await prisma.goalpost.findFirst({
+    where: { id: parsed.goalpostId, path: { intentId } },
+    select: { id: true },
+  });
+  if (!goalpost) return null;
+  return readLessonGenerationState(parsed.goalpostId);
 }
 
 // ---------------------------------------------------------------------------
