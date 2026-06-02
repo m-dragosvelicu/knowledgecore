@@ -1,10 +1,7 @@
 import { z } from "zod";
 
-// =====================================================================
-// Zod schemas mirroring lib/services/types.ts, used both to drive Gemini
-// structured output (responseSchema) and to validate the parsed result.
-// Kept in one place so the live services share a single source of truth.
-// =====================================================================
+// Zod schemas mirroring lib/services/types.ts: they both drive Gemini structured
+// output (responseSchema) and validate the parsed result.
 
 export const bloomLevelSchema = z.enum([
   "remember",
@@ -15,9 +12,7 @@ export const bloomLevelSchema = z.enum([
   "create",
 ]);
 
-// Rubric / competency levels are 0-4. Modeled as a literal union so the parsed
-// output type narrows to 0 | 1 | 2 | 3 | 4 (matching lib/services/types.ts)
-// without an unsafe cast.
+// Literal union (not z.number) so the parsed type narrows to 0|1|2|3|4 without a cast.
 export const rubricLevelSchema = z.union([
   z.literal(0),
   z.literal(1),
@@ -26,11 +21,9 @@ export const rubricLevelSchema = z.union([
   z.literal(4),
 ]);
 
-// L0.md §3 Stage 2 ambiguity surfacing. Gemini emits the ambiguity fields even
-// when unambiguous (false / null), so accept null/missing here. This stays a
-// plain object (no top-level .transform) because a transformed schema passed
-// directly to completeStructured<T> unifies T to the pre-transform input type;
-// liveIntentParser normalizes the nullish fields to undefined after parsing.
+// Gemini emits the ambiguity fields even when unambiguous (false/null), so accept
+// nullish. NO top-level .transform: a transformed schema passed to completeStructured<T>
+// unifies T to the pre-transform input type; liveIntentParser normalizes nullish after.
 export const parsedSubjectSchema = z.object({
   canonicalName: z.string().min(1),
   scopeNote: z.string().min(1),
@@ -47,12 +40,8 @@ export const goalInterviewResultSchema = z.object({
   canDoStatements: z.array(canDoStatementSchema).min(1),
 });
 
-// Multi-turn interview step. Modeled as a flat object (rather than a Zod
-// discriminated union) because Gemini structured output handles a single object
-// shape with a `kind` enum more reliably than oneOf/anyOf. The optional fields
-// are normalized in liveGoalInterviewer based on `kind`:
-//   - kind="question"  -> `question` is required
-//   - kind="complete"  -> `canDoStatements` (>=3) and `successCriterion` required
+// Flat object (not a discriminated union): the Gemini converter has no oneOf/anyOf,
+// so the optional fields are normalized in liveGoalInterviewer by `kind`.
 export const interviewStepSchema = z.object({
   kind: z.enum(["question", "complete"]),
   question: z.string().nullish(),
@@ -65,8 +54,7 @@ export const probeQuestionSchema = z
     id: z.string().min(1),
     prompt: z.string().min(1),
     kind: z.enum(["open", "multiple_choice"]),
-    // Gemini emits the field even for open questions, returning null. Accept
-    // null/missing and normalize to undefined so it matches ProbeQuestion.
+    // Gemini emits options even for open questions (null); normalized to undefined below.
     options: z.array(z.string()).nullish(),
     competencyTag: z.string().min(1),
   })
@@ -85,11 +73,8 @@ export const competencySchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
-// Per-question judgement emitted by the scorer, keyed back to the probe
-// question by id. Assembled in code into ProbeTranscriptEntry rows (the
-// question prompt + learner answer come from the passed-in questions/answers,
-// the model only supplies the one-sentence judgement of what the answer
-// revealed). Powers KnowledgeAssessment.probeTranscript / the §7 loop.
+// One-sentence judgement keyed back to the probe question by id; assembled in code
+// into ProbeTranscriptEntry rows with the passed-in prompt/answer.
 export const probeJudgementSchema = z.object({
   questionId: z.string().min(1),
   judgement: z.string().min(1),
@@ -100,8 +85,7 @@ export const competenciesResultSchema = z.object({
   judgements: z.array(probeJudgementSchema),
 });
 
-// Step types Gemini may emit. The schema/database also allow
-// experience_mini_project; we keep the enum aligned with Prisma StepType.
+// Aligned with Prisma StepType.
 export const stepTypeSchema = z.enum([
   "information",
   "experience_socratic",
@@ -109,11 +93,11 @@ export const stepTypeSchema = z.enum([
   "experience_mini_project",
 ]);
 
-// Information step payload.
+// SKELETON ONLY (redesign §9): the outliner emits structure (order + type); the
+// two-phase pipeline authors `content` lazily on entry, so it is absent here.
 export const informationStepSchema = z.object({
   order: z.number().int(),
   type: z.literal("information"),
-  content: z.string().min(1),
 });
 
 // Experience step payload.
@@ -150,11 +134,7 @@ export const pathResultSchema = z.object({
   goalposts: z.array(goalpostPlanSchema).min(1),
 });
 
-// L1 Slice 4 — a single VISUAL NEED the lesson generator emits, tagged with the
-// closed `visualKind` set the gate switches on. `svgSource` carries inline SVG
-// the model authored (diagram route only); `query` is a search string (image /
-// video routes). Both are nullish so Gemini can emit the field uniformly. The
-// kinds mirror lib/services/visualMedia.ts VISUAL_KINDS exactly.
+// Mirrors lib/services/visualMedia.ts VISUAL_KINDS exactly.
 export const visualKindSchema = z.enum([
   "diagram",
   "structural",
@@ -167,20 +147,26 @@ export const visualKindSchema = z.enum([
   "motion",
 ]);
 
-export const visualNeedSchema = z.object({
-  id: z.string().min(1),
-  visualKind: visualKindSchema,
-  caption: z.string().min(1),
-  query: z.string().nullish(),
-  svgSource: z.string().nullish(),
+// Phase-1 Author schema. THE ANTI-ASCII GUARANTEE (redesign §6): there is NO field
+// through which the Author can emit a DRAWN figure — a visual is described ONLY as
+// { kind, spec }, so ASCII-art diagrams are structurally impossible, not merely
+// forbidden. The drawn payload is produced LATER by a Phase-2 worker from `spec`.
+// A block is a flat object (the Gemini converter has no oneOf/anyOf) with a `type`
+// enum and per-variant nullish fields, normalized in code by `type`.
+export const authoredBlockSchema = z.object({
+  type: z.enum(["prose", "visual"]),
+  md: z.string().nullish(),
+  kind: visualKindSchema.nullish(),
+  spec: z.string().nullish(),
 });
 
-// L1 Slice 1 + 4 — Call B (lesson-content) output. The generator returns the
-// markdown information content for one goalpost PLUS its visual needs (each a
-// structured visualKind the gate routes). Structure already exists from Call A.
-export const lessonContentResultSchema = z.object({
-  content: z.string().min(1),
-  visuals: z.array(visualNeedSchema).nullish(),
+export const authoredSectionSchema = z.object({
+  heading: z.string().min(1),
+  blocks: z.array(authoredBlockSchema).min(1),
+});
+
+export const authoredLessonSchema = z.object({
+  sections: z.array(authoredSectionSchema).min(1),
 });
 
 export const rubricScoresSchema = z.object({

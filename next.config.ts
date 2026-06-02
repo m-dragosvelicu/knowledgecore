@@ -3,6 +3,10 @@ import path from "node:path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Build output dir is env-driven so `next build` can target a separate
+  // distDir (.next-build) and never overwrite the live `next dev --turbopack`
+  // cache in `.next`. `next dev` leaves NEXT_DIST_DIR unset and stays on `.next`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   turbopack: {
     root: path.join(__dirname),
   },

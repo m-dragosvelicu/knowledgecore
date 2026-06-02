@@ -4,7 +4,7 @@
  * Mirrors the other L1 additive services (lessonContent.ts, pathConfirmation.ts):
  * it lives ALONGSIDE the LOCKED `lib/services/types.ts` boundary, never inside it,
  * and is wired through the registry with a default-to-live + `LIVE_STT=false`
- * opt-out, exactly like getLessonContentGenerator / getPathConfirmationInterviewer.
+ * opt-out, exactly like getPathConfirmationInterviewer.
  *
  * Contract: recorded audio in -> clean transcript out. The audio is NOT persisted
  * anywhere; the live implementation transcribes and discards it (only the
