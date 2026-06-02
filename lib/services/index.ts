@@ -13,12 +13,9 @@ import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
 import { LivePathOutliner } from "@/lib/services/live/livePathOutliner";
 import { LiveCheckpointEvaluator } from "@/lib/services/live/liveCheckpointEvaluator";
 import { LivePathAdjuster } from "@/lib/services/live/livePathAdjuster";
-import type { LessonContentGenerator } from "@/lib/services/lessonContent";
-import { LiveLessonContentGenerator } from "@/lib/services/live/liveLessonContentGenerator";
-import { MockLessonContentGenerator } from "@/lib/services/mock/mockLessonContentGenerator";
 import type { Author, OrchestratorPorts } from "@/lib/journey/lessonOrchestration";
 import { LiveLessonAuthor } from "@/lib/services/live/liveLessonAuthor";
-import { LegacyGeneratorAuthorStub } from "@/lib/services/live/lessonAuthorStub";
+import { MockLessonAuthor } from "@/lib/services/mock/mockLessonAuthor";
 import { buildVisualWorkerStubs } from "@/lib/services/live/visualWorkerStubs";
 import { buildVisualWorkers } from "@/lib/services/live/liveVisualWorkers";
 import type { VisualWorkers } from "@/lib/journey/lessonOrchestration";
@@ -59,23 +56,11 @@ export type {
 } from "@/lib/services/visualMedia";
 
 /**
- * Service registry.
- *
- * Strategy: DEFAULT-TO-LIVE on Google Gemini. The global precondition for any live service
- * is `GOOGLE_GENAI_API_KEY`. When that key is present, every service is LIVE by default and
- * the per-service `LIVE_*` flag becomes an OPT-OUT switch: a service falls back to mock only
- * if its flag is explicitly set to the string `"false"`. This lets an operator disable a
- * single live service (e.g. `LIVE_INTENT_PARSER=false`) without touching the other four.
- *
- * The live builders construct the real Gemini-backed implementations from `lib/services/live`.
- * If construction throws (e.g. transient client init failure), the try/catch below converts
- * it into a structured warn + mock fallback so the app degrades gracefully rather than crashing.
- *
- * Boundary notes:
- * - Do NOT change `lib/services/types.ts`; it is the LOCKED interface boundary.
- * - The binary mock/live mode flag on the returned `Services` object flips to "live" only when
- *   ALL five services are live. Mixed-mode is reported as "mock" so the UI doesn't claim
- *   guarantees a mocked dependency can't keep.
+ * Service registry. DEFAULT-TO-LIVE on Gemini: with `GOOGLE_GENAI_API_KEY`
+ * present every service is live, and each per-service `LIVE_*` flag is an opt-out
+ * (mock only if set to the string "false"). Construction failures degrade to a
+ * warn + mock fallback. The aggregate mode reports "live" only when ALL services
+ * are live, so the UI never claims a guarantee a mocked dependency can't keep.
  */
 
 type ServiceName =
@@ -99,11 +84,7 @@ const LIVE_ENV_FLAG: Record<ServiceName, string> = {
 
 const fallbackOnce = new Set<string>();
 
-/**
- * Emit a structured warning exactly once per (service, reason) tuple per process. Shape is
- * stable so the line can be grepped/aggregated by log tooling later. Console.warn so it
- * shows up in Vercel runtime logs without bringing in a logger dependency.
- */
+/** Warn once per (service, reason) per process; stable shape for log aggregation. */
 function warnFallback(service: ServiceName, reason: "no_api_key" | "build_failed"): void {
   const key = `${service}:${reason}`;
   if (fallbackOnce.has(key)) return;
@@ -123,23 +104,13 @@ function warnFallback(service: ServiceName, reason: "no_api_key" | "build_failed
   );
 }
 
-/**
- * Returns true iff the global precondition (Gemini key) is satisfied AND this service has not
- * been explicitly opted OUT. Default-to-live: with the key present, a service is live unless
- * its per-service flag is set to the string "false".
- */
 function wantsLive(service: ServiceName): boolean {
   if (!process.env.GOOGLE_GENAI_API_KEY) return false;
   return process.env[LIVE_ENV_FLAG[service]] !== "false";
 }
 
-// ---------------------------------------------------------------------------
-// Shared Gemini client. Built lazily once per process and reused across every
-// live service so we don't spin up a separate GoogleGenAI instance per service.
-// Construction is deferred until a live service is actually requested so that
-// pure-mock runs (no key) never touch the client (which would throw).
-// ---------------------------------------------------------------------------
-
+// Shared, lazily-built Gemini client: deferring construction means pure-mock runs
+// (no key) never touch the client, which would throw.
 let sharedClient: LLMClient | null = null;
 function getSharedClient(): LLMClient {
   if (!sharedClient) {
@@ -147,12 +118,6 @@ function getSharedClient(): LLMClient {
   }
   return sharedClient;
 }
-
-// ---------------------------------------------------------------------------
-// Live builders — construct the real Gemini-backed implementations. Each takes
-// the shared LLM client. A throw here is caught by the per-service builder
-// below and converted into a warn + mock fallback.
-// ---------------------------------------------------------------------------
 
 function buildLiveIntentParser(): Services["intentParser"] {
   return new LiveIntentParser(getSharedClient());
@@ -259,9 +224,6 @@ export function getServices(): Services {
   const checkpointEvaluator = buildCheckpointEvaluator();
   const pathAdjuster = buildPathAdjuster();
 
-  // The aggregate mode reports "live" only when every service is live. Mixed-mode (some
-  // live, some mock) reports "mock" so the UI cannot accidentally claim guarantees a
-  // mocked dependency can't honour. Per-service modes are an internal detail.
   const allLive =
     intentParser.mode === "live" &&
     goalInterviewer.mode === "live" &&
@@ -281,15 +243,8 @@ export function getServices(): Services {
   };
 }
 
-// ---------------------------------------------------------------------------
-// L1 Slice 1 — Call B (lesson-content) generator.
-//
-// Kept as a SEPARATE selector rather than added to the LOCKED `Services` type
-// (lib/services/types.ts must not change). It follows the same default-to-live
-// on `GOOGLE_GENAI_API_KEY` + per-service opt-out (`LIVE_LESSON_CONTENT=false`)
-// + graceful mock fallback pattern as `getServices()`.
-// ---------------------------------------------------------------------------
-
+// Default-to-live on GOOGLE_GENAI_API_KEY with a per-service `LIVE_LESSON_CONTENT=false`
+// opt-out; kept OUT of the LOCKED `Services` type (lib/services/types.ts must not change).
 const LIVE_LESSON_CONTENT_FLAG = "LIVE_LESSON_CONTENT";
 
 function wantsLiveLessonContent(): boolean {
@@ -297,63 +252,13 @@ function wantsLiveLessonContent(): boolean {
   return process.env[LIVE_LESSON_CONTENT_FLAG] !== "false";
 }
 
-export function getLessonContentGenerator(): LessonContentGenerator {
-  if (wantsLiveLessonContent()) {
-    try {
-      return new LiveLessonContentGenerator(getSharedClient());
-    } catch {
-      // eslint-disable-next-line no-console
-      console.warn(
-        JSON.stringify({
-          event: "service_registry.fallback_to_mock",
-          service: "lessonContentGenerator",
-          reason: "build_failed",
-          envFlag: LIVE_LESSON_CONTENT_FLAG,
-          hint: "Live lesson-content generator failed to construct; fell back to mock.",
-        }),
-      );
-    }
-  } else if (!process.env.GOOGLE_GENAI_API_KEY) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      JSON.stringify({
-        event: "service_registry.fallback_to_mock",
-        service: "lessonContentGenerator",
-        reason: "no_api_key",
-        envFlag: LIVE_LESSON_CONTENT_FLAG,
-        hint: "Set GOOGLE_GENAI_API_KEY to enable live lesson-content generation.",
-      }),
-    );
-  }
-  return new MockLessonContentGenerator();
-}
-
 // ---------------------------------------------------------------------------
-// L1 — Two-Phase Visual Lesson Pipeline (Slice 1: Foundation).
-//
-// The orchestrator (lib/journey/lessonOrchestration.ts) is pure control flow over
-// two PORTS: an Author (Phase 1) and per-medium VisualWorkers (Phase 2). This
-// factory assembles the ports the orchestrator runs with.
-//   - Author    -> SLICE 2 (AI Engineer): the real no-draw Phase-1 Author
-//                  (LiveLessonAuthor). Its structured-output schema has NO draw
-//                  field, so ASCII art is structurally impossible. Falls back to
-//                  the LegacyGeneratorAuthorStub-over-mock when there is no API key
-//                  / live is opted out, so pure-mock and offline runs still work.
-//   - Workers   -> SLICE 3 (AI + Visualization Engineer): the real per-medium
-//                  visual workers (focused SVG authoring + sanitize + retry; Openverse
-//                  image search; YouTube reference embed), each retry-then-drop so a
-//                  failed visual is omitted and the prose still stands (never broken).
-//                  Falls back to buildVisualWorkerStubs (safe-degrading: drop every
-//                  slot) for offline / mock / verify runs.
-// This is the SINGLE swap point; the orchestrator and ensureLessonContent seam
-// stay untouched.
+// L1 — Two-Phase Visual Lesson Pipeline. The orchestrator runs over two PORTS:
+// an Author (Phase 1) and per-medium VisualWorkers (Phase 2). This is the SINGLE
+// swap point; the orchestrator and ensureLessonContent seam stay untouched.
 // ---------------------------------------------------------------------------
 
 function buildLessonAuthor(): Author {
-  // Default-to-live on the Gemini key with the same `LIVE_LESSON_CONTENT=false`
-  // opt-out the legacy Call-B selector uses. When live is unavailable (no key,
-  // opted out, or construction throws) we fall back to bridging the MOCK
-  // single-call generator into a LessonDoc so offline/mock runs keep working.
   if (wantsLiveLessonContent()) {
     try {
       return new LiveLessonAuthor(getSharedClient());
@@ -365,13 +270,12 @@ function buildLessonAuthor(): Author {
           service: "lessonAuthor",
           reason: "build_failed",
           envFlag: LIVE_LESSON_CONTENT_FLAG,
-          hint: "Live Phase-1 Author failed to construct; fell back to the mock-backed author stub.",
+          hint: "Live Phase-1 Author failed to construct; fell back to the mock author.",
         }),
       );
     }
   }
-  // Mock / offline path: bridge the (mock) single-call generator into a LessonDoc.
-  return new LegacyGeneratorAuthorStub(getLessonContentGenerator());
+  return new MockLessonAuthor();
 }
 
 /**
@@ -424,7 +328,7 @@ export function getLessonOrchestratorPorts(): OrchestratorPorts {
 // Path Confirmation context. Kept as a SEPARATE selector (the LOCKED `Services`
 // type must not change), following the same default-to-live on
 // `GOOGLE_GENAI_API_KEY` + per-service opt-out (`LIVE_PATH_CONFIRMATION=false`)
-// + graceful mock fallback pattern as `getLessonContentGenerator()`.
+// + graceful mock fallback pattern as `getServices()`.
 // ---------------------------------------------------------------------------
 
 const LIVE_PATH_CONFIRMATION_FLAG = "LIVE_PATH_CONFIRMATION";
@@ -468,8 +372,8 @@ export function getPathConfirmationInterviewer(): PathConfirmationInterviewer {
 // ---------------------------------------------------------------------------
 // L1 Slice 3 — the speech-to-text Transcriber (Gemini audio).
 //
-// Same SEPARATE-selector pattern as getLessonContentGenerator /
-// getPathConfirmationInterviewer (the LOCKED `Services` type must not change):
+// Same SEPARATE-selector pattern as getPathConfirmationInterviewer (the LOCKED
+// `Services` type must not change):
 // default-to-live on `GOOGLE_GENAI_API_KEY` with a `LIVE_STT=false` opt-out and
 // a graceful mock fallback. The live transcriber uses the Gemini AUDIO client
 // (getDefaultTranscriptionClient), not the shared text client, but that is the

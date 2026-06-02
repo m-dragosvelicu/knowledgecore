@@ -8,21 +8,10 @@ import type {
   PathAdjustment,
 } from "@/lib/services/types";
 
-// gemini-3.5-flash is the live default for L0 services. Token usage is now
-// surfaced from completeStructured via the optional onUsage callback (see
-// lib/llm/types.ts); this constant is the fallback model id for telemetry when a
-// failure short-circuits the call before any usage callback fires.
+// Fallback model id for telemetry when a failure short-circuits before onUsage fires.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
-// =====================================================================
-// Zod schema for PathAdjustment. Defined LOCALLY in this file (schemas.ts is
-// owned by another engineer this wave) but mirrors lib/services/types.ts so
-// the parsed output is structurally a PathAdjustment. The inserted-goalpost
-// shape reuses the same step model the wizard persists: an information step
-// (payload {content, sourceIds?}) plus one or more experience steps (payload
-// {prompt, rubricFocus?}).
-// =====================================================================
-
+// PathAdjustment schema, defined locally (mirrors lib/services/types.ts).
 const rubricFocusSchema = z.enum([
   "recall",
   "application",
@@ -32,15 +21,11 @@ const rubricFocusSchema = z.enum([
   "coverage",
 ]);
 
-// L1 — SKELETON ONLY (redesign §9). Inserted/revised remediation goalposts no
-// longer carry authored information content: the two-phase pipeline overwrites it
-// on entry, the same way it does for Call-A goalposts. The information step stays
-// STRUCTURAL (order + type); `content` is dropped from the schema so the adjuster
-// does not author lesson prose (a second ASCII-art surface). Sources still optional.
+// SKELETON ONLY (redesign §9): structural step (order + type); the two-phase pipeline
+// authors `content` on entry, so it is absent here.
 const insertedInformationStepSchema = z.object({
   order: z.number().int(),
   type: z.literal("information"),
-  // Inserted remediation goalposts re-use already-cited sources; default empty.
   sourceIds: z.array(z.string()).nullish(),
 });
 
@@ -65,11 +50,9 @@ const insertedGoalpostSchema = z
     order: z.number().int(),
     title: z.string().min(1),
     objective: z.string().min(1),
-    // Inserted goalposts must be a digestible remediation slice: 20-120 minutes.
     estimatedMinutes: z.number().int().min(20).max(120),
     steps: z.array(insertedStepSchema).min(2),
   })
-  // At least one information + one experience step per inserted goalpost.
   .refine(
     (gp) =>
       gp.steps.some((s) => s.type === "information") &&
@@ -95,11 +78,6 @@ export const pathAdjustmentSchema = z.object({
 });
 
 type ParsedPathAdjustment = z.infer<typeof pathAdjustmentSchema>;
-
-// =====================================================================
-// System prompt — the adjust_plan branch of the M6 remediation loop (L0.md
-// §5 "Path Adjuster" row + §7). MINIMAL-EDIT is the load-bearing instruction.
-// =====================================================================
 
 const SYSTEM = `You are the PATH ADJUSTER of an AI learning platform. A learner
 hit a goalpost they could not pass by repeating it: the checkpoint evaluator
@@ -158,21 +136,14 @@ type TelemetrySnapshot = {
   latencyMs: number;
   success: boolean;
   errorMessage: string | null;
-  // Real token usage captured from the LLM client's onUsage callback. Absent
-  // only when the call failed before the provider returned usage metadata.
   usage?: CompletionResult["usage"];
-  // Provider-reported model id from the same callback; falls back to
-  // TELEMETRY_MODEL when usage never fired.
   model?: string;
 };
 
 export class LivePathAdjuster implements PathAdjuster {
   constructor(private readonly llm: LLMClient) {}
 
-  /**
-   * Best-effort per-call telemetry. Wrapped in try/catch so a logging failure
-   * can never break the adjustment.
-   */
+  // Best-effort telemetry; never breaks the adjustment.
   private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
     try {
       const model = snapshot.model ?? TELEMETRY_MODEL;
@@ -180,13 +151,10 @@ export class LivePathAdjuster implements PathAdjuster {
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
       await prisma.llmCall.create({
         data: {
-          // L1: dedicated `path_adjust` purpose now exists (was the documented
-          // L0 stopgap that logged adjust_plan calls under `other`).
           purpose: "path_adjust",
           model,
           inputTokens,
           outputTokens,
-          // 0 only when the model is absent from the pricing table; tokens stay real.
           costMicroUsd: computeCostMicroUsd(model, inputTokens, outputTokens),
           latencyMs: snapshot.latencyMs,
           success: snapshot.success,
@@ -253,12 +221,8 @@ export class LivePathAdjuster implements PathAdjuster {
     return [{ role: "user" as const, content }];
   }
 
-  /**
-   * Normalize the parsed result into the PathAdjustment shape lib/services
-   * consumers expect: nullish step fields fold to the documented defaults
-   * (sourceIds -> [], rubricFocus -> []) and steps collapse into the generic
-   * { order, type, payload } GoalpostPlan step model.
-   */
+  // Fold nullish step fields to defaults (sourceIds -> [], rubricFocus -> []) and
+  // collapse steps into the generic { order, type, payload } GoalpostPlan step model.
   private toPathAdjustment(parsed: ParsedPathAdjustment): PathAdjustment {
     return {
       insertedGoalposts: parsed.insertedGoalposts.map((gp) => ({
@@ -271,10 +235,8 @@ export class LivePathAdjuster implements PathAdjuster {
             ? {
                 order: step.order,
                 type: step.type,
-                // SKELETON ONLY (redesign §9): the adjuster no longer authors
-                // lesson prose. Empty content + no contentGeneratedAt keeps the
-                // step "not yet generated", so the two-phase pipeline fills the
-                // real LessonDoc when the learner enters this inserted goalpost.
+                // SKELETON ONLY (redesign §9): empty content keeps the step "not yet
+                // generated" so the pipeline authors the LessonDoc on entry.
                 payload: {
                   content: "",
                   sourceIds: step.sourceIds ?? [],

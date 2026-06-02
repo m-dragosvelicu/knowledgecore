@@ -1,23 +1,9 @@
 /**
- * L1 — Two-Phase Visual Lesson Pipeline (Slice 1: Foundation).
- *
- * Lazy per-goalpost lesson-content generation. Call A (the PathOutliner) builds
- * the path STRUCTURE up front and seeds each information step; this module
- * authors the real, PROFILE-ADAPTED information content WHEN THE LEARNER ENTERS
- * the goalpost (or pre-generates it on advance), then persists it.
- *
- * The content is now produced by the CODE-OWNED ORCHESTRATOR
- * (lib/journey/lessonOrchestration.ts), a two-phase pipeline: Phase 1 authors an
- * ordered LessonDoc of prose + visual SPECS (no drawing); Phase 2 resolves each
- * visual spec in parallel with retry-then-drop. The orchestrator runs behind
- * PORTS (Author / VisualWorkers) wired in lib/services/index.ts.
- *
- * This module is the SEAM the goalpost page (entry) and the pre-generation hook
- * (advance) both call. Its signature is UNCHANGED so prepareGoalpostContentAction
- * and doAdvance are untouched. As the orchestrator progresses it writes a
- * GENERATION-STATE record (the GettingReady screen polls it via
- * readLessonGenerationState); on TERMINAL failure it records `status: "failed"`
- * instead of silently swallowing — closing the old infinite-retry loop.
+ * Lazy per-goalpost lesson-content generation: the seam the goalpost page (entry)
+ * and the pre-generation hook (advance) both call. Runs the two-phase orchestrator
+ * and persists the assembled LessonDoc, writing a generation-state record the
+ * GettingReady screen polls; a terminal failure is recorded as `status: "failed"`
+ * rather than swallowed, so the client shows an error instead of looping.
  */
 
 import { StepType } from "@prisma/client";
@@ -33,42 +19,22 @@ import {
   type LessonGenerationState,
 } from "./lessonGenerationState";
 
-/**
- * Shape we read off / write to the information step's JSON payload. It now
- * carries the new LessonDoc fields ({ sections, contentGeneratedAt }) plus the
- * reserved `generationState` key the client polls. Legacy fields (content,
- * visuals, supportLevel, workedExamples) may still be present on older rows and
- * are read by the renderer's back-compat path; this module writes the new shape.
- */
+/** The information step's JSON payload: a LessonDoc plus the polled progress record. */
 type InfoPayload = Partial<LessonDoc> & {
-  /** Legacy single-call fields (older rows / back-compat read path). */
-  content?: string;
   sourceIds?: string[];
-  supportLevel?: string;
-  workedExamples?: number;
-  visuals?: unknown[];
-  /** The §8 progress record the GettingReady screen polls. */
   generationState?: LessonGenerationState;
 };
 
-/**
- * Flatten an information-step payload into the lesson's prose text, for callers
- * that need the markdown body (e.g. the checkpoint evaluator's `informationContent`
- * input). Handles BOTH shapes: the new LessonDoc (concatenate prose blocks) and
- * the legacy single-call `content` string. Returns "" when neither is present.
- */
+/** Concatenated prose of a LessonDoc payload (checkpoint evaluator input); "" if none. */
 export function lessonContentText(payload: unknown): string {
-  if (isLessonDoc(payload)) {
-    const parts: string[] = [];
-    for (const section of payload.sections) {
-      for (const block of section.blocks) {
-        if (isProseBlock(block)) parts.push(block.md);
-      }
+  if (!isLessonDoc(payload)) return "";
+  const parts: string[] = [];
+  for (const section of payload.sections) {
+    for (const block of section.blocks) {
+      if (isProseBlock(block)) parts.push(block.md);
     }
-    return parts.join("\n\n");
   }
-  const legacy = (payload as { content?: string } | null)?.content;
-  return typeof legacy === "string" ? legacy : "";
+  return parts.join("\n\n");
 }
 
 /** True if the goalpost's information step already has generated content. */
@@ -83,9 +49,8 @@ export async function isLessonContentReady(goalpostId: string): Promise<boolean>
 }
 
 /**
- * The generation-state record the GettingReady screen polls (~1s). Returns the
- * record for the goalpost's information step, or null when there is none yet
- * (e.g. before the first generation attempt). Read-only; safe to call repeatedly.
+ * The generation-state record the GettingReady screen polls. Returns null when
+ * there is none yet (before the first generation attempt).
  */
 export async function readLessonGenerationState(
   goalpostId: string,
@@ -96,8 +61,8 @@ export async function readLessonGenerationState(
   });
   if (!info) return null;
   const payload = (info.payload as InfoPayload | null) ?? {};
-  // A generated lesson is implicitly "ready" even if no explicit record was kept
-  // (e.g. a pre-generation that finished before any poll observed it).
+  // A generated lesson is implicitly "ready" even if a pre-generation finished
+  // before any poll observed it (so no explicit record was kept).
   if (payload.contentGeneratedAt && !payload.generationState) {
     return makeGenerationState("ready");
   }
@@ -121,13 +86,11 @@ async function writeGenerationState(
 }
 
 /**
- * Generate (the two-phase pipeline) and persist the information content for one
- * goalpost against the freshest journey profile, if not already generated.
- * Idempotent: a goalpost whose content is already marked generated is left
- * untouched. Returns true if it generated content on this call, false if it was
- * already ready, there was nothing to do, OR generation failed terminally (in
- * which case a `status: "failed"` generation-state record is persisted so the
- * GettingReady screen can show a real error + Try again rather than loop).
+ * Generate and persist the information content for one goalpost against the
+ * freshest journey profile, if not already generated. Idempotent. Returns true
+ * when it generated on this call, false if already ready, nothing to do, OR
+ * generation failed terminally (in which case a `status: "failed"` state is
+ * persisted so the GettingReady screen shows an error + Try again, not a loop).
  */
 export async function ensureLessonContent(
   intentId: string,
@@ -199,19 +162,15 @@ export async function ensureLessonContent(
       { ...ports, onProgress },
     );
 
-    // ASSEMBLE persisted: write the COMPLETE LessonDoc + a `ready` state in one
-    // update. The reveal invariant holds — the page only ever sees a complete doc
-    // (contentGeneratedAt set) or the progress/error screen, never a partial doc.
+    // Write the COMPLETE LessonDoc + a `ready` state in one update. The reveal
+    // invariant holds: the page only ever sees a complete doc (contentGeneratedAt
+    // set) or the progress/error screen, never a partial doc.
     const nextPayload: InfoPayload = {
       ...payload,
       sections: doc.sections,
       contentGeneratedAt: doc.contentGeneratedAt,
       sourceIds: payload.sourceIds ?? [],
       generationState: makeGenerationState("ready"),
-      // Drop the legacy single-call fields so the renderer takes the LessonDoc
-      // path; older rows that never regenerate keep theirs untouched.
-      content: undefined,
-      visuals: undefined,
     };
     await prisma.step.update({
       where: { id: infoStep.id },
@@ -219,10 +178,8 @@ export async function ensureLessonContent(
     });
     return true;
   } catch (err) {
-    // No silent swallow. Record a TERMINAL failure state so GettingReady (Slice 4)
-    // shows a real error + Try again instead of router.refresh()-looping forever.
-    // contentGeneratedAt is intentionally NOT set, so the goalpost stays "not
-    // ready" and a retry re-enters this path cleanly.
+    // No silent swallow: record a terminal failure (contentGeneratedAt stays
+    // unset, so the goalpost is still "not ready" and a retry re-enters cleanly).
     // eslint-disable-next-line no-console
     console.warn(
       `[lesson-generation] pipeline failed for goalpost "${goalpost.title}": ` +

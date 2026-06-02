@@ -1,24 +1,12 @@
 /**
- * L1 — Two-Phase Visual Lesson Pipeline (Slice 1: Foundation).
- *
- * The generation-state record (redesign §8). A server action cannot stream
- * sub-steps to the client, so the orchestrator WRITES its current stage to a
- * small record and the GettingReady screen (Slice 4) POLLS it (~1s). This is the
- * data contract that:
- *   - replaces the frozen one-shot loader with honest staged progress, and
- *   - replaces the silent swallow-and-retry loop with a real `failed` terminal
- *     state the client can surface as an error + "Try again".
- *
- * STORAGE CHOICE: this record is stored INSIDE the information Step's JSON
- * `payload`, under the reserved `generationState` key, ALONGSIDE the LessonDoc.
- * The step is 1:1 with the goalpost (one information step per goalpost), so the
- * goalpost-keying the spec asks for is satisfied implicitly. This needs NO Prisma
- * migration (it is one more key in an existing Json column) and keeps the read
- * action a single, narrow query. A dedicated table was considered and rejected as
- * over-engineering for a per-goalpost scalar record with no cross-goalpost query.
+ * The generation-state record the GettingReady screen polls. A server action
+ * cannot stream sub-steps, so the orchestrator writes its stage here and the
+ * client polls it; a `failed` stage surfaces as a real error instead of looping.
+ * Stored inside the information Step's `payload` (one key in the existing Json
+ * column, no migration; the step is 1:1 with the goalpost).
  */
 
-/** The ordered stages the orchestrator passes through (redesign §5). */
+/** The ordered stages the orchestrator passes through. */
 export type GenerationStage =
   | "queued" // accepted, not yet started authoring
   | "authoring" // Phase 1: structuring the lesson

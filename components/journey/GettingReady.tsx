@@ -14,32 +14,18 @@ import {
 
 type Props = {
   goalpostId: string;
-  // The resolved journey id (from ?j), forwarded to the actions so generation
-  // runs (and polls) against the journey the learner actually opened.
   intentId: string;
   title: string;
-  /**
-   * Server action that runs the orchestrator to completion (Phase 1 author +
-   * Phase 2 visual workers + assemble + persist). Idempotent. We kick it off on
-   * mount; it returns when generation is fully done (or throws on a hard failure).
-   */
+  // Runs the orchestrator to completion (idempotent); resolves when ready, throws on failure.
   action: (goalpostId: string, intentId?: string | null) => Promise<void>;
-  /**
-   * Server action that reads the orchestrator's live generation-state record
-   * (redesign §8). Polled ~1s so the screen shows honest staged progress and a
-   * real terminal state (ready -> reveal, failed -> error + Try again) instead of
-   * a one-shot loader that freezes or a silent refresh loop.
-   */
+  // Reads the live generation-state record (redesign §8); polled ~1s for staged progress.
   pollAction: (
     goalpostId: string,
     intentId?: string | null,
   ) => Promise<LessonGenerationState | null>;
 };
 
-// The visible stage ladder (queued folds into "starting"). The active stage's
-// tick pulses; earlier ticks are filled; later ticks are empty. This is the
-// genuinely-live progress: it advances as the orchestrator advances, so the wait
-// never reads as frozen across the ~40-50s cold-miss window.
+// Visible stage ladder (queued folds into the first tick).
 const STAGE_LADDER: GenerationStage[] = [
   "authoring",
   "composing",
@@ -48,36 +34,16 @@ const STAGE_LADDER: GenerationStage[] = [
 ];
 
 function ladderIndex(stage: GenerationStage): number {
-  if (stage === "queued") return 0; // not yet authoring -> sit at the first tick
+  if (stage === "queued") return 0;
   const i = STAGE_LADDER.indexOf(stage);
   return i < 0 ? 0 : i;
 }
 
 const POLL_INTERVAL_MS = 1000;
 
-/**
- * L1 — Two-Phase Visual Lesson Pipeline (Slice 4): the staged-progress screen.
- *
- * Replaces the one-shot 1.6s loader that froze after the animation finished and
- * (because generation used to fail silently) looped forever on refresh. This
- * screen POLLS the orchestrator's real generation-state (redesign §8):
- *
- *   - On mount: kick off generation (`action`, runs the orchestrator to
- *     completion) AND start polling `pollAction` every ~1s.
- *   - While running: show the live `label` ("Structuring the lesson",
- *     "Composing visuals (1 of 2)", "Putting it together") with REAL, continuous
- *     motion -- a stage ladder that fills as stages advance, a pulsing active
- *     tick, and an indeterminate sweep -- so it never reads as frozen.
- *   - On status "ready": router.refresh() to reveal the complete lesson.
- *   - On status "failed": a real error message + a keyboard-focusable "Try again"
- *     that re-triggers generation. NEVER an invisible refresh loop.
- *   - Polling stops on any terminal state and on unmount.
- *
- * Accessibility: the status region is aria-live="polite"; "Try again" is a real
- * focusable button; progress meaning is carried by the stage label + filled ticks
- * (text + position), not by color alone; motion respects prefers-reduced-motion
- * (the loops resolve to a static in-progress state in globals.css).
- */
+// Staged-progress screen for the lazy-generation wait. On mount it kicks off
+// generation and polls live state; reveals on "ready", shows error + Try again
+// on "failed". Polling stops on any terminal state and on unmount.
 export default function GettingReady({
   goalpostId,
   intentId,
@@ -121,22 +87,18 @@ export default function GettingReady({
           }
         }
       } catch {
-        // A transient poll error is non-fatal -- the generation action below is
-        // the authoritative success/failure signal; keep polling.
+        // A transient poll error is non-fatal; the generation action is the
+        // authoritative success/failure signal, so keep polling.
       }
       if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS);
     };
 
-    // Kick off generation (runs the orchestrator to completion). When it
-    // resolves the record is "ready"; when it throws the record is "failed" (or
-    // we mark failure here as a backstop so the learner is never stuck behind a
-    // silent refresh loop).
     (async () => {
       try {
         await action(goalpostId, intentId);
         if (cancelled) return;
-        // Generation finished: take one authoritative read so we reveal promptly
-        // even if the next scheduled poll has not fired yet.
+        // One authoritative read so we reveal promptly even if the next scheduled
+        // poll has not fired yet.
         const finalState = await pollAction(goalpostId, intentId);
         if (cancelled) return;
         if (finalState?.status === "failed") {
@@ -154,7 +116,6 @@ export default function GettingReady({
       }
     })();
 
-    // Poll in parallel for live staged progress while generation runs.
     timer = setTimeout(poll, POLL_INTERVAL_MS);
 
     return () => {
@@ -169,9 +130,6 @@ export default function GettingReady({
     setAttempt((a) => a + 1);
   };
 
-  // -------------------------------------------------------------------------
-  // Failed: honest error + Try again. No invisible refresh loop.
-  // -------------------------------------------------------------------------
   if (failed) {
     const message =
       state?.label && state.status === "failed"
@@ -223,9 +181,6 @@ export default function GettingReady({
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Running: live staged progress.
-  // -------------------------------------------------------------------------
   const stage: GenerationStage = state?.stage ?? "queued";
   const label =
     state?.label ?? defaultLabelForStage("queued", state?.done ?? 0, state?.total ?? 0);
@@ -245,9 +200,7 @@ export default function GettingReady({
       <Stack spacing={3} alignItems="flex-start" aria-live="polite">
         <Eyebrow>Getting things ready</Eyebrow>
 
-        {/* The draw-in flourish: the same self-drawing hand as every mark, kept
-            as a one-time grace note. It is NOT the only motion -- the live cues
-            below carry the honest in-progress signal. */}
+        {/* One-time draw-in flourish; the live cues below carry the in-progress signal. */}
         <Box
           component="svg"
           viewBox="0 0 200 24"
@@ -288,9 +241,7 @@ export default function GettingReady({
           </Box>
         </HeadlineUnderline>
 
-        {/* The live stage ladder: ticks before the active stage fill teal, the
-            active stage pulses, later stages stay empty. Honest, position-coded
-            progress -- not color alone (the label below names the same stage). */}
+        {/* Stage ladder: filled ticks + label carry progress, not color alone (a11y). */}
         <Box
           className="kc-progress"
           role="progressbar"
@@ -313,7 +264,6 @@ export default function GettingReady({
           ))}
         </Box>
 
-        {/* The current stage, in words -- the honest "where you are" line. */}
         <Box
           sx={{
             fontFamily: "var(--font-read)",
@@ -327,9 +277,8 @@ export default function GettingReady({
           {stage === "composing" && state && state.total > 0 ? "…" : ""}
         </Box>
 
-        {/* The indeterminate sweep: continuous motion between poll ticks so the
-            wait never reads as frozen even if a stage runs long (one SVG worker
-            measured ~50s). */}
+        {/* Indeterminate sweep: continuous motion between poll ticks so a long
+            stage never reads as frozen. */}
         <Box className="kc-working" aria-hidden="true" />
 
         <Box

@@ -18,7 +18,7 @@
  *
  * This contract is ADDITIVE — it does not touch the LOCKED `lib/services/types.ts`
  * interface boundary. It lives alongside it and is wired through the service
- * registry like `getLessonContentGenerator()`.
+ * registry like the other additive services.
  */
 
 import type { CanDoStatement, InterviewTurn } from "@/lib/services/types";

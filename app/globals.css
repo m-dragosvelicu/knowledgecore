@@ -237,9 +237,7 @@ body {
 .kc-stagger-5 { animation-delay: .3s; }
 .kc-stagger-6 { animation-delay: .36s; }
 
-/* Quiet progress dot-row (the wizard's calm replacement for a LinearProgress
-   bar). Ported from design-system/ui_kits/web-app StartFlow .progress/.pdot:
-   short rounded ticks that fill teal as the learner advances. */
+/* Progress dot-row: short rounded ticks that fill teal as stages advance. */
 .kc-progress {
   display: flex;
   gap: 8px;
@@ -255,11 +253,8 @@ body {
   background: var(--teal);
 }
 
-/* The stage currently in flight breathes teal<->soft so the wait reads as
-   genuinely LIVE for the whole 40-50s window, never a frozen one-shot. This is
-   continuous motion (the only loop in the system, justified: an honest
-   in-progress signal), and it is NOT the only cue -- the filled ticks ahead of
-   it and the stage label carry the same meaning without relying on the pulse. */
+/* The in-flight tick breathes teal<->soft so the wait reads as live; the filled
+   ticks + stage label carry the same meaning without the pulse. */
 @keyframes kc-pdot-pulse {
   0%,
   100% {
@@ -276,9 +271,8 @@ body {
   animation: kc-pdot-pulse 1.3s ease-in-out infinite;
 }
 
-/* A slim indeterminate sweep under the headline: a teal segment that travels
-   left->right on a loop, so even between poll ticks there is visible, honest
-   motion telling the learner the system is still working. */
+/* Slim indeterminate sweep: a teal segment loops left->right so motion is
+   visible even between poll ticks. */
 .kc-working {
   position: relative;
   height: 3px;
@@ -495,9 +489,8 @@ body {
     stroke-dashoffset: 0;
     animation: none;
   }
-  /* The live progress cues hold their in-progress state without looping: the
-     active tick stays teal, the sweep rests filled. Meaning is preserved (the
-     stage label + filled ticks still advance on each poll); only the loop stops. */
+  /* Live cues hold their in-progress state without looping; the stage label +
+     filled ticks still advance on each poll. */
   .kc-pdot.active {
     animation: none;
     background: var(--teal);

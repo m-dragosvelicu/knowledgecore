@@ -12,7 +12,7 @@
  * MODES (auto-detected):
  *   - LIVE  : GOOGLE_GENAI_API_KEY set and LIVE_LESSON_CONTENT != "false" -> the real
  *             Gemini Author runs. This is the empirical N-run.
- *   - MOCK  : no key / opted out -> the LegacyGeneratorAuthorStub-over-mock runs.
+ *   - MOCK  : no key / opted out -> the MockLessonAuthor runs.
  *             The ASCII scan still runs, but the no-ASCII guarantee in mock mode is
  *             STRUCTURAL (the Author schema has no draw field — see verify-pipeline
  *             §11.2), so this run is marked STRUCTURAL-ONLY and the live N-run is

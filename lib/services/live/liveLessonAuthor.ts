@@ -1,29 +1,7 @@
-/**
- * L1 — Two-Phase Visual Lesson Pipeline (Slice 2): the real Phase-1 AUTHOR.
- *
- * This is the heart of the redesign. The Author is ONE structured Gemini call
- * that turns a goalpost's context into an ordered LessonDoc of PROSE blocks and
- * visual SPECS. It implements the `Author` port from lib/journey/lessonOrchestration.ts.
- *
- * THE ANTI-ASCII GUARANTEE (redesign §6). The Author's structured-output schema
- * (`authoredLessonSchema` in ./schemas) has NO field through which a drawn figure
- * can be emitted — no svgSource, no svg, no ASCII canvas. A visual block carries
- * only { kind, spec }. The model therefore CANNOT draw a diagram, in ASCII or
- * otherwise; it can only DESCRIBE one. The drawn payload is produced later by a
- * dedicated Phase-2 worker (Slice 3) from `spec`. ASCII art is structurally
- * impossible, not merely forbidden.
- *
- * PROSE STANDS ALONE (redesign §6). Each prose block must read as a complete
- * explainer even if a sibling visual is later dropped (retry-then-drop is the
- * Phase-2 failure policy). The system prompt makes "no verbal visual dependency"
- * a HARD rule: no "see the diagram below", "as shown above", "the figure
- * illustrates". Visuals are optional reinforcement; the words carry the lesson.
- *
- * PROFILE ADAPTATION carries over from the legacy generator unchanged: the same
- * deriveSupportPlan / serializeProfileForGeneration drive the SILENT support-level
- * and worked-example minimums, injected as plain text into the user message; the
- * invariant authoring rules stay in the cacheable SYSTEM prefix (cacheKey).
- */
+// Phase-1 Author: ONE structured Gemini call turning a goalpost's context into an
+// ordered DraftLessonDoc of prose blocks and visual SPECS (the Author port). Its
+// schema has no draw field, so ASCII art is structurally impossible (redesign §6);
+// a Phase-2 worker renders each spec later.
 
 import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
@@ -47,17 +25,8 @@ type AuthoredLesson = z.infer<typeof authoredLessonSchema>;
 
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
-// =====================================================================
-// SYSTEM prompt — the STABLE, cacheable prefix (no per-learner data here). The
-// per-learner profile + goalpost context go in the user message; these invariant
-// authoring rules stay in this system instruction so the Gemini client can reuse
-// a cached prefix across goalposts/learners (cacheKey below).
-//
-// Carried over from the legacy generator: the profile-adaptation directive (honour
-// the support level + worked-example minimums; silent adaptation). NEW: the output
-// is the BLOCK STRUCTURE, the Author describes visuals (never draws), and prose
-// must stand alone.
-// =====================================================================
+// Stable, cacheable system prefix (no per-learner data); the profile + goalpost
+// context go in the user message so the client reuses a cached prefix (cacheKey below).
 const SYSTEM = `You are the lesson-authoring step of an AI learning platform.
 You write the INFORMATION content for ONE goalpost of a learner's path: a
 self-contained explainer the learner reads before attempting an active task.
@@ -128,11 +97,8 @@ type TelemetrySnapshot = {
 export class LiveLessonAuthor implements Author {
   constructor(private readonly llm: LLMClient) {}
 
-  /**
-   * Best-effort per-call telemetry, mirroring the other live services. The
-   * Author IS the (former) Call B, so its purpose stays `lesson_content` for
-   * continuity of the existing telemetry series. Never allowed to break authoring.
-   */
+  // Best-effort telemetry; never breaks authoring. Purpose stays `lesson_content`
+  // (the Author is the former Call B) for continuity of the existing series.
   private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
     try {
       const model = snapshot.model ?? TELEMETRY_MODEL;
@@ -162,13 +128,8 @@ export class LiveLessonAuthor implements Author {
   }
 
   async author(input: LessonContentInput): Promise<DraftLessonDoc> {
-    // Profile adaptation is unchanged from the legacy generator: the derived plan
-    // (support level + worked-example minimum) is rendered into the user message
-    // and treated as binding. supportLevel/workedExamples telemetry intent is kept
-    // here as plan-derived values; the Author's CONTRACT is the DraftLessonDoc, so
-    // those audit fields are not persisted on the doc (see report's open note).
-    const plan = deriveSupportPlan(input.profile, input.conceptKey);
-    void plan; // derived for the prompt block below; not part of the DraftLessonDoc.
+    // The derived support plan feeds the prompt via serializeProfileForGeneration;
+    // it is not part of the DraftLessonDoc contract.
     const profileBlock = serializeProfileForGeneration(
       input.profile,
       input.conceptKey,
@@ -181,9 +142,6 @@ export class LiveLessonAuthor implements Author {
     try {
       result = await this.llm.completeStructured({
         system: SYSTEM,
-        // Stable cache key over the invariant system prefix so the Gemini client
-        // can reuse a cached prefix across goalposts/learners. Per-learner text is
-        // NOT in the system prompt — it is in the user message below.
         cacheKey: "lesson_author_system_v1",
         messages: [
           {
@@ -215,11 +173,9 @@ export class LiveLessonAuthor implements Author {
           },
         ],
         temperature: 0.6,
-        // Generous ceiling, NOT a tuned limit. Hidden thinking tokens still count
-        // against the cap even though thinkingBudget=0 for structured calls
-        // (redesign §14), and we are billed for ACTUAL output tokens (not the cap),
-        // so a high ceiling only removes truncation risk. Carried over from the
-        // interim 4096->32768 raise; do NOT tune tight from visible-token counts.
+        // Generous ceiling, not a tuned limit: hidden thinking tokens draw from the
+        // same budget and we are billed for actual output, so a high cap only removes
+        // truncation risk. Do not tune tight from visible-token counts.
         maxTokens: 32768,
         schema: authoredLessonSchema,
         schemaName: "AuthoredLesson",
@@ -250,21 +206,10 @@ export class LiveLessonAuthor implements Author {
     return this.toDraftLessonDoc(result, input.conceptKey);
   }
 
-  /**
-   * Normalize the flat authored blocks into the typed DraftLessonDoc the
-   * orchestrator consumes. The schema models a block as ONE flat object (a
-   * converter constraint: Gemini has no oneOf/anyOf), so we split it by `type`
-   * here — exactly as liveGoalInterviewer normalizes its flat interview step.
-   *
-   * The orchestrator owns ids + lifecycle, but the DraftLessonDoc types require
-   * stable ids, so we assign deterministic ids here (concept-scoped, ordinal).
-   * Every visual block is stamped status "pending" with NO payload: the Author
-   * cannot draw, so a worker resolves it later.
-   *
-   * Blocks that do not carry the field their `type` requires (an empty prose md,
-   * or a visual missing kind/spec) are DROPPED defensively — a malformed block
-   * never reaches the renderer. A section left with no usable block is dropped.
-   */
+  // Split the flat-by-`type` authored blocks into the typed DraftLessonDoc, assigning
+  // deterministic concept-scoped ids. Visual blocks are stamped "pending" (a worker
+  // resolves them later). Malformed blocks (empty prose md, visual missing kind/spec)
+  // and emptied sections are dropped defensively before they reach the renderer.
   private toDraftLessonDoc(
     authored: AuthoredLesson,
     conceptKey: string,
@@ -278,17 +223,16 @@ export class LiveLessonAuthor implements Author {
       for (const block of section.blocks) {
         if (block.type === "prose") {
           const md = (block.md ?? "").trim();
-          if (!md) continue; // malformed prose block -> drop
+          if (!md) continue;
           blocks.push({
             type: "prose",
             id: `${conceptKey}-b${blockOrdinal++}`,
             md,
           });
         } else {
-          // visual
           const kind = block.kind ?? undefined;
           const spec = (block.spec ?? "").trim();
-          if (!kind || !spec) continue; // malformed visual block -> drop
+          if (!kind || !spec) continue;
           blocks.push({
             type: "visual",
             id: `${conceptKey}-b${blockOrdinal++}`,
@@ -299,7 +243,7 @@ export class LiveLessonAuthor implements Author {
         }
       }
 
-      if (blocks.length === 0) return; // empty section -> drop
+      if (blocks.length === 0) return;
       sections.push({
         id: `${conceptKey}-s${sectionIndex}`,
         heading: section.heading,
@@ -307,9 +251,8 @@ export class LiveLessonAuthor implements Author {
       });
     });
 
-    // Degenerate guard: the model returned nothing usable. Surface a real failure
-    // (the orchestrator treats an Author throw as terminal -> "failed" state +
-    // Try again) rather than persisting an empty lesson.
+    // Nothing usable: throw so the orchestrator surfaces a real failure rather than
+    // persisting an empty lesson (it treats an Author throw as terminal).
     if (sections.length === 0) {
       throw new Error(
         "LiveLessonAuthor produced no usable prose/visual blocks for the lesson.",

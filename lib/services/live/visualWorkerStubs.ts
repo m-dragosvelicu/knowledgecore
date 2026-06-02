@@ -1,29 +1,6 @@
-/**
- * L1 — Two-Phase Visual Lesson Pipeline.
- *
- * TODO(Slice 3 — AI + Visualization Engineer): REPLACE these stubs with the real
- * Phase-2 visual workers.
- *   - The SVG worker is a DEDICATED, focused model call whose entire output is
- *     one SVG, then sanitizeSvg(); it retries on junk/empty output before
- *     dropping (redesign §7).
- *   - The image / video workers search the EXISTING license-clean sources
- *     (Openverse image, reference-video) from the spec.
- * Each worker implements the `VisualWorker` port in lessonOrchestration.ts:
- * `resolve(input) -> ResolvedVisual` (medium svg|image|video on success; `none`
- * or throw on TERMINAL failure — never a broken/placeholder visual).
- *
- * Until Slice 3 lands, these stubs are SAFE-DEGRADING: they return a `none`
- * ResolvedVisual, so the orchestrator DROPS every visual slot and the lesson
- * still assembles complete from prose alone (prose stands alone by contract).
- * This keeps the foundation runnable and the reveal invariant intact (a dropped
- * visual is acceptable; a broken one is not) without inventing real worker logic
- * that belongs to Slice 3.
- *
- * The image/video stubs DO reuse the existing gate-resolver shapes (ImageSource /
- * VideoSource) so Slice 3 can swap in real sourcing with the spec-as-query seam
- * already wired; the SVG stub has no analogous source (the model authors it), so
- * it is a pure drop until Slice 3 supplies the focused SVG call.
- */
+// Offline / keyless fallback visual workers. Safe-degrading: the SVG worker drops
+// (no source), the image/video workers search the keyless sources directly. A dropped
+// slot is acceptable; the live workers (liveVisualWorkers.ts) are the real path.
 
 import type {
   VisualWorker,
@@ -36,10 +13,9 @@ import type {
   VideoSource,
 } from "@/lib/services/visualMedia";
 
-/** SVG worker stub: no source to draw from yet -> drop the slot. */
+/** SVG worker stub: no keyless source to draw from -> drop the slot. */
 export class SvgWorkerStub implements VisualWorker {
   async resolve(input: VisualWorkerInput): Promise<ResolvedVisual> {
-    // TODO(Slice 3): focused SVG authoring call + sanitizeSvg + retry-on-junk.
     return {
       medium: "none",
       id: input.id,
@@ -49,12 +25,11 @@ export class SvgWorkerStub implements VisualWorker {
   }
 }
 
-/** Image worker stub: searches the license-clean source from the spec. */
+/** Image worker stub: searches the license-clean source with the raw spec. */
 export class ImageWorkerStub implements VisualWorker {
   constructor(private readonly imageSource: ImageSource) {}
 
   async resolve(input: VisualWorkerInput): Promise<ResolvedVisual> {
-    // TODO(Slice 3): spec -> tighter query derivation + quality bar + retry.
     try {
       const sourced = await this.imageSource.search({
         query: input.spec,
@@ -91,7 +66,6 @@ export class VideoWorkerStub implements VisualWorker {
   constructor(private readonly videoSource: VideoSource) {}
 
   async resolve(input: VisualWorkerInput): Promise<ResolvedVisual> {
-    // TODO(Slice 3): spec -> reference-video search + suggestion labelling.
     try {
       const video = await this.videoSource.resolve({ query: input.spec });
       if (!video) {

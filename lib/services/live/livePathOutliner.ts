@@ -11,14 +11,11 @@ import { pathResultSchema } from "./schemas";
 
 type PathResult = z.infer<typeof pathResultSchema>;
 
-// gemini-3.5-flash is the live default for L0 services. Token usage is now
-// surfaced from completeStructured via the optional onUsage callback (see
-// lib/llm/types.ts); this constant is the fallback model id for telemetry when a
-// failure short-circuits the call before any usage callback fires.
+// Fallback model id for telemetry when a failure short-circuits before onUsage fires.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
-// L0.md §9.1 granularity: hard bounds 20-120 min, target 30-90 min per goalpost.
-// The model is unreliable about this, so we clamp in code after generation.
+// L0.md §9.1 granularity: hard bounds 20-120, target 30-90; the model is unreliable
+// about this, so we clamp in code.
 const MIN_MINUTES = 20;
 const MAX_MINUTES = 120;
 const TARGET_MIN_MINUTES = 30;
@@ -104,21 +101,14 @@ type TelemetrySnapshot = {
   latencyMs: number;
   success: boolean;
   errorMessage: string | null;
-  // Real token usage captured from the LLM client's onUsage callback. Absent
-  // only when the call failed before the provider returned usage metadata.
   usage?: CompletionResult["usage"];
-  // Provider-reported model id from the same callback; falls back to
-  // TELEMETRY_MODEL when usage never fired.
   model?: string;
 };
 
 export class LivePathOutliner implements PathOutliner {
   constructor(private readonly llm: LLMClient) {}
 
-  /**
-   * Best-effort per-call telemetry. Never allowed to break path outlining: the
-   * caller wraps each invocation so a logging failure degrades to a warn.
-   */
+  // Best-effort telemetry; never breaks path outlining.
   private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
     try {
       const model = snapshot.model ?? TELEMETRY_MODEL;
@@ -130,7 +120,6 @@ export class LivePathOutliner implements PathOutliner {
           model,
           inputTokens,
           outputTokens,
-          // 0 only when the model is absent from the pricing table; tokens stay real.
           costMicroUsd: computeCostMicroUsd(model, inputTokens, outputTokens),
           latencyMs: snapshot.latencyMs,
           success: snapshot.success,
@@ -141,9 +130,7 @@ export class LivePathOutliner implements PathOutliner {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn(
-        `[llm-telemetry] failed to persist path_outline row: ${
-          (err as Error).message
-        }`,
+        `[llm-telemetry] failed to persist path_outline row: ${(err as Error).message}`,
       );
     }
   }
@@ -211,13 +198,10 @@ export class LivePathOutliner implements PathOutliner {
       model: usageModel,
     });
 
-    // Reshape into the GoalpostPlan { steps[] } structure the wizard persists,
-    // applying the L0 hard-constraint guards in code (the model is unreliable).
+    // Reshape into the GoalpostPlan { steps[] } the wizard persists, applying the L0
+    // hard-constraint guards in code (the model is unreliable about them).
     const plans: GoalpostPlan[] = result.goalposts.map((gp) => {
-      // GRANULARITY guard (L0.md §9.1): clamp to the hard 20-120 bound.
       const estimatedMinutes = this.clampMinutes(gp.estimatedMinutes, gp.title);
-
-      // EXPERIENCE PROMPT QUALITY guard: reject/repair malformed prompts.
       const prompt = this.repairExperiencePrompt(
         gp.experience.prompt,
         gp.title,
@@ -230,17 +214,13 @@ export class LivePathOutliner implements PathOutliner {
         title: gp.title,
         objective: gp.objective,
         estimatedMinutes,
-        // ≥1 EXPERIENCE STEP PER GOALPOST (L0.md §6): structurally guaranteed —
-        // every goalpost always emits an information step AND an experience step.
         steps: [
           {
             order: gp.information.order,
             type: gp.information.type,
-            // SKELETON ONLY (redesign §9): Call A no longer authors lesson prose.
-            // The information step is a structural placeholder; the two-phase
-            // pipeline (ensureLessonContent) overwrites this payload with the real
-            // LessonDoc on entry. Empty content + no contentGeneratedAt marker keeps
-            // the step "not yet generated" so the pipeline runs.
+            // SKELETON ONLY (redesign §9): empty content + no contentGeneratedAt keeps
+            // the step "not yet generated", so ensureLessonContent authors the real
+            // LessonDoc on entry.
             payload: { content: "", sourceIds: [] },
           },
           {
@@ -255,9 +235,7 @@ export class LivePathOutliner implements PathOutliner {
       };
     });
 
-    // GAP COVERAGE check (L0.md §5): non-fatal. Code-side full verification is
-    // hard, so we only warn if a clearly-weak competency name surfaces in NO
-    // goalpost objective. The prompt is the primary enforcement.
+    // Non-fatal coverage check; the prompt is the primary enforcement (L0.md §5).
     this.warnOnUncoveredGaps(input, plans);
 
     return plans;
@@ -270,11 +248,7 @@ export class LivePathOutliner implements PathOutliner {
       .map((c) => c.competency);
   }
 
-  /**
-   * GRANULARITY (L0.md §9.1). Hard-clamp to [20, 120]. We also nudge values that
-   * fall inside the hard bounds but outside the 30-90 target toward the target
-   * edge, so the persisted estimate respects the recommended granularity band.
-   */
+  // Hard-clamp to [20,120], then nudge into the 30-90 target band (L0.md §9.1).
   private clampMinutes(raw: number, title: string): number {
     const safe = Number.isFinite(raw) ? Math.round(raw) : TARGET_MIN_MINUTES;
     const clamped = Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, safe));
@@ -284,19 +258,13 @@ export class LivePathOutliner implements PathOutliner {
         `[path-outliner] estimatedMinutes ${safe} for goalpost "${title}" out of hard bounds [${MIN_MINUTES}, ${MAX_MINUTES}]; clamped to ${clamped}.`,
       );
     }
-    // Pull into the 30-90 target band without crossing the hard bounds.
     if (clamped < TARGET_MIN_MINUTES) return TARGET_MIN_MINUTES;
     if (clamped > TARGET_MAX_MINUTES) return Math.min(clamped, MAX_MINUTES);
     return clamped;
   }
 
-  /**
-   * EXPERIENCE PROMPT QUALITY guard (fixes the line-of-questions bug). A prompt
-   * shorter than MIN_PROMPT_CHARS (after trim) is malformed/degenerate; rather
-   * than ship a nonsensical prompt to the learner we substitute a well-formed,
-   * self-contained fallback task built from the goalpost objective. Prompts that
-   * pass the length check are returned trimmed and unchanged.
-   */
+  // A prompt shorter than MIN_PROMPT_CHARS is degenerate; substitute a well-formed
+  // self-contained fallback built from the objective rather than ship it.
   private repairExperiencePrompt(
     raw: string,
     title: string,
@@ -323,12 +291,8 @@ export class LivePathOutliner implements PathOutliner {
     }
   }
 
-  /**
-   * GAP COVERAGE (L0.md §5), non-fatal. Warns once per weak competency whose
-   * name does not appear (case-insensitive substring) in ANY goalpost objective.
-   * This is a best-effort signal for QA/telemetry, not a hard gate — the prompt
-   * carries the real enforcement.
-   */
+  // Warns once per weak competency whose name appears in no goalpost objective
+  // (best-effort QA signal, not a hard gate; L0.md §5).
   private warnOnUncoveredGaps(
     input: PathOutlinerInput,
     plans: GoalpostPlan[],
