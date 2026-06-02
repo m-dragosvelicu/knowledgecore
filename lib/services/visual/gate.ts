@@ -148,11 +148,3 @@ export async function routeVisual(
     };
   }
 }
-
-/** Resolve a batch of visual needs (lesson generation output) in order. */
-export async function routeVisuals(
-  needs: VisualNeed[],
-  resolvers: VisualResolvers,
-): Promise<ResolvedVisual[]> {
-  return Promise.all(needs.map((n) => routeVisual(n, resolvers)));
-}

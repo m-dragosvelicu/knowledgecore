@@ -237,9 +237,7 @@ body {
 .kc-stagger-5 { animation-delay: .3s; }
 .kc-stagger-6 { animation-delay: .36s; }
 
-/* Quiet progress dot-row (the wizard's calm replacement for a LinearProgress
-   bar). Ported from design-system/ui_kits/web-app StartFlow .progress/.pdot:
-   short rounded ticks that fill teal as the learner advances. */
+/* Progress dot-row: short rounded ticks that fill teal as stages advance. */
 .kc-progress {
   display: flex;
   gap: 8px;
@@ -253,6 +251,53 @@ body {
 }
 .kc-pdot.on {
   background: var(--teal);
+}
+
+/* The in-flight tick breathes teal<->soft so the wait reads as live; the filled
+   ticks + stage label carry the same meaning without the pulse. */
+@keyframes kc-pdot-pulse {
+  0%,
+  100% {
+    background: var(--teal);
+    opacity: 1;
+  }
+  50% {
+    background: var(--teal-soft, var(--teal));
+    opacity: 0.55;
+  }
+}
+.kc-pdot.active {
+  background: var(--teal);
+  animation: kc-pdot-pulse 1.3s ease-in-out infinite;
+}
+
+/* Slim indeterminate sweep: a teal segment loops left->right so motion is
+   visible even between poll ticks. */
+.kc-working {
+  position: relative;
+  height: 3px;
+  width: 100%;
+  max-width: 240px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.kc-working::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: var(--r-pill);
+  background: var(--teal);
+  animation: kc-working-sweep 1.4s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+@keyframes kc-working-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
 }
 
 /* Draw-in: SVG strokes use pathLength="1" + stroke-dasharray:1, then animate
@@ -443,5 +488,18 @@ body {
   .kc-draw {
     stroke-dashoffset: 0;
     animation: none;
+  }
+  /* Live cues hold their in-progress state without looping; the stage label +
+     filled ticks still advance on each poll. */
+  .kc-pdot.active {
+    animation: none;
+    background: var(--teal);
+    opacity: 1;
+  }
+  .kc-working::after {
+    animation: none;
+    transform: none;
+    width: 100%;
+    opacity: 0.5;
   }
 }
