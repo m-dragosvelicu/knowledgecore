@@ -37,3 +37,10 @@ prisma/*.db-journal
 .docker-data
 .vercel
 .env.production.local
+
+# The team workspace lives in the repo PARENT (Licenta/team), NOT in the code repo.
+# Guard against agents that cd into the repo and write a relative team/ path.
+/team/
+
+# Keep prod builds out of the live dev .next cache (next build uses a separate distDir)
+/.next-build/
