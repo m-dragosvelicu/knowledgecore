@@ -10,7 +10,42 @@
 import { prisma } from "../lib/db";
 import { getCurrentGoalpost } from "../lib/journey/state";
 import { applyPathAdjustment } from "../lib/journey/pathRevision";
-import { MockPathAdjuster } from "../lib/services/mock/mockPathAdjuster";
+import type {
+  PathAdjuster,
+  PathAdjusterInput,
+  PathAdjustment,
+} from "../lib/services/types";
+
+// Local deterministic adjuster double. Mirrors the deleted MockPathAdjuster:
+// inserts ONE remediation goalpost at currentOrder+1, titled "Shore up: <title>",
+// keeping all remaining goalposts intact (minimal-edit). The DB assertions below
+// depend on exactly: one insertion, title starts with "Shore up".
+class FakePathAdjuster implements PathAdjuster {
+  async adjust(input: PathAdjusterInput): Promise<PathAdjustment> {
+    const insertOrder = input.currentGoalpost.order + 1;
+    return {
+      insertedGoalposts: [
+        {
+          order: insertOrder,
+          title: `Shore up: ${input.currentGoalpost.title}`,
+          objective: `Revisit "${input.currentGoalpost.objective}" before moving on.`,
+          estimatedMinutes: 30,
+          steps: [
+            { order: 1, type: "information", payload: { content: "Rebuild the foundation.", sourceIds: [] } },
+            {
+              order: 2,
+              type: "experience_socratic",
+              payload: { prompt: "Explain the core idea in your own words.", rubricFocus: ["conceptual", "communication"] },
+            },
+          ],
+        },
+      ],
+      removedOrders: [],
+      modifiedGoalposts: [],
+      rationale: `Added a short refresher on "${input.currentGoalpost.title}".`,
+    };
+  }
+}
 
 let failures = 0;
 function check(name: string, cond: boolean) {
@@ -80,7 +115,7 @@ async function main() {
   });
 
   // Run the REAL adjuster + the REAL transaction helper the action uses.
-  const adjuster = new MockPathAdjuster();
+  const adjuster = new FakePathAdjuster();
   const adjustment = await adjuster.adjust({
     subject: { canonicalName: "Test Subject", scopeNote: "narrow" },
     motivation: "work",
