@@ -1,0 +1,201 @@
+{
+  "rubric": "0-2 relevance + 0-2 credibility",
+  "items": [
+    {
+      "itemId": "k1",
+      "queryId": "dmn-4",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12025022/",
+      "judgeRelevance": 1,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k2",
+      "queryId": "artn-5",
+      "url": "https://www.momentslog.com/culture/french-art-nouveau-architecture-victor-horta-hector-guimard-and-antoni-gaudi",
+      "judgeRelevance": 2,
+      "judgeCredibility": 0
+    },
+    {
+      "itemId": "k3",
+      "queryId": "lean-1",
+      "url": "https://www.techtarget.com/searcherp/definition/lean-production",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k4",
+      "queryId": "dmn-3",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11893468/",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k5",
+      "queryId": "artn-1",
+      "url": "https://www.riseart.com/guide/2417/what-is-art-nouveau",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k6",
+      "queryId": "lean-3",
+      "url": "https://selfbits.de/en/learn/lean-management/7-wastes-of-lean-manufacturing/",
+      "judgeRelevance": 1,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k7",
+      "queryId": "dmn-5",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10377088/",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k8",
+      "queryId": "artn-4",
+      "url": "https://www.mucha.cz/en/biography",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k9",
+      "queryId": "lean-3",
+      "url": "https://www.ptc.com/en/blogs/iiot/7-wastes-of-lean-production",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k10",
+      "queryId": "dmn-4",
+      "url": "https://preview-www.nature.com/articles/s41562-017-0244-9",
+      "judgeRelevance": 1,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k11",
+      "queryId": "artn-2",
+      "url": "https://www.theartstory.org/movement/art-nouveau/",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k12",
+      "queryId": "lean-4",
+      "url": "https://www.learnleansigma.com/continuous-improvement/lean-thinking-and-the-toyota-production-system-tps/",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k13",
+      "queryId": "dmn-5",
+      "url": "https://www.intpsychogeriatrics.org/article/S1041-6102(24)03187-9/pdf",
+      "judgeRelevance": 1,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k14",
+      "queryId": "artn-5",
+      "url": "https://www.facebook.com/61565244002554/videos/architects-who-mastered-art-nouveauantoni-gaud%C3%ADgaud%C3%AD-transformed-art-nouveau-int/1956314611913240",
+      "judgeRelevance": 1,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k15",
+      "queryId": "lean-4",
+      "url": "https://www.toyota-global.com/company/history_of_toyota/75years/text/entering_the_automotive_business/chapter1/section4/item4.html",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k16",
+      "queryId": "dmn-5",
+      "url": "https://www.psychologytoday.com/us/basics/default-mode-network",
+      "judgeRelevance": 1,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k17",
+      "queryId": "artn-4",
+      "url": "https://www.invaluable.com/blog/art-nouveau-artists",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k18",
+      "queryId": "lean-3",
+      "url": "https://www.lean.org/lexicon-terms/seven-wastes/",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k19",
+      "queryId": "dmn-4",
+      "url": "https://neurodiversity.directory/adhd-mind-wandering-default-mode-network/",
+      "judgeRelevance": 1,
+      "judgeCredibility": 0
+    },
+    {
+      "itemId": "k20",
+      "queryId": "artn-4",
+      "url": "https://en.wikipedia.org/wiki/Klimt",
+      "judgeRelevance": 1,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k21",
+      "queryId": "lean-2",
+      "url": "https://leanexcellence.ca/lean-manufacturing-techniques-for-beginners/",
+      "judgeRelevance": 0,
+      "judgeCredibility": 0
+    },
+    {
+      "itemId": "k22",
+      "queryId": "dmn-4",
+      "url": "https://www.quora.com/What-is-the-default-mode-network-and-how-is-it-involved-in-self-referential-thought-and-mind-wandering",
+      "judgeRelevance": 0,
+      "judgeCredibility": 0
+    },
+    {
+      "itemId": "k23",
+      "queryId": "artn-3",
+      "url": "https://www.thespruce.com/what-is-art-nouveau-architecture-5194926",
+      "judgeRelevance": 0,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k24",
+      "queryId": "lean-5",
+      "url": "https://www.lean.org/lexicon-terms/kaizen/",
+      "judgeRelevance": 1,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k25",
+      "queryId": "dmn-2",
+      "url": "https://www.reddit.com/r/cogsci/comments/1ge0foe/simple_explanation_of_the_default_mode_network/",
+      "judgeRelevance": 1,
+      "judgeCredibility": 1
+    },
+    {
+      "itemId": "k26",
+      "queryId": "artn-3",
+      "url": "https://en.wikipedia.org/wiki/Art_Nouveau",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k27",
+      "queryId": "lean-2",
+      "url": "https://en.wikipedia.org/wiki/Lean_manufacturing",
+      "judgeRelevance": 2,
+      "judgeCredibility": 2
+    },
+    {
+      "itemId": "k28",
+      "queryId": "dmn-3",
+      "url": "https://www.psychologytoday.com/us/basics/default-mode-network",
+      "judgeRelevance": 1,
+      "judgeCredibility": 2
+    }
+  ]
+}
