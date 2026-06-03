@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L2 Eval — CEO Kappa Rating Sheet</title>
+<style>
+  :root{--bg:#f7f8fa;--surface:#fff;--ink:#1c2024;--soft:#5a626b;--line:#e4e7eb;--accent:#2f57d6;--accent-bg:#eef2fe;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:32px 16px;}
+  .wrap{max-width:780px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 4px;}
+  .lede{color:var(--soft);font-size:14px;margin:0 0 24px;}
+  .item{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0;}
+  .item-head{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
+  .pill{background:var(--accent-bg);color:var(--accent);font-weight:700;font-size:12px;padding:2px 8px;border-radius:999px;}
+  .topic{font-size:12px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;}
+  .query{font-size:14px;margin:4px 0;}
+  .title{font-weight:600;margin:6px 0 2px;}
+  .url{font-size:12px;color:var(--accent);word-break:break-all;}
+  .snippet{font-size:13px;color:var(--soft);margin:8px 0 12px;line-height:1.5;}
+  .axes{display:flex;gap:28px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;}
+  .axis-label{display:block;font-size:12px;font-weight:700;color:var(--soft);margin-bottom:4px;}
+  .axis label{margin-right:12px;font-size:14px;cursor:pointer;}
+  .bar{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin-top:20px;display:flex;gap:14px;align-items:center;box-shadow:0 -2px 8px rgba(0,0,0,.05);}
+  button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;}
+  #status{font-size:13px;color:var(--soft);}
+  textarea{width:100%;height:120px;margin-top:12px;font-family:monospace;font-size:12px;display:none;}
+</style></head>
+<body><div class="wrap">
+  <h1>L2 Eval — CEO Kappa Rating Sheet</h1>
+  <p class="lede">Rate each search result on the SAME 0–2 rubric the LLM judge used. The judge's scores are hidden.
+  <b>Relevance/level:</b> 0 = off-topic/wrong level · 1 = related but partial · 2 = directly useful at the learner's level.
+  <b>Credibility:</b> 0 = spam/forum/unattributable · 1 = acceptable · 2 = authoritative (educational/encyclopedic/expert).
+  Open the URL if unsure. ~28 items, ~20–30 min. Then click <b>Copy results as JSON</b> and paste back.</p>
+  
+  <div class="item" data-id="k1">
+    <div class="item-head"><span class="pill">k1</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> how does the default mode network relate to mind wandering and self-referential thought</div>
+    <div class="title">The Journey of the Default Mode Network: Development, Function ...</div>
+    <a class="url" href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12025022/" target="_blank" rel="noopener">https://pmc.ncbi.nlm.nih.gov/articles/PMC12025022/</a>
+    <div class="snippet">The Default Mode Network (DMN) is a brain network that becomes active when the brain is at rest. It is crucial for processes like self-reflection, emotional ...</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k1_rel" value="0"> 0</label><label><input type="radio" name="k1_rel" value="1"> 1</label><label><input type="radio" name="k1_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k1_cred" value="0"> 0</label><label><input type="radio" name="k1_cred" value="1"> 1</label><label><input type="radio" name="k1_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k2">
+    <div class="item-head"><span class="pill">k2</span> <span class="topic">Art Nouveau · intermediate</span></div>
+    <div class="query"><b>Query:</b> Art Nouveau architecture Victor Horta and Antoni Gaudi</div>
+    <div class="title">French Art Nouveau Architecture: Victor Horta, Hector Guimard, and ...</div>
+    <a class="url" href="https://www.momentslog.com/culture/french-art-nouveau-architecture-victor-horta-hector-guimard-and-antoni-gaudi" target="_blank" rel="noopener">https://www.momentslog.com/culture/french-art-nouveau-architecture-victor-horta-hector-guimard-and-antoni-gaudi</a>
+    <div class="snippet">Discover the iconic French Art Nouveau architecture of Victor Horta, Hector Guimard, and Antoni Gaudí, known for their innovative and ornate designs.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k2_rel" value="0"> 0</label><label><input type="radio" name="k2_rel" value="1"> 1</label><label><input type="radio" name="k2_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k2_cred" value="0"> 0</label><label><input type="radio" name="k2_cred" value="1"> 1</label><label><input type="radio" name="k2_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k3">
+    <div class="item-head"><span class="pill">k3</span> <span class="topic">lean manufacturing · intro</span></div>
+    <div class="query"><b>Query:</b> what is lean manufacturing</div>
+    <div class="title">What is Lean Manufacturing? | Definition from TechTarget</div>
+    <a class="url" href="https://www.techtarget.com/searcherp/definition/lean-production" target="_blank" rel="noopener">https://www.techtarget.com/searcherp/definition/lean-production</a>
+    <div class="snippet">What is Lean Manufacturing? | Definition from TechTarget
+
+Tech Accelerator Guide to supply chain management
+
+Download this guide1
+
+X
+
+Free Download
+
+## Supply chain management, or SCM, is a broad field that encompasses all the processes, systems and strategies for optimizing a product's creation and distribution. Its many facets include demand planning, inventory management, logistics, procurement</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k3_rel" value="0"> 0</label><label><input type="radio" name="k3_rel" value="1"> 1</label><label><input type="radio" name="k3_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k3_cred" value="0"> 0</label><label><input type="radio" name="k3_cred" value="1"> 1</label><label><input type="radio" name="k3_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k4">
+    <div class="item-head"><span class="pill">k4</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> default mode network brain regions and functions</div>
+    <div class="title">The architecture of the human default mode network explored through ...</div>
+    <a class="url" href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11893468/" target="_blank" rel="noopener">https://pmc.ncbi.nlm.nih.gov/articles/PMC11893468/</a>
+    <div class="snippet">Main The default mode network (DMN) is a distributed set of brain regions in the frontal, temporal and parietal lobes with strongly correlated fluctuations 1. It is among the most influential, yet challenging, discoveries of modern neuroscience.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k4_rel" value="0"> 0</label><label><input type="radio" name="k4_rel" value="1"> 1</label><label><input type="radio" name="k4_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k4_cred" value="0"> 0</label><label><input type="radio" name="k4_cred" value="1"> 1</label><label><input type="radio" name="k4_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k5">
+    <div class="item-head"><span class="pill">k5</span> <span class="topic">Art Nouveau · intro</span></div>
+    <div class="query"><b>Query:</b> what is Art Nouveau</div>
+    <div class="title">What is Art Nouveau? - Rise Art</div>
+    <a class="url" href="https://www.riseart.com/guide/2417/what-is-art-nouveau" target="_blank" rel="noopener">https://www.riseart.com/guide/2417/what-is-art-nouveau</a>
+    <div class="snippet">Art Nouveau was a compelling and energetic style in the visual arts which spanned from around the early 1890s to the First World War.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k5_rel" value="0"> 0</label><label><input type="radio" name="k5_rel" value="1"> 1</label><label><input type="radio" name="k5_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k5_cred" value="0"> 0</label><label><input type="radio" name="k5_cred" value="1"> 1</label><label><input type="radio" name="k5_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k6">
+    <div class="item-head"><span class="pill">k6</span> <span class="topic">lean manufacturing · intermediate</span></div>
+    <div class="query"><b>Query:</b> the seven wastes (muda) in lean manufacturing</div>
+    <div class="title">7 wastes of lean manufacturing - Selfbits GmbH</div>
+    <a class="url" href="https://selfbits.de/en/learn/lean-management/7-wastes-of-lean-manufacturing/" target="_blank" rel="noopener">https://selfbits.de/en/learn/lean-management/7-wastes-of-lean-manufacturing/</a>
+    <div class="snippet">7 wastes of lean manufacturing - Selfbits GmbH
+
+# 7 wastes of lean manufacturing
+
+Identify waste and increase efficiency in your production.
+
+Image: Sample illustration
+
+## Introduction
+
+In classical lean management according to the teachings of Taiichi Ohno, 7 types of waste are distinguished. Numerous examples of these 7 wastes of lean manufacturing (known as “Muda” in Japanese) can be found in </div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k6_rel" value="0"> 0</label><label><input type="radio" name="k6_rel" value="1"> 1</label><label><input type="radio" name="k6_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k6_cred" value="0"> 0</label><label><input type="radio" name="k6_cred" value="1"> 1</label><label><input type="radio" name="k6_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k7">
+    <div class="item-head"><span class="pill">k7</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> default mode network connectivity in depression and Alzheimer's</div>
+    <div class="title">Depression Is Associated with the Aberration of Resting State Default ...</div>
+    <a class="url" href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10377088/" target="_blank" rel="noopener">https://pmc.ncbi.nlm.nih.gov/articles/PMC10377088/</a>
+    <div class="snippet">The default mode network (DMN), a brain network associated with Alzheimer's disease (AD), and its functional connectivity might be a neurological mechanism linking depression and AD.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k7_rel" value="0"> 0</label><label><input type="radio" name="k7_rel" value="1"> 1</label><label><input type="radio" name="k7_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k7_cred" value="0"> 0</label><label><input type="radio" name="k7_cred" value="1"> 1</label><label><input type="radio" name="k7_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k8">
+    <div class="item-head"><span class="pill">k8</span> <span class="topic">Art Nouveau · intermediate</span></div>
+    <div class="query"><b>Query:</b> key Art Nouveau artists Alphonse Mucha and Gustav Klimt</div>
+    <div class="title">Alphonse Mucha - Mucha Museum Panská 7, Prague 1 | Mucha</div>
+    <a class="url" href="https://www.mucha.cz/en/biography" target="_blank" rel="noopener">https://www.mucha.cz/en/biography</a>
+    <div class="snippet">Alphonse Mucha - Mucha Museum Panská 7, Prague 1 | Mucha
+
+x-drawer#scroll&quot; inert&gt;
+
+# Biography
+
+(1860-1939)
+
+## Alfons Mucha
+
+### 1860
+
+Born on July 24 in Ivančice, South Moravia.
+
+### 1879
+
+He leaves for Vienna to work as a theater set painter, while also attending evening drawing classes.
+
+### 1883
+
+Invited by Count Khuen-Belasi to create decorations for Emmahof Castle.
+
+### 1885
+
+Thanks to fina</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k8_rel" value="0"> 0</label><label><input type="radio" name="k8_rel" value="1"> 1</label><label><input type="radio" name="k8_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k8_cred" value="0"> 0</label><label><input type="radio" name="k8_cred" value="1"> 1</label><label><input type="radio" name="k8_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k9">
+    <div class="item-head"><span class="pill">k9</span> <span class="topic">lean manufacturing · intermediate</span></div>
+    <div class="query"><b>Query:</b> the seven wastes (muda) in lean manufacturing</div>
+    <div class="title">The 7 Wastes of Lean Production - PTC</div>
+    <a class="url" href="https://www.ptc.com/en/blogs/iiot/7-wastes-of-lean-production" target="_blank" rel="noopener">https://www.ptc.com/en/blogs/iiot/7-wastes-of-lean-production</a>
+    <div class="snippet">22 Nov 2024 · The 7 wastes, known as &quot;muda,&quot; are the various forms of inefficiency that the lean production systems seek to eliminate.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k9_rel" value="0"> 0</label><label><input type="radio" name="k9_rel" value="1"> 1</label><label><input type="radio" name="k9_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k9_cred" value="0"> 0</label><label><input type="radio" name="k9_cred" value="1"> 1</label><label><input type="radio" name="k9_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k10">
+    <div class="item-head"><span class="pill">k10</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> how does the default mode network relate to mind wandering and self-referential thought</div>
+    <div class="title">The default network and the combination of cognitive processes that mediate self-generated thought | Nature Human Behaviour</div>
+    <a class="url" href="https://preview-www.nature.com/articles/s41562-017-0244-9" target="_blank" rel="noopener">https://preview-www.nature.com/articles/s41562-017-0244-9</a>
+    <div class="snippet">The default network and the combination of cognitive processes that mediate self-generated thought | Nature Human Behaviour
+
+### Subjects
+
+- Human behaviour
+- Consciousness
+
+## Abstract
+
+Self-generated cognitions, such as recalling personal memories or empathizing with others, are ubiquitous and essential for our lives. Such internal mental processing is ascribed to the default mode network—a larg</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k10_rel" value="0"> 0</label><label><input type="radio" name="k10_rel" value="1"> 1</label><label><input type="radio" name="k10_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k10_cred" value="0"> 0</label><label><input type="radio" name="k10_cred" value="1"> 1</label><label><input type="radio" name="k10_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k11">
+    <div class="item-head"><span class="pill">k11</span> <span class="topic">Art Nouveau · intro</span></div>
+    <div class="query"><b>Query:</b> Art Nouveau art movement explained for beginners</div>
+    <div class="title">Art Nouveau Movement Overview | TheArtStory</div>
+    <a class="url" href="https://www.theartstory.org/movement/art-nouveau/" target="_blank" rel="noopener">https://www.theartstory.org/movement/art-nouveau/</a>
+    <div class="snippet">The style went out of fashion for the most part long before the First World War, paving the way for the development of Art Deco in the 1920s, but it experienced a popular revival in the 1960s, and it is now seen as an important predecessor - if not an integral component - of modernism. ... The desire to abandon the historical styles of the 19th century was an important impetus behind Art Nouveau and one that establishes the movement&amp;#x27;s modernism.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k11_rel" value="0"> 0</label><label><input type="radio" name="k11_rel" value="1"> 1</label><label><input type="radio" name="k11_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k11_cred" value="0"> 0</label><label><input type="radio" name="k11_cred" value="1"> 1</label><label><input type="radio" name="k11_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k12">
+    <div class="item-head"><span class="pill">k12</span> <span class="topic">lean manufacturing · intermediate</span></div>
+    <div class="query"><b>Query:</b> Toyota Production System kanban and just-in-time how it works</div>
+    <div class="title">Lean Thinking And The Toyota Production System Explained</div>
+    <a class="url" href="https://www.learnleansigma.com/continuous-improvement/lean-thinking-and-the-toyota-production-system-tps/" target="_blank" rel="noopener">https://www.learnleansigma.com/continuous-improvement/lean-thinking-and-the-toyota-production-system-tps/</a>
+    <div class="snippet">Explore the roots of Lean in the Toyota Production System (TPS), including Jidoka, Just-In-Time, and Kaizen—principles that transformed global manufacturing and beyond.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k12_rel" value="0"> 0</label><label><input type="radio" name="k12_rel" value="1"> 1</label><label><input type="radio" name="k12_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k12_cred" value="0"> 0</label><label><input type="radio" name="k12_cred" value="1"> 1</label><label><input type="radio" name="k12_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k13">
+    <div class="item-head"><span class="pill">k13</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> default mode network connectivity in depression and Alzheimer's</div>
+    <div class="title">The default mode network, depression and Alzheimer s disease</div>
+    <a class="url" href="https://www.intpsychogeriatrics.org/article/S1041-6102(24)03187-9/pdf" target="_blank" rel="noopener">https://www.intpsychogeriatrics.org/article/S1041-6102(24)03187-9/pdf</a>
+    <div class="snippet">The default mode network, depression and Alzheimer's disease In our attempt to understand the brain basis of both normal and pathological brain function, the study of brain networks has been foundational (Bassett and Sporns, 2017). The brain is a complex network that can be studied at the level of the gene, protein, synapse, cell, circuit or system. In the search for the brain basis of the ...</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k13_rel" value="0"> 0</label><label><input type="radio" name="k13_rel" value="1"> 1</label><label><input type="radio" name="k13_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k13_cred" value="0"> 0</label><label><input type="radio" name="k13_cred" value="1"> 1</label><label><input type="radio" name="k13_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k14">
+    <div class="item-head"><span class="pill">k14</span> <span class="topic">Art Nouveau · intermediate</span></div>
+    <div class="query"><b>Query:</b> Art Nouveau architecture Victor Horta and Antoni Gaudi</div>
+    <div class="title">Architects who mastered Art Nouveau Antoni Gaudí ... - Facebook</div>
+    <a class="url" href="https://www.facebook.com/61565244002554/videos/architects-who-mastered-art-nouveauantoni-gaud%C3%ADgaud%C3%AD-transformed-art-nouveau-int/1956314611913240" target="_blank" rel="noopener">https://www.facebook.com/61565244002554/videos/architects-who-mastered-art-nouveauantoni-gaud%C3%ADgaud%C3%AD-transformed-art-nouveau-int/1956314611913240</a>
+    <div class="snippet">Victor Horta One of the central figures of Art Nouveau, Horta developed an architecture of fluid lines, light metal structures, and carefully</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k14_rel" value="0"> 0</label><label><input type="radio" name="k14_rel" value="1"> 1</label><label><input type="radio" name="k14_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k14_cred" value="0"> 0</label><label><input type="radio" name="k14_cred" value="1"> 1</label><label><input type="radio" name="k14_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k15">
+    <div class="item-head"><span class="pill">k15</span> <span class="topic">lean manufacturing · intermediate</span></div>
+    <div class="query"><b>Query:</b> Toyota Production System kanban and just-in-time how it works</div>
+    <div class="title">Item 4. Development and Deployment of the Toyota Production System</div>
+    <a class="url" href="https://www.toyota-global.com/company/history_of_toyota/75years/text/entering_the_automotive_business/chapter1/section4/item4.html" target="_blank" rel="noopener">https://www.toyota-global.com/company/history_of_toyota/75years/text/entering_the_automotive_business/chapter1/section4/item4.html</a>
+    <div class="snippet">TOYOTA MOTOR CORPORATION GLOBAL WEBSITE | 75 Years of TOYOTA | Part2 Chapter1 Section4 | Item 4. Development and Deployment of the Toyota Production System
+
+- 75-Year History TOP
+- &gt; A 75-Year History through Text
+- &gt; Part 2.
+- &gt; Chapter 1.
+- &gt; Section 4.
+- &gt; Item 4. Development and Deployment of the Toyota Production System
+
+Section 4. Plant Construction and Expansion
+
+## Item 4. Development and </div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k15_rel" value="0"> 0</label><label><input type="radio" name="k15_rel" value="1"> 1</label><label><input type="radio" name="k15_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k15_cred" value="0"> 0</label><label><input type="radio" name="k15_cred" value="1"> 1</label><label><input type="radio" name="k15_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k16">
+    <div class="item-head"><span class="pill">k16</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> default mode network connectivity in depression and Alzheimer's</div>
+    <div class="title">Default Mode Network</div>
+    <a class="url" href="https://www.psychologytoday.com/us/basics/default-mode-network" target="_blank" rel="noopener">https://www.psychologytoday.com/us/basics/default-mode-network</a>
+    <div class="snippet"># Default Mode Network. The default mode network is a system of connected brain areas that show increased activity when a person is not focused on what is happening around them. The DMN is especially active, research shows, when one engages in introspective activities such as daydreaming, contemplating the past or the future, or thinking about another person's perspective. The default mode network is also active when a person is awake. The problem: You do not remember much about that commute because your default mode network kicked in; you may start with daydreaming, but you start to ruminate over what happened the day before and what will happen in the days to come. What is the default mode network’s role in rumination and depression? What is the default mode network’s role in loneliness? The default mode network is more connected in the brains of lonely people. What is the default mode network’s role in creativity?</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k16_rel" value="0"> 0</label><label><input type="radio" name="k16_rel" value="1"> 1</label><label><input type="radio" name="k16_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k16_cred" value="0"> 0</label><label><input type="radio" name="k16_cred" value="1"> 1</label><label><input type="radio" name="k16_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k17">
+    <div class="item-head"><span class="pill">k17</span> <span class="topic">Art Nouveau · intermediate</span></div>
+    <div class="query"><b>Query:</b> key Art Nouveau artists Alphonse Mucha and Gustav Klimt</div>
+    <div class="title">10 Art Nouveau Artists Who Defined the Movement - Invaluable</div>
+    <a class="url" href="https://www.invaluable.com/blog/art-nouveau-artists" target="_blank" rel="noopener">https://www.invaluable.com/blog/art-nouveau-artists</a>
+    <div class="snippet">The Art Nouveau movement began in 1890 with the goal of modernizing design and abandoning the classical, historical styles that had previously been popular. Art Nouveau’s origins can be traced back to the Arts and Crafts movement, a reaction to the academic art styles of the 19th century. The Art Nouveau movement produced many gifted artists specializing in decorative art, architecture, and glass work, including slag glass. In the seven years he was able to illustrate, Beardsley made a name for himself as one of the most talked-about artists of his time. His illustration for Oscar Wilde’s play *Salome* is considered one of the most controversial of the Art Nouveau movement. Before the Art Nouveau movement, Gustav Klimt was recognized for his decorative paintings of historical scenes and figures. This piece is a notable work from his “Golden Phase,” which is considered a leading example of the Art Nouveau movement.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k17_rel" value="0"> 0</label><label><input type="radio" name="k17_rel" value="1"> 1</label><label><input type="radio" name="k17_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k17_cred" value="0"> 0</label><label><input type="radio" name="k17_cred" value="1"> 1</label><label><input type="radio" name="k17_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k18">
+    <div class="item-head"><span class="pill">k18</span> <span class="topic">lean manufacturing · intermediate</span></div>
+    <div class="query"><b>Query:</b> the seven wastes (muda) in lean manufacturing</div>
+    <div class="title">What are the 7 Wastes in Lean? - Lean Enterprise Institute</div>
+    <a class="url" href="https://www.lean.org/lexicon-terms/seven-wastes/" target="_blank" rel="noopener">https://www.lean.org/lexicon-terms/seven-wastes/</a>
+    <div class="snippet">The 7 wastes are common behaviors in business that do not add value for the customer, and therefore, must be eliminated through kaizen.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k18_rel" value="0"> 0</label><label><input type="radio" name="k18_rel" value="1"> 1</label><label><input type="radio" name="k18_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k18_cred" value="0"> 0</label><label><input type="radio" name="k18_cred" value="1"> 1</label><label><input type="radio" name="k18_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k19">
+    <div class="item-head"><span class="pill">k19</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> how does the default mode network relate to mind wandering and self-referential thought</div>
+    <div class="title">ADHD mind wandering and the default mode network (DMN)</div>
+    <a class="url" href="https://neurodiversity.directory/adhd-mind-wandering-default-mode-network/" target="_blank" rel="noopener">https://neurodiversity.directory/adhd-mind-wandering-default-mode-network/</a>
+    <div class="snippet">26 Feb 2026 · Default mode network activity represents human attention as distinct from cybernetic attention. Human attention: internally regulated, sustained ...</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k19_rel" value="0"> 0</label><label><input type="radio" name="k19_rel" value="1"> 1</label><label><input type="radio" name="k19_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k19_cred" value="0"> 0</label><label><input type="radio" name="k19_cred" value="1"> 1</label><label><input type="radio" name="k19_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k20">
+    <div class="item-head"><span class="pill">k20</span> <span class="topic">Art Nouveau · intermediate</span></div>
+    <div class="query"><b>Query:</b> key Art Nouveau artists Alphonse Mucha and Gustav Klimt</div>
+    <div class="title">Gustav Klimt</div>
+    <a class="url" href="https://en.wikipedia.org/wiki/Klimt" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Klimt</a>
+    <div class="snippet">Gustav Klimt
+
+Gustav Klimt (14 July 1862 – 6 February 1918) was an Austrian symbolist painter and a founding member of the Vienna Secession movement. His work helped define the Art Nouveau style in Europe. Klimt is known for his paintings, murals, sketches, and other objets d'art. Klimt's primary subject was the female body, and his works are marked by a frank eroticism. Amongst his figurative wor</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k20_rel" value="0"> 0</label><label><input type="radio" name="k20_rel" value="1"> 1</label><label><input type="radio" name="k20_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k20_cred" value="0"> 0</label><label><input type="radio" name="k20_cred" value="1"> 1</label><label><input type="radio" name="k20_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k21">
+    <div class="item-head"><span class="pill">k21</span> <span class="topic">lean manufacturing · intro</span></div>
+    <div class="query"><b>Query:</b> lean manufacturing principles explained for beginners</div>
+    <div class="title">Lean Manufacturing for Beginners: Cut Waste, Boost Flow</div>
+    <a class="url" href="https://leanexcellence.ca/lean-manufacturing-techniques-for-beginners/" target="_blank" rel="noopener">https://leanexcellence.ca/lean-manufacturing-techniques-for-beginners/</a>
+    <div class="snippet">Lean Manufacturing for Beginners: Cut Waste, Boost Flow
+
+Want to know something shocking about manufacturing waste? Up to 95% of work in typical companies adds zero value to the final product. That’s right – most activities happening on your production floor might be pure waste.
+
+The good news? Toyota cracked this problem decades ago. Their Production System, developed after World War II, gave bir</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k21_rel" value="0"> 0</label><label><input type="radio" name="k21_rel" value="1"> 1</label><label><input type="radio" name="k21_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k21_cred" value="0"> 0</label><label><input type="radio" name="k21_cred" value="1"> 1</label><label><input type="radio" name="k21_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k22">
+    <div class="item-head"><span class="pill">k22</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> how does the default mode network relate to mind wandering and self-referential thought</div>
+    <div class="title">What is the default mode network and how is it involved in self-referential ...</div>
+    <a class="url" href="https://www.quora.com/What-is-the-default-mode-network-and-how-is-it-involved-in-self-referential-thought-and-mind-wandering" target="_blank" rel="noopener">https://www.quora.com/What-is-the-default-mode-network-and-how-is-it-involved-in-self-referential-thought-and-mind-wandering</a>
+    <div class="snippet">25 Apr 2023 · The default mode network (DMN) is a system of connected brain areas that show increased activity when a person is not focused on what is ...</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k22_rel" value="0"> 0</label><label><input type="radio" name="k22_rel" value="1"> 1</label><label><input type="radio" name="k22_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k22_cred" value="0"> 0</label><label><input type="radio" name="k22_cred" value="1"> 1</label><label><input type="radio" name="k22_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k23">
+    <div class="item-head"><span class="pill">k23</span> <span class="topic">Art Nouveau · intermediate</span></div>
+    <div class="query"><b>Query:</b> characteristics and motifs of Art Nouveau style</div>
+    <div class="title">Everything You Need to Know About Art Nouveau Architecture</div>
+    <a class="url" href="https://www.thespruce.com/what-is-art-nouveau-architecture-5194926" target="_blank" rel="noopener">https://www.thespruce.com/what-is-art-nouveau-architecture-5194926</a>
+    <div class="snippet">Art nouveau style is inspired by the natural world, characterized by sinuous, sculptural, organic shapes, arches, curving lines, and sensual ornamentation. Common motifs include stylized versions of leaves, flowers, vines, insects, animals, ...</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k23_rel" value="0"> 0</label><label><input type="radio" name="k23_rel" value="1"> 1</label><label><input type="radio" name="k23_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k23_cred" value="0"> 0</label><label><input type="radio" name="k23_cred" value="1"> 1</label><label><input type="radio" name="k23_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k24">
+    <div class="item-head"><span class="pill">k24</span> <span class="topic">lean manufacturing · intermediate</span></div>
+    <div class="query"><b>Query:</b> value stream mapping and kaizen continuous improvement in lean</div>
+    <div class="title">Kaizen — A Resource Guide | Lean Enterprise Institute</div>
+    <a class="url" href="https://www.lean.org/lexicon-terms/kaizen/" target="_blank" rel="noopener">https://www.lean.org/lexicon-terms/kaizen/</a>
+    <div class="snippet">Kaizen — A Resource Guide | Lean Enterprise Institute
+
+# Kaizen
+
+Kaizen is a Japanese word that means “continuous improvement”. Kaizen aims to make small, incremental improvements in processes and systems, leading to significant long-term benefits.
+
+## The Kaizen Philosophy
+
+The kaizen philosophy has been successfully implemented in various industries, including lean manufacturing, to reduce waste</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k24_rel" value="0"> 0</label><label><input type="radio" name="k24_rel" value="1"> 1</label><label><input type="radio" name="k24_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k24_cred" value="0"> 0</label><label><input type="radio" name="k24_cred" value="1"> 1</label><label><input type="radio" name="k24_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k25">
+    <div class="item-head"><span class="pill">k25</span> <span class="topic">default mode network · intro</span></div>
+    <div class="query"><b>Query:</b> default mode network explained simply for beginners</div>
+    <div class="title">r/cogsci on Reddit: Simple explanation of the default mode network?</div>
+    <a class="url" href="https://www.reddit.com/r/cogsci/comments/1ge0foe/simple_explanation_of_the_default_mode_network/" target="_blank" rel="noopener">https://www.reddit.com/r/cogsci/comments/1ge0foe/simple_explanation_of_the_default_mode_network/</a>
+    <div class="snippet">From what I&amp;#x27;ve gathered (this comment is an invitation for clarification, since I have not looked into it very deeply) this &amp;quot;Default Mode Network&amp;quot; is not so much &amp;quot;activated&amp;quot; by contemplation (neural activity not associated with actual physical tasks) so much as &amp;#x27;what is still left active despite absence of actual physical tasks being performed&amp;#x27;. All components of this &amp;quot;default mode network&amp;quot; are also involves in non-&amp;#x27;default mode&amp;#x27; activity. But simply discovering that a particular set of diverse and distributed neurons are not less active during absences of physical activities has lead to the conjecture that these neurons, defined as a group/set/&amp;quot;network&amp;quot; by this fact alone, are more integral to the raw experience of being conscious than the balance of brain tissue.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k25_rel" value="0"> 0</label><label><input type="radio" name="k25_rel" value="1"> 1</label><label><input type="radio" name="k25_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k25_cred" value="0"> 0</label><label><input type="radio" name="k25_cred" value="1"> 1</label><label><input type="radio" name="k25_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k26">
+    <div class="item-head"><span class="pill">k26</span> <span class="topic">Art Nouveau · intermediate</span></div>
+    <div class="query"><b>Query:</b> characteristics and motifs of Art Nouveau style</div>
+    <div class="title">Art Nouveau - Wikipedia</div>
+    <a class="url" href="https://en.wikipedia.org/wiki/Art_Nouveau" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Art_Nouveau</a>
+    <div class="snippet">Art Nouveau (/ ˌɑːr (t) nuːˈvoʊ / AR (T) noo-VOH; French: [aʁ nuvo] ⓘ; lit. 'New Art'), Jugendstil in German, is an international style of art, architecture, and applied art, especially the decorative arts. It was often inspired by natural forms such as the sinuous curves of plants and flowers. [1] Other characteristics of Art Nouveau were a sense of dynamism and movement, often given ...</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k26_rel" value="0"> 0</label><label><input type="radio" name="k26_rel" value="1"> 1</label><label><input type="radio" name="k26_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k26_cred" value="0"> 0</label><label><input type="radio" name="k26_cred" value="1"> 1</label><label><input type="radio" name="k26_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k27">
+    <div class="item-head"><span class="pill">k27</span> <span class="topic">lean manufacturing · intro</span></div>
+    <div class="query"><b>Query:</b> lean manufacturing principles explained for beginners</div>
+    <div class="title">Lean manufacturing - Wikipedia</div>
+    <a class="url" href="https://en.wikipedia.org/wiki/Lean_manufacturing" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Lean_manufacturing</a>
+    <div class="snippet">Lean manufacturing is a management system built on three principles: produce only what is needed, when it is needed; correct abnormalities as soon as they occur; and empower workers to improve the process themselves. At its core, Lean eliminates activities that do not add value for the customer.</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k27_rel" value="0"> 0</label><label><input type="radio" name="k27_rel" value="1"> 1</label><label><input type="radio" name="k27_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k27_cred" value="0"> 0</label><label><input type="radio" name="k27_cred" value="1"> 1</label><label><input type="radio" name="k27_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="item" data-id="k28">
+    <div class="item-head"><span class="pill">k28</span> <span class="topic">default mode network · intermediate</span></div>
+    <div class="query"><b>Query:</b> default mode network brain regions and functions</div>
+    <div class="title">Default Mode Network - Psychology Today</div>
+    <a class="url" href="https://www.psychologytoday.com/us/basics/default-mode-network" target="_blank" rel="noopener">https://www.psychologytoday.com/us/basics/default-mode-network</a>
+    <div class="snippet">The default mode network, discovered by neurologist Marcus Raichle, spans several brain regions, parts of the prefrontal, parietal, and temporal cortices that show joint activation, or ...</div>
+    <div class="axes">
+      <div class="axis">
+        <span class="axis-label">Relevance / level (0–2)</span>
+        <label><input type="radio" name="k28_rel" value="0"> 0</label><label><input type="radio" name="k28_rel" value="1"> 1</label><label><input type="radio" name="k28_rel" value="2"> 2</label>
+      </div>
+      <div class="axis">
+        <span class="axis-label">Credibility (0–2)</span>
+        <label><input type="radio" name="k28_cred" value="0"> 0</label><label><input type="radio" name="k28_cred" value="1"> 1</label><label><input type="radio" name="k28_cred" value="2"> 2</label>
+      </div>
+    </div>
+  </div>
+  <div class="bar">
+    <button onclick="copyResults()">Copy results as JSON</button>
+    <span id="status"></span>
+  </div>
+  <textarea id="json" readonly></textarea>
+</div>
+<script>
+  const ITEM_IDS = ["k1","k2","k3","k4","k5","k6","k7","k8","k9","k10","k11","k12","k13","k14","k15","k16","k17","k18","k19","k20","k21","k22","k23","k24","k25","k26","k27","k28"];
+  function collect(){
+    const ratings = ITEM_IDS.map(id => {
+      const rel = document.querySelector('input[name="'+id+'_rel"]:checked');
+      const cred = document.querySelector('input[name="'+id+'_cred"]:checked');
+      return { itemId:id, relevance: rel?Number(rel.value):null, credibility: cred?Number(cred.value):null };
+    });
+    return ratings;
+  }
+  function copyResults(){
+    const ratings = collect();
+    const missing = ratings.filter(r => r.relevance===null || r.credibility===null).length;
+    const payload = JSON.stringify({ rater:"CEO", ratings }, null, 2);
+    const ta = document.getElementById('json'); ta.style.display='block'; ta.value = payload; ta.select();
+    navigator.clipboard?.writeText(payload).catch(()=>{});
+    document.getElementById('status').textContent = missing>0
+      ? ('Copied — WARNING: '+missing+' item(s) unrated.')
+      : 'Copied all '+ratings.length+' ratings to clipboard.';
+  }
+</script>
+</body></html>
