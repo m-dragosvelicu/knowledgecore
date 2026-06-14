@@ -1,0 +1,16 @@
+# SearXNG settings for the L2 ingestion bench.
+# JSON output enabled so the bench can query /search?q=...&format=json.
+use_default_settings: true
+
+server:
+  secret_key: "REDACTED_ROTATE_ME"
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  formats:
+    - html
+    - json
