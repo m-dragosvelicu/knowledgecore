@@ -7,6 +7,7 @@
 - [Bun](https://bun.sh) >= 1.3
 - [Docker](https://docs.docker.com/get-docker/) (Compose v2)
 - A Google GenAI API key (`GOOGLE_GENAI_API_KEY`) — **mandatory**. The app runs live-only; every LLM-backed service requires this key and the registry throws on startup without it.
+- An OpenAlex API key (`OPENALEX_API_KEY`) — **mandatory** for the academic source tier. The mailto polite-pool was deprecated on 2026-02-13; the client throws on startup without this key. Obtain at https://openalex.org/accounts. Credit-based limits apply (~$0.001 per search query).
 
 ## First-time setup
 
@@ -19,7 +20,7 @@ bun run db:up
 
 # 3. Copy env template and fill in secrets
 cp .env.example .env
-# Required at minimum: GOOGLE_GENAI_API_KEY, BETTER_AUTH_SECRET, DATABASE_URL
+# Required at minimum: GOOGLE_GENAI_API_KEY, OPENALEX_API_KEY, TAVILY_API_KEY, BETTER_AUTH_SECRET, DATABASE_URL
 
 # 4. Generate BETTER_AUTH_SECRET
 openssl rand -base64 32  # paste into BETTER_AUTH_SECRET in .env
@@ -62,10 +63,8 @@ docker-compose.yml  Local Postgres + Qdrant
 ## Live-only services
 
 KnowledgeCore has no mock fallback. All LLM-backed services are live and require
-`GOOGLE_GENAI_API_KEY`. The one exception is `getResearchAgent()` which uses
-`MockResearchAgent` in Phase 0 (the live Research Agent lands in L2; the seam is
-preserved for that migration).
+`GOOGLE_GENAI_API_KEY`. The research (academic) tier additionally requires
+`OPENALEX_API_KEY` and `TAVILY_API_KEY`; both are checked at call time and throw
+a clear error if absent.
 
-There are no `LIVE_*` opt-out environment flags. They have been removed.
-`LIVE_RESEARCH=true` is the sole remaining flag: it is a forward-compat opt-in for
-the future live Research Agent and has no effect in Phase 0 (still returns mock).
+There are no `LIVE_*` opt-out environment flags.
