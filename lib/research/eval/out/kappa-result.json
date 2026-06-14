@@ -1,0 +1,12 @@
+{
+  "n": 28,
+  "skipped": 0,
+  "relevance": {
+    "binaryUsefulKappa": 0.2143,
+    "quadraticWeightedKappa": 0.1628
+  },
+  "credibility": {
+    "binaryUsefulKappa": 0.3137,
+    "quadraticWeightedKappa": 0.3762
+  }
+}

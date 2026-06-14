@@ -1,0 +1,145 @@
+{
+  "rater": "CEO",
+  "ratings": [
+    {
+      "itemId": "k1",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k2",
+      "relevance": 1,
+      "credibility": 1
+    },
+    {
+      "itemId": "k3",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k4",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k5",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k6",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k7",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k8",
+      "relevance": 1,
+      "credibility": 2
+    },
+    {
+      "itemId": "k9",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k10",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k11",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k12",
+      "relevance": 2,
+      "credibility": 0
+    },
+    {
+      "itemId": "k13",
+      "relevance": 1,
+      "credibility": 1
+    },
+    {
+      "itemId": "k14",
+      "relevance": 1,
+      "credibility": 0
+    },
+    {
+      "itemId": "k15",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k16",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k17",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k18",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k19",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k20",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k21",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k22",
+      "relevance": 1,
+      "credibility": 0
+    },
+    {
+      "itemId": "k23",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k24",
+      "relevance": 2,
+      "credibility": 2
+    },
+    {
+      "itemId": "k25",
+      "relevance": 1,
+      "credibility": 0
+    },
+    {
+      "itemId": "k26",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k27",
+      "relevance": 2,
+      "credibility": 1
+    },
+    {
+      "itemId": "k28",
+      "relevance": 1,
+      "credibility": 1
+    }
+  ]
+}

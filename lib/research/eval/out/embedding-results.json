@@ -1,0 +1,409 @@
+{
+  "generatedAt": "2026-06-03T12:42:04.822Z",
+  "chunkScheme": {
+    "targetTokens": 512,
+    "overlapTokens": 64,
+    "tokenApprox": "words / 0.75 (English heuristic, no tokenizer dep)",
+    "unit": "paragraph-packed with sentence-split fallback"
+  },
+  "totalChunks": 180,
+  "chunksPerTopic": {
+    "default mode network": 60,
+    "lean manufacturing": 60,
+    "Art Nouveau": 60
+  },
+  "groundTruthLabelledQueries": 15,
+  "judgeModel": "gemini-3.5-flash",
+  "note": "Qwen3-Embedding-0.6B excluded: OpenRouter returns HTTP 404 'no endpoints' for qwen/qwen3-embedding-0.6b (verified 2026-06-03).",
+  "models": {
+    "gemini-embedding-001": {
+      "label": "Gemini Embedding (gemini-embedding-001)",
+      "dim": 3072,
+      "pricePerMTokensUsd": 0.15,
+      "priceSource": "ai.google.dev/gemini-api/docs/pricing (paid tier, 2026-06-03): $0.15 / 1M input tokens",
+      "recallAt5": 0.5067,
+      "mrr": 0.8444,
+      "ndcgAt10": 0.6426,
+      "queriesScored": 15,
+      "chunkEmbedMs": 86324,
+      "meanQueryEmbedMs": 450,
+      "qdrant": {
+        "collection": "l2_eval_gemini_embedding_001",
+        "pointCount": 180
+      },
+      "perQuery": [
+        {
+          "queryId": "dmn-1",
+          "recall5": 1,
+          "mrr": 1,
+          "ndcg10": 0.9292442392789194,
+          "relevant": 9
+        },
+        {
+          "queryId": "dmn-2",
+          "recall5": 0.8,
+          "mrr": 1,
+          "ndcg10": 0.719779994662349,
+          "relevant": 7
+        },
+        {
+          "queryId": "dmn-3",
+          "recall5": 0.2,
+          "mrr": 1,
+          "ndcg10": 0.3187704634136788,
+          "relevant": 9
+        },
+        {
+          "queryId": "dmn-4",
+          "recall5": 0.2,
+          "mrr": 1,
+          "ndcg10": 0.4412851793128928,
+          "relevant": 11
+        },
+        {
+          "queryId": "dmn-5",
+          "recall5": 0,
+          "mrr": 0.16666666666666666,
+          "ndcg10": 0.4227898344066503,
+          "relevant": 2
+        },
+        {
+          "queryId": "lean-1",
+          "recall5": 0.4,
+          "mrr": 0.5,
+          "ndcg10": 0.38196033715832356,
+          "relevant": 10
+        },
+        {
+          "queryId": "lean-2",
+          "recall5": 0.2,
+          "mrr": 1,
+          "ndcg10": 0.45221360703148816,
+          "relevant": 5
+        },
+        {
+          "queryId": "lean-3",
+          "recall5": 0.8,
+          "mrr": 1,
+          "ndcg10": 0.9374130297304558,
+          "relevant": 5
+        },
+        {
+          "queryId": "lean-4",
+          "recall5": 0.5,
+          "mrr": 1,
+          "ndcg10": 0.8175295903539445,
+          "relevant": 2
+        },
+        {
+          "queryId": "lean-5",
+          "recall5": 0.5,
+          "mrr": 1,
+          "ndcg10": 0.7541985434892589,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-1",
+          "recall5": 0.5,
+          "mrr": 0.5,
+          "ndcg10": 0.6595293808496758,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-2",
+          "recall5": 0.6,
+          "mrr": 1,
+          "ndcg10": 0.639945385422766,
+          "relevant": 5
+        },
+        {
+          "queryId": "artn-3",
+          "recall5": 0.4,
+          "mrr": 1,
+          "ndcg10": 0.7238911047912078,
+          "relevant": 5
+        },
+        {
+          "queryId": "artn-4",
+          "recall5": 0.5,
+          "mrr": 1,
+          "ndcg10": 0.6804558477306826,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-5",
+          "recall5": 1,
+          "mrr": 0.5,
+          "ndcg10": 0.7606395682357036,
+          "relevant": 4
+        }
+      ]
+    },
+    "qwen/qwen3-embedding-8b": {
+      "label": "Qwen3-Embedding-8B (OpenRouter)",
+      "dim": 4096,
+      "pricePerMTokensUsd": 0.01,
+      "priceSource": "openrouter.ai/qwen/qwen3-embedding-8b (2026-06-03): $0.01 / 1M tokens",
+      "recallAt5": 0.27,
+      "mrr": 0.4276,
+      "ndcgAt10": 0.2972,
+      "queriesScored": 15,
+      "chunkEmbedMs": 40840,
+      "meanQueryEmbedMs": 4391,
+      "qdrant": {
+        "collection": "l2_eval_qwen_qwen3_embedding_8b",
+        "pointCount": 180
+      },
+      "perQuery": [
+        {
+          "queryId": "dmn-1",
+          "recall5": 0.4,
+          "mrr": 0.25,
+          "ndcg10": 0.27050515530277414,
+          "relevant": 9
+        },
+        {
+          "queryId": "dmn-2",
+          "recall5": 0.4,
+          "mrr": 0.25,
+          "ndcg10": 0.22471947398559278,
+          "relevant": 7
+        },
+        {
+          "queryId": "dmn-3",
+          "recall5": 0,
+          "mrr": 0.06666666666666667,
+          "ndcg10": 0,
+          "relevant": 9
+        },
+        {
+          "queryId": "dmn-4",
+          "recall5": 0.2,
+          "mrr": 0.2,
+          "ndcg10": 0.08514311764162098,
+          "relevant": 11
+        },
+        {
+          "queryId": "dmn-5",
+          "recall5": 0,
+          "mrr": 0.14285714285714285,
+          "ndcg10": 0.20438239758848611,
+          "relevant": 2
+        },
+        {
+          "queryId": "lean-1",
+          "recall5": 0.4,
+          "mrr": 0.5,
+          "ndcg10": 0.29727159644205703,
+          "relevant": 10
+        },
+        {
+          "queryId": "lean-2",
+          "recall5": 0,
+          "mrr": 0.1111111111111111,
+          "ndcg10": 0.10209739512291163,
+          "relevant": 5
+        },
+        {
+          "queryId": "lean-3",
+          "recall5": 0.4,
+          "mrr": 1,
+          "ndcg10": 0.6601396023754075,
+          "relevant": 5
+        },
+        {
+          "queryId": "lean-4",
+          "recall5": 1,
+          "mrr": 1,
+          "ndcg10": 0.9197207891481876,
+          "relevant": 2
+        },
+        {
+          "queryId": "lean-5",
+          "recall5": 0.5,
+          "mrr": 1,
+          "ndcg10": 0.5413996682199069,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-1",
+          "recall5": 0.25,
+          "mrr": 0.25,
+          "ndcg10": 0.3984887823764799,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-2",
+          "recall5": 0,
+          "mrr": 0.07692307692307693,
+          "ndcg10": 0,
+          "relevant": 5
+        },
+        {
+          "queryId": "artn-3",
+          "recall5": 0,
+          "mrr": 0.06666666666666667,
+          "ndcg10": 0,
+          "relevant": 5
+        },
+        {
+          "queryId": "artn-4",
+          "recall5": 0.25,
+          "mrr": 1,
+          "ndcg10": 0.3903800499921017,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-5",
+          "recall5": 0.25,
+          "mrr": 0.5,
+          "ndcg10": 0.3638184934971571,
+          "relevant": 4
+        }
+      ]
+    },
+    "qwen/qwen3-embedding-4b": {
+      "label": "Qwen3-Embedding-4B (OpenRouter)",
+      "dim": 2560,
+      "pricePerMTokensUsd": 0.02,
+      "priceSource": "openrouter.ai/qwen/qwen3-embedding-4b (2026-06-03): $0.02 / 1M tokens",
+      "recallAt5": 0.2667,
+      "mrr": 0.3969,
+      "ndcgAt10": 0.2893,
+      "queriesScored": 15,
+      "chunkEmbedMs": 17027,
+      "meanQueryEmbedMs": 1806,
+      "qdrant": {
+        "collection": "l2_eval_qwen_qwen3_embedding_4b",
+        "pointCount": 180
+      },
+      "perQuery": [
+        {
+          "queryId": "dmn-1",
+          "recall5": 0.6,
+          "mrr": 0.5,
+          "ndcg10": 0.5929700816521338,
+          "relevant": 9
+        },
+        {
+          "queryId": "dmn-2",
+          "recall5": 0.4,
+          "mrr": 0.3333333333333333,
+          "ndcg10": 0.3416877728373431,
+          "relevant": 7
+        },
+        {
+          "queryId": "dmn-3",
+          "recall5": 0,
+          "mrr": 0.16666666666666666,
+          "ndcg10": 0.2362220457557631,
+          "relevant": 9
+        },
+        {
+          "queryId": "dmn-4",
+          "recall5": 0.4,
+          "mrr": 0.5,
+          "ndcg10": 0.2489083270225946,
+          "relevant": 11
+        },
+        {
+          "queryId": "dmn-5",
+          "recall5": 0,
+          "mrr": 0.05555555555555555,
+          "ndcg10": 0,
+          "relevant": 2
+        },
+        {
+          "queryId": "lean-1",
+          "recall5": 0.2,
+          "mrr": 0.3333333333333333,
+          "ndcg10": 0.11004588314904008,
+          "relevant": 10
+        },
+        {
+          "queryId": "lean-2",
+          "recall5": 0,
+          "mrr": 0.047619047619047616,
+          "ndcg10": 0,
+          "relevant": 5
+        },
+        {
+          "queryId": "lean-3",
+          "recall5": 0.4,
+          "mrr": 1,
+          "ndcg10": 0.5531464700081437,
+          "relevant": 5
+        },
+        {
+          "queryId": "lean-4",
+          "recall5": 1,
+          "mrr": 0.3333333333333333,
+          "ndcg10": 0.5706417189553201,
+          "relevant": 2
+        },
+        {
+          "queryId": "lean-5",
+          "recall5": 0.25,
+          "mrr": 1,
+          "ndcg10": 0.5032251913410369,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-1",
+          "recall5": 0.25,
+          "mrr": 0.2,
+          "ndcg10": 0.2741708125981702,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-2",
+          "recall5": 0,
+          "mrr": 0.14285714285714285,
+          "ndcg10": 0.22004653412513583,
+          "relevant": 5
+        },
+        {
+          "queryId": "artn-3",
+          "recall5": 0,
+          "mrr": 0.09090909090909091,
+          "ndcg10": 0,
+          "relevant": 5
+        },
+        {
+          "queryId": "artn-4",
+          "recall5": 0.25,
+          "mrr": 1,
+          "ndcg10": 0.3903800499921017,
+          "relevant": 4
+        },
+        {
+          "queryId": "artn-5",
+          "recall5": 0.25,
+          "mrr": 0.25,
+          "ndcg10": 0.298254219601818,
+          "relevant": 4
+        }
+      ]
+    }
+  },
+  "qdrantIngest": [
+    {
+      "collection": "l2_eval_gemini_embedding_001",
+      "dim": 3072,
+      "pointCount": 180,
+      "model": "gemini-embedding-001"
+    },
+    {
+      "collection": "l2_eval_qwen_qwen3_embedding_8b",
+      "dim": 4096,
+      "pointCount": 180,
+      "model": "qwen/qwen3-embedding-8b"
+    },
+    {
+      "collection": "l2_eval_qwen_qwen3_embedding_4b",
+      "dim": 2560,
+      "pointCount": 180,
+      "model": "qwen/qwen3-embedding-4b"
+    }
+  ]
+}
