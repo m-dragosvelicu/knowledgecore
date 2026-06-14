@@ -42,6 +42,15 @@ export interface SearchWorksOptions {
   openAccessOnly?: boolean;
 }
 
+function requireApiKey(): string {
+  const key = process.env.OPENALEX_API_KEY;
+  if (!key)
+    throw new Error(
+      "OPENALEX_API_KEY is required: OpenAlex dropped the mailto polite-pool on 2026-02-13 and now requires a real API key. Set OPENALEX_API_KEY in .env locally and in the Vercel project env for preview/production.",
+    );
+  return key;
+}
+
 function reconstructAbstract(
   inverted: Record<string, number[]> | null,
 ): string | null {
@@ -70,19 +79,30 @@ function mapWork(raw: RawWork): OpenAlexWork {
   };
 }
 
-function buildUrl(path: string, params: Record<string, string>): string {
+function buildUrl(
+  path: string,
+  params: Record<string, string>,
+  apiKey: string,
+): string {
   const url = new URL(`${BASE_URL}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const email = process.env.OPENALEX_EMAIL;
-  if (email) url.searchParams.set("mailto", email);
+  url.searchParams.set("api_key", apiKey);
   return url.toString();
+}
+
+function redactUrl(url: string): string {
+  const u = new URL(url);
+  if (u.searchParams.has("api_key")) {
+    u.searchParams.set("api_key", "[REDACTED]");
+  }
+  return u.toString();
 }
 
 async function request<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(
-      `OpenAlex request failed: ${res.status} ${res.statusText} for ${url}`,
+      `OpenAlex request failed: ${res.status} ${res.statusText} for ${redactUrl(url)}`,
     );
   }
   return (await res.json()) as T;
@@ -92,6 +112,7 @@ export async function searchWorks(
   query: string,
   opts: SearchWorksOptions = {},
 ): Promise<OpenAlexWork[]> {
+  const apiKey = requireApiKey();
   const filters: string[] = [];
   if (opts.year !== undefined) filters.push(`publication_year:${opts.year}`);
   if (opts.openAccessOnly) filters.push("open_access.is_oa:true");
@@ -100,14 +121,15 @@ export async function searchWorks(
     per_page: String(opts.perPage ?? 25),
   };
   if (filters.length) params.filter = filters.join(",");
-  const url = buildUrl("/works", params);
+  const url = buildUrl("/works", params, apiKey);
   const data = await request<SearchResponse>(url);
   return data.results.map(mapWork);
 }
 
 export async function getWork(openAlexId: string): Promise<OpenAlexWork> {
+  const apiKey = requireApiKey();
   const id = openAlexId.replace(/^https?:\/\/openalex\.org\//, "");
-  const url = buildUrl(`/works/${id}`, {});
+  const url = buildUrl(`/works/${id}`, {}, apiKey);
   const raw = await request<RawWork>(url);
   return mapWork(raw);
 }
