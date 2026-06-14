@@ -90,11 +90,19 @@ function buildUrl(
   return url.toString();
 }
 
+function redactUrl(url: string): string {
+  const u = new URL(url);
+  if (u.searchParams.has("api_key")) {
+    u.searchParams.set("api_key", "[REDACTED]");
+  }
+  return u.toString();
+}
+
 async function request<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(
-      `OpenAlex request failed: ${res.status} ${res.statusText} for ${url}`,
+      `OpenAlex request failed: ${res.status} ${res.statusText} for ${redactUrl(url)}`,
     );
   }
   return (await res.json()) as T;
