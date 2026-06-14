@@ -109,8 +109,8 @@ async function runDbChecks(): Promise<void> {
     });
     check("bundle is marked ready after fill", bundle?.status === "ready", bundle?.status);
     check(
-      "bundle has 2-3 sources (canned mock)",
-      (bundle?.sources.length ?? 0) >= 2 && (bundle?.sources.length ?? 0) <= 3,
+      "bundle has at least 1 source (live agent)",
+      (bundle?.sources.length ?? 0) >= 1,
       `${bundle?.sources.length} sources`,
     );
 
