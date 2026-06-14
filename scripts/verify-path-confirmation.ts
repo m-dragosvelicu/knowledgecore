@@ -20,10 +20,72 @@
 import { prisma } from "../lib/db";
 import { getCurrentGoalpost } from "../lib/journey/state";
 import { applyPreAcceptancePathAdjustment } from "../lib/journey/pathRevision";
-import { MockPathAdjuster } from "../lib/services/mock/mockPathAdjuster";
-import { MockPathConfirmationInterviewer } from "../lib/services/mock/mockPathConfirmationInterviewer";
+import type {
+  PathAdjuster,
+  PathAdjusterInput,
+  PathAdjustment,
+} from "../lib/services/types";
 import type { InterviewTurn } from "../lib/services/types";
-import type { OverviewGoalpost } from "../lib/services/pathConfirmation";
+import type {
+  OverviewGoalpost,
+  PathConfirmationInput,
+  PathConfirmationInterviewer,
+  PathConfirmationStep,
+} from "../lib/services/pathConfirmation";
+
+// Local deterministic doubles for the dialogue engine + adjuster (mirroring the
+// deleted mocks). The interviewer asks ONE canned clarifying question, then
+// completes with a concern synthesized from the learner's own words (so the
+// "concern reflects the learner's words" assertion holds). The adjuster inserts
+// ONE remediation goalpost (minimal edit).
+const PATHCONF_QUESTIONS = [
+  "What feels off about this plan — is it aimed at the wrong level, missing something you need, or covering things you already know?",
+];
+
+class FakePathConfirmationInterviewer implements PathConfirmationInterviewer {
+  async clarify(input: PathConfirmationInput): Promise<PathConfirmationStep> {
+    const asked = input.transcript.filter((t) => t.role === "assistant").length;
+    if (asked < PATHCONF_QUESTIONS.length) {
+      return { kind: "question", question: PATHCONF_QUESTIONS[asked] };
+    }
+    const answers = input.transcript
+      .filter((t) => t.role === "user")
+      .map((t) => t.content.trim())
+      .filter(Boolean);
+    const concern =
+      answers.length > 0
+        ? `The learner says the proposed path is not quite right: "${answers.join(" ")}". Revise the overview to address this before they start.`
+        : "The learner indicated the path is not quite right but did not elaborate; make a conservative, minimal adjustment toward the stated outcomes.";
+    return { kind: "complete", concern };
+  }
+}
+
+class FakePathAdjuster implements PathAdjuster {
+  async adjust(input: PathAdjusterInput): Promise<PathAdjustment> {
+    const insertOrder = input.currentGoalpost.order + 1;
+    return {
+      insertedGoalposts: [
+        {
+          order: insertOrder,
+          title: `Shore up: ${input.currentGoalpost.title}`,
+          objective: `Revisit "${input.currentGoalpost.objective}" before moving on.`,
+          estimatedMinutes: 30,
+          steps: [
+            { order: 1, type: "information", payload: { content: "Rebuild the foundation.", sourceIds: [] } },
+            {
+              order: 2,
+              type: "experience_socratic",
+              payload: { prompt: "Explain the core idea in your own words.", rubricFocus: ["conceptual", "communication"] },
+            },
+          ],
+        },
+      ],
+      removedOrders: [],
+      modifiedGoalposts: [],
+      rationale: `Added a short refresher on "${input.currentGoalpost.title}".`,
+    };
+  }
+}
 
 let failures = 0;
 function check(name: string, cond: boolean) {
@@ -46,7 +108,7 @@ const expStep = (order: number) => ({
 // transcript, re-send it each turn, append the assistant question, then a learner
 // answer, until kind="complete". Returns the synthesized concern + turn count.
 async function runDialogue(
-  interviewer: MockPathConfirmationInterviewer,
+  interviewer: PathConfirmationInterviewer,
   subject: { canonicalName: string; scopeNote: string },
   overview: OverviewGoalpost[],
   learnerAnswers: string[],
@@ -115,7 +177,7 @@ async function main() {
   });
 
   // ---- 1. The reused dialogue engine terminates with a concern ----
-  const interviewer = new MockPathConfirmationInterviewer();
+  const interviewer = new FakePathConfirmationInterviewer();
   const overview: OverviewGoalpost[] = path.goalposts.map((g) => ({
     order: g.order,
     title: g.title,
@@ -135,7 +197,7 @@ async function main() {
   // ---- 2. Concern -> existing Path Adjuster -> pre-acceptance revision ----
   const anchor = path.goalposts[0];
   const remaining = path.goalposts.slice(1);
-  const adjuster = new MockPathAdjuster();
+  const adjuster = new FakePathAdjuster();
   const adjustment = await adjuster.adjust({
     subject: { canonicalName: "Linear Algebra", scopeNote: "for ML" },
     motivation: "work",

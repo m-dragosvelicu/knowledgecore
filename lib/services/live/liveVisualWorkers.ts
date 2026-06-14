@@ -420,8 +420,7 @@ export class VideoWorker implements VisualWorker {
   }
 }
 
-// The per-medium worker set the orchestrator fans out to. Mirrors
-// buildVisualWorkerStubs so it is a drop-in at the swap point.
+// The per-medium worker set the orchestrator fans out to.
 export function buildVisualWorkers(deps: {
   llm: LLMClient;
   imageSource: ImageSource;
