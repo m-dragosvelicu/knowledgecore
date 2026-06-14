@@ -10,3 +10,5 @@ export { braveSearch } from "./braveSearch";
 export { exaSearch } from "./exa";
 export { extract } from "./extract";
 export { fetchPageRanks, hostOf } from "./openPageRank";
+export { routeQueries } from "./intentRouter";
+export type { RoutingDecision, SourceTier, DepthLabel } from "./intentRouter";
