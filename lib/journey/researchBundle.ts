@@ -116,7 +116,7 @@ async function ensureBundle(
 }
 
 /**
- * Run the (Phase 0 mock) agent and persist its sources/chunks into the bundle,
+ * Run the live Research Agent and persist its sources/chunks into the bundle,
  * then mark it ready. Sources are globally deduped by `dedupKey`; chunks by
  * `contentHash` — so re-filling the same topic is idempotent. On failure the
  * bundle is marked failed and null is returned (journey stays ungrounded).
