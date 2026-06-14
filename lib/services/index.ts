@@ -20,7 +20,7 @@ import type { ImageSource, VideoSource } from "@/lib/services/visualMedia";
 import { LiveOpenverseImageSource } from "@/lib/services/live/liveOpenverseImageSource";
 import { LiveYouTubeVideoSource } from "@/lib/services/live/liveYouTubeVideoSource";
 import type { ResearchAgent } from "@/lib/services/research";
-import { MockResearchAgent } from "@/lib/services/mock/mockResearchAgent";
+import { LiveResearchAgent } from "@/lib/services/live/liveResearchAgent";
 
 export * from "@/lib/services/types";
 export type { LessonContentGenerator } from "@/lib/services/lessonContent";
@@ -164,37 +164,21 @@ export function getVisualResolvers(): {
 }
 
 // ---------------------------------------------------------------------------
-// L2 Phase 0 — the Research Agent (the source layer behind the Library).
+// L2 — the Research Agent (live, ADR 9 ratified).
 //
-// Same SEPARATE-selector pattern as the L1 services (the LOCKED `Services` type
-// must not change). Phase 0 ships the MOCK ONLY (deterministic canned bundle,
-// zero network / keys / embeddings), so this DEFAULTS TO MOCK regardless of env.
-// `LIVE_RESEARCH=true` is the forward-compat OPT-IN switch for the live agent
-// that lands in a later phase; until that agent exists the selector logs the
-// opt-in and still returns the mock, so Phase 0 can never accidentally hit the
-// network or require a key.
+// The live agent is the ONLY path. TAVILY_API_KEY is required and the selector
+// throws immediately if it is absent (fail-fast, consistent with live-only
+// philosophy). Empty-retrieval (zero usable sources WITH a valid key) is handled
+// gracefully inside LiveResearchAgent itself (T04): it returns an empty Bundle
+// and the journey stays ungrounded rather than failing hard.
 // ---------------------------------------------------------------------------
 
-const LIVE_RESEARCH_FLAG = "LIVE_RESEARCH";
-
-function wantsLiveResearch(): boolean {
-  return process.env[LIVE_RESEARCH_FLAG] === "true";
-}
-
 export function getResearchAgent(): ResearchAgent {
-  if (wantsLiveResearch()) {
-    // No live agent exists in Phase 0; the source layer + retrieval land later.
-    // Default to mock so the spine stays offline / key-free and never breaks.
-    // eslint-disable-next-line no-console
-    console.warn(
-      JSON.stringify({
-        event: "service_registry.fallback_to_mock",
-        service: "researchAgent",
-        reason: "build_failed",
-        envFlag: LIVE_RESEARCH_FLAG,
-        hint: "LIVE_RESEARCH=true but no live Research Agent exists in Phase 0; using the mock.",
-      }),
+  if (!process.env.TAVILY_API_KEY) {
+    throw new Error(
+      "TAVILY_API_KEY is required: KnowledgeCore's Research Agent runs live-only. " +
+        "Set TAVILY_API_KEY in .env locally and in the Vercel project env for preview/production.",
     );
   }
-  return new MockResearchAgent();
+  return new LiveResearchAgent();
 }
