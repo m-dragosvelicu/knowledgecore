@@ -3,16 +3,18 @@
  * code path the web app uses. The prior false positive came from bypassing `getServices()`
  * and constructing Live* classes directly; this script deliberately does NOT do that.
  *
+ * Live-only: the registry has no mock fallback. With GOOGLE_GENAI_API_KEY set, every
+ * service is a Live* instance and `mode === "live"`; without the key the registry
+ * fails fast (asserted separately at the top).
+ *
  * Run with:
  *   bun run scripts/verify-registry.ts
- *   LIVE_INTENT_PARSER=false bun run scripts/verify-registry.ts   # opt-out demo
  *
  * Asserts:
- *   (a) services.mode === "live" when GOOGLE_GENAI_API_KEY is present and no opt-out flags set
- *   (b) each impl is the Live* class instance (constructor.name), NOT the Mock* one
- *   (c) a real end-to-end intent parse through a registry-obtained service reaches Gemini
- *   (d) opt-out: LIVE_INTENT_PARSER=false makes intentParser Mock while the rest stay Live,
- *       and the aggregate mode flips to "mock"
+ *   (a) getServices() throws a clear error when GOOGLE_GENAI_API_KEY is absent
+ *   (b) services.mode === "live"
+ *   (c) each impl is the Live* class instance (constructor.name), NOT the Mock* one
+ *   (d) a real end-to-end intent parse through a registry-obtained service reaches Gemini
  */
 import { getServices } from "@/lib/services";
 
@@ -27,36 +29,32 @@ function names(services: ReturnType<typeof getServices>) {
 }
 
 async function main() {
+  // ---- (a) fail-fast without a key ---------------------------------------------
+  const savedKey = process.env.GOOGLE_GENAI_API_KEY;
+  delete process.env.GOOGLE_GENAI_API_KEY;
+  let threw = false;
+  try {
+    getServices();
+  } catch {
+    threw = true;
+  } finally {
+    if (savedKey !== undefined) process.env.GOOGLE_GENAI_API_KEY = savedKey;
+  }
+  if (!threw) {
+    throw new Error("FAIL-FAST ASSERTION FAILED: getServices() did not throw with GOOGLE_GENAI_API_KEY unset");
+  }
+  console.log("FAIL-FAST PASS: getServices() throws when GOOGLE_GENAI_API_KEY is unset.");
+
   if (!process.env.GOOGLE_GENAI_API_KEY) {
     throw new Error("GOOGLE_GENAI_API_KEY is not set; cannot verify live registry wiring");
   }
-
-  const optOut = process.env.LIVE_INTENT_PARSER === "false";
   console.log("GOOGLE_GENAI_API_KEY present: true");
-  console.log("LIVE_INTENT_PARSER =", JSON.stringify(process.env.LIVE_INTENT_PARSER ?? "(unset)"));
 
   const services = getServices();
   console.log("\nRegistry aggregate mode:", services.mode);
   console.log("Per-service constructor names:", JSON.stringify(names(services), null, 2));
 
-  if (optOut) {
-    // ---- Opt-out demonstration -------------------------------------------------
-    const n = names(services);
-    const ok =
-      services.mode === "mock" &&
-      n.intentParser === "MockIntentParser" &&
-      n.goalInterviewer === "LiveGoalInterviewer" &&
-      n.knowledgeProbe === "LiveKnowledgeProbe" &&
-      n.pathOutliner === "LivePathOutliner" &&
-      n.checkpointEvaluator === "LiveCheckpointEvaluator";
-    if (!ok) {
-      throw new Error("OPT-OUT ASSERTION FAILED: expected intentParser=Mock, others=Live, mode=mock");
-    }
-    console.log("\nOPT-OUT PASS: intentParser fell back to Mock, the other four stayed Live, mode=mock.");
-    return;
-  }
-
-  // ---- Default-to-live assertions ----------------------------------------------
+  // ---- (b)+(c) live-wiring assertions ------------------------------------------
   if (services.mode !== "live") {
     throw new Error(`ASSERTION FAILED: expected mode="live", got "${services.mode}"`);
   }
@@ -75,7 +73,7 @@ async function main() {
   }
   console.log("\nLIVE-WIRING PASS: mode=live and all five impls are Live* instances.");
 
-  // ---- Real end-to-end call through a registry-obtained service ----------------
+  // ---- (d) real end-to-end call through a registry-obtained service ------------
   console.log("\nMaking ONE real intent-parse call through getServices().intentParser ...");
   const subject = await getServices().intentParser.parse(
     "I want to learn linear algebra for ML",

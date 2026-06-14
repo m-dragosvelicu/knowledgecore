@@ -19,10 +19,29 @@
  *   (f) the LlmCallPurpose telemetry value `stt_transcribe` exists (so the live
  *       transcriber can record the call).
  */
-import { MockTranscriber } from "../lib/services/mock/mockTranscriber";
 import { GeminiClient } from "../lib/llm/gemini";
 import type { TranscriptionClient } from "../lib/llm";
+import type {
+  Transcriber,
+  TranscribeInput,
+  TranscribeResult,
+} from "../lib/services/transcription";
 import { LlmCallPurpose } from "@prisma/client";
+
+// Local deterministic transcriber double (mirroring the deleted MockTranscriber):
+// empty audio -> empty transcript; otherwise a canned transcript whose text scales
+// with the byte length so different recordings yield observably different text. The
+// result carries ONLY a transcript (audio-not-persisted) and never mutates the input.
+class FakeTranscriber implements Transcriber {
+  async transcribe(input: TranscribeInput): Promise<TranscribeResult> {
+    if (input.audio.byteLength === 0) {
+      return { transcript: "" };
+    }
+    return {
+      transcript: `This is a mock transcript of ${input.audio.byteLength} bytes of spoken audio.`,
+    };
+  }
+}
 
 let ok = 0;
 let fail = 0;
@@ -40,7 +59,7 @@ function appendTranscript(prev: string, transcript: string): string {
 }
 
 async function main() {
-  const transcriber = new MockTranscriber();
+  const transcriber = new FakeTranscriber();
 
   // ---- (a) audio in -> transcript out -----------------------------------------
   const audio = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
