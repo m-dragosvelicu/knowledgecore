@@ -41,6 +41,7 @@ import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import SolidButton from "@/components/ui/SolidButton";
+import SourcesPanel from "@/components/journey/SourcesPanel";
 
 const DECISION_COLORS: Record<Decision, "success" | "warning" | "info"> = {
   advance: "success",
@@ -174,15 +175,18 @@ export default async function GoalpostPage({
 
   const header = (
     <Stack spacing={1.5}>
-      <Eyebrow>
-        Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
-        &middot;{" "}
-        {phase === "information"
-          ? "read"
-          : phase === "experience"
-            ? "build"
-            : "checkpoint"}
-      </Eyebrow>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+        <Eyebrow>
+          Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
+          &middot;{" "}
+          {phase === "information"
+            ? "read"
+            : phase === "experience"
+              ? "build"
+              : "checkpoint"}
+        </Eyebrow>
+        <SourcesPanel journeyId={intent.id} />
+      </Stack>
       <HeadlineUnderline>
         <Typography variant="h3" component="h1">
           {goalpost!.title}
