@@ -184,8 +184,8 @@ model LearningIntent {
   profile    LearnerProfile?
 
   // L2 — the research bundle(s) this journey draws provenance from. M:N via
-  // JourneyBundle so the SAME topic bundle is reused across users (Library reuse).
-  bundles JourneyBundle[]
+  // JourneyBundleLink so the SAME topic bundle is reused across users (Library reuse).
+  bundles JourneyBundleLink[]
 
   @@index([userId, status])
 }
@@ -533,7 +533,7 @@ model Source {
   rawText String? @db.Text
 
   chunks      SourceChunk[]
-  bundleLinks BundleSource[]
+  bundleLinks BundleSourceLink[]
 
   createdAt DateTime @default(now())
 
@@ -564,7 +564,7 @@ model SourceChunk {
 }
 
 /// "Core source material bundle" for ONE topic. Owned by no user. Reused across
-/// journeys/users via BundleSource + JourneyBundle. Content-addressed by topic.
+/// journeys/users via BundleSourceLink + JourneyBundleLink. Content-addressed by topic.
 model ResearchBundle {
   id String @id @default(cuid())
 
@@ -586,8 +586,8 @@ model ResearchBundle {
   /// later"). Default false in L2; flipping it later needs no schema change.
   isPublic Boolean @default(false)
 
-  sources    BundleSource[]
-  journeys   JourneyBundle[]
+  sources    BundleSourceLink[]
+  journeys   JourneyBundleLink[]
   amendments BundleAmendment[]
 
   createdAt DateTime @default(now())
@@ -597,8 +597,8 @@ model ResearchBundle {
 }
 
 /// M:N join — a source can belong to many bundles (global dedup), a bundle has
-/// many sources.
-model BundleSource {
+/// many sources. Each row is a single bundle<->source link (see ...Link suffix).
+model BundleSourceLink {
   bundleId String
   bundle   ResearchBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
   sourceId String
@@ -614,7 +614,8 @@ model BundleSource {
 
 /// M:N — binds a journey to the bundle(s) it draws provenance from. THIS is the
 /// reuse seam: two users on the same topic both point at one ResearchBundle.
-model JourneyBundle {
+/// Each row is a single journey<->bundle link (see ...Link suffix).
+model JourneyBundleLink {
   intentId String
   intent   LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
   bundleId String
