@@ -79,7 +79,7 @@ export async function GET(
   }
 
   // Resolve all sources from READY bundles bound to this journey.
-  const bundleLinks = await prisma.journeyBundle.findMany({
+  const bundleLinks = await prisma.journeyBundleLink.findMany({
     where: { intentId: journeyId, bundle: { status: "ready" } },
     select: {
       bundle: {
