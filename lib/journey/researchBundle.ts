@@ -6,8 +6,8 @@
  *
  *   - HIT  (a ready bundle for the fingerprint exists) -> just bind the journey.
  *   - MISS -> create the bundle (status researching), run the (Phase 0 MOCK)
- *             agent to fill its Sources / SourceChunks / BundleSource rows, mark
- *             it ready, then bind the journey via JourneyBundle.
+ *             agent to fill its Sources / SourceChunks / BundleSourceLink rows, mark
+ *             it ready, then bind the journey via JourneyBundleLink.
  *
  * The create is made IDEMPOTENT against the `topicFingerprint` UNIQUE constraint:
  * a concurrent create that loses the race catches the unique violation and
@@ -52,7 +52,7 @@ export async function bindJourneyBundle(args: {
 
     // Bind the journey to the bundle (M:N). Idempotent: the composite PK means a
     // re-run is a no-op rather than a duplicate row.
-    await prisma.journeyBundle.upsert({
+    await prisma.journeyBundleLink.upsert({
       where: { intentId_bundleId: { intentId, bundleId } },
       update: {},
       create: { intentId, bundleId },
@@ -169,7 +169,7 @@ async function fillBundle(
       }
 
       // Link the source into THIS bundle (M:N). Idempotent on the composite PK.
-      await prisma.bundleSource.upsert({
+      await prisma.bundleSourceLink.upsert({
         where: { bundleId_sourceId: { bundleId, sourceId: source.id } },
         update: {},
         create: { bundleId, sourceId: source.id, scopeNote: src.scopeNote },
@@ -201,13 +201,13 @@ async function fillBundle(
 
 /**
  * Resolve the `Source.id`s a journey is allowed to cite: every source reachable
- * via `BundleSource` from a READY bundle the journey is bound to (`JourneyBundle`).
+ * via `BundleSourceLink` from a READY bundle the journey is bound to (`JourneyBundleLink`).
  * This is the provenance scope. Returns [] when the journey is bound to no ready
  * bundle (older journeys stay ungrounded, exactly as today).
  */
 export async function resolveJourneySourceIds(intentId: string): Promise<string[]> {
   try {
-    const links = await prisma.journeyBundle.findMany({
+    const links = await prisma.journeyBundleLink.findMany({
       where: { intentId, bundle: { status: "ready" } },
       select: {
         bundle: { select: { sources: { select: { sourceId: true } } } },

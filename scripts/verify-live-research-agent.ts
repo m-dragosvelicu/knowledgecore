@@ -124,9 +124,9 @@ try {
 
     check("bundle marked ready in DB", dbBundle?.status === "ready", dbBundle?.status);
     check(
-      "bundle has >= 1 BundleSource row",
+      "bundle has >= 1 BundleSourceLink row",
       (dbBundle?.sources.length ?? 0) >= 1,
-      `${dbBundle?.sources.length ?? 0} BundleSource rows`,
+      `${dbBundle?.sources.length ?? 0} BundleSourceLink rows`,
     );
 
     const sourceIds = await resolveJourneySourceIds(intent.id);

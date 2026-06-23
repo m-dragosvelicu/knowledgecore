@@ -195,7 +195,7 @@ async function runDbChecks(): Promise<void> {
     );
   } finally {
     // Cleanup: delete the throwaway journeys + bundle + its sources. Cascades take
-    // JourneyBundle / BundleSource / SourceChunk; Source is global so delete by id.
+    // JourneyBundleLink / BundleSourceLink / SourceChunk; Source is global so delete by id.
     try {
       const bundle = await prisma.researchBundle.findUnique({
         where: { topicFingerprint },
