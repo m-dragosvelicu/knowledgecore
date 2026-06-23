@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { buildAttribution } from "@/lib/journey/sourceAttribution";
 
 export const runtime = "nodejs";
 
@@ -16,39 +17,6 @@ export type JourneySource = {
 export type JourneySourcesResponse = {
   sources: JourneySource[];
 };
-
-function buildAttribution(source: {
-  kind: string;
-  authors: unknown;
-  venue: string | null;
-  publishedYear: number | null;
-  canonicalUrl: string | null;
-}): string {
-  if (source.kind === "academic") {
-    const authors = Array.isArray(source.authors) ? (source.authors as string[]) : [];
-    const authorPart =
-      authors.length > 0
-        ? authors.length > 2
-          ? `${authors[0]} et al.`
-          : authors.join(" & ")
-        : null;
-    const parts: string[] = [];
-    if (authorPart) parts.push(authorPart);
-    if (source.venue) parts.push(source.venue);
-    if (source.publishedYear) parts.push(String(source.publishedYear));
-    return parts.join(", ") || "Academic source";
-  }
-  // web: show the host name as attribution (enough for one-click link-out)
-  if (source.canonicalUrl) {
-    try {
-      const host = new URL(source.canonicalUrl).hostname.replace(/^www\./, "");
-      return host;
-    } catch {
-      // malformed URL — fall through
-    }
-  }
-  return "Web source";
-}
 
 export async function GET(
   _request: Request,
