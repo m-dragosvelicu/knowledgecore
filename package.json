@@ -24,6 +24,7 @@
     "verify:research-bundle": "bun run scripts/verify-research-bundle.ts",
     "verify:live-research-agent": "bun run scripts/verify-live-research-agent.ts",
     "verify:qdrant-ingest": "bun run scripts/verify-qdrant-ingest.ts",
+    "verify:sources": "bun run scripts/verify-sources-route.ts",
     "cleanup:guests": "bun run scripts/cleanup-guests.ts",
     "eval:sidecars:up": "docker compose -f docker-compose.eval.yml up -d --build",
     "eval:sidecars:down": "docker compose -f docker-compose.eval.yml down",
