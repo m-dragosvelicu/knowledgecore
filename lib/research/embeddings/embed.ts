@@ -12,6 +12,13 @@ import { GoogleGenAI } from "@google/genai";
 export const EMBEDDING_MODEL = "gemini-embedding-001";
 export const EMBEDDING_DIM = 3072;
 
+// Gemini API hard limit on batchEmbedContents ("at most 100 requests can be
+// in one batch") — undocumented in the SDK types, confirmed against the live
+// API. embedContent() with an array `contents` already maps to one
+// batchEmbedContents HTTP call per array, so chunking at this ceiling
+// collapses N sequential round trips into ceil(N / 100).
+const MAX_BATCH_SIZE = 100;
+
 declare global {
   // eslint-disable-next-line no-var
   var __geminiEmbed: GoogleGenAI | undefined;
@@ -25,27 +32,42 @@ function client(): GoogleGenAI {
   return c;
 }
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
 /**
- * Embed passages with gemini-embedding-001 at dim 3072. The SDK embeds one
- * content per call, so texts are mapped sequentially (same shape the eval
- * proved). Throws if any vector is not EMBEDDING_DIM so a model/param drift can
- * never silently land mismatched vectors in the dim-locked collection.
+ * Embed passages with gemini-embedding-001 at dim 3072. Texts are sent in
+ * batches of up to MAX_BATCH_SIZE via a single embedContent call per batch
+ * (an array `contents` maps to one batchEmbedContents request), which
+ * preserves input order per the Gemini API's documented response guarantee
+ * ("embeddings for each request, in the same order as provided"). Throws if
+ * any vector is not EMBEDDING_DIM so a model/param drift can never silently
+ * land mismatched vectors in the dim-locked collection.
  */
 export async function embedPassages(texts: string[]): Promise<number[][]> {
   const gemini = client();
   const out: number[][] = [];
-  for (const t of texts) {
-    const r = await gemini.models.embedContent({ model: EMBEDDING_MODEL, contents: t });
-    const values =
-      (r as { embeddings?: { values?: number[] }[] }).embeddings?.[0]?.values ??
-      (r as { embedding?: { values?: number[] } }).embedding?.values;
-    if (!values) throw new Error(`Gemini embedContent returned no values for ${EMBEDDING_MODEL}`);
-    if (values.length !== EMBEDDING_DIM) {
+  for (const batch of chunk(texts, MAX_BATCH_SIZE)) {
+    const r = await gemini.models.embedContent({ model: EMBEDDING_MODEL, contents: batch });
+    const embeddings = r.embeddings;
+    if (!embeddings || embeddings.length !== batch.length) {
       throw new Error(
-        `Embedding dim mismatch: got ${values.length}, expected ${EMBEDDING_DIM} (ADR 9 lock)`,
+        `Gemini embedContent returned ${embeddings?.length ?? 0} embeddings for a batch of ${batch.length}`,
       );
     }
-    out.push(values);
+    for (const e of embeddings) {
+      const values = e.values;
+      if (!values) throw new Error(`Gemini embedContent returned no values for ${EMBEDDING_MODEL}`);
+      if (values.length !== EMBEDDING_DIM) {
+        throw new Error(
+          `Embedding dim mismatch: got ${values.length}, expected ${EMBEDDING_DIM} (ADR 9 lock)`,
+        );
+      }
+      out.push(values);
+    }
   }
   return out;
 }
