@@ -8,11 +8,11 @@ import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import type { InterviewTurn } from "@/lib/services/types";
 import {
-  acceptPathAction,
   advancePathConfirmationAction,
   revisePathFromConfirmationAction,
 } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
+import ResearchFillWait from "@/components/journey/wait/ResearchFillWait";
 import DialogueTurns from "@/components/journey/DialogueTurns";
 import SolidButton from "@/components/ui/SolidButton";
 import WobbleButton from "@/components/ui/WobbleButton";
@@ -98,6 +98,11 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
   const [transcript, setTranscript] = useState<InterviewTurn[]>([]);
   const [question, setQuestion] = useState<string>("");
   const [draft, setDraft] = useState<string>("");
+  // Mounts ResearchFillWait, which fires acceptPathAction itself and swaps the
+  // gate for the T3 research ladder once a poll reports a running fill
+  // (E04.S03). A cache HIT never shows the ladder: accept redirects while the
+  // gate is still up with the button's own pending affordance.
+  const [accepted, setAccepted] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // revisionCount already reflects rounds applied on the server before this
@@ -105,9 +110,7 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
   const atSoftCap = revisionCount >= SOFT_CAP_ROUNDS;
 
   function looksGood() {
-    startTransition(async () => {
-      await acceptPathAction(intentId);
-    });
+    setAccepted(true);
   }
 
   // One clarifying turn against the server, appending the optional new user turn
@@ -147,7 +150,7 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
 
   // ---- The always-present gate ----
   if (mode === "gate") {
-    return (
+    const gate = (
       <Stack spacing={2.5}>
         <Divider />
         <Stack spacing={1}>
@@ -194,7 +197,7 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
             spacing={2}
             alignItems={{ xs: "flex-start", sm: "center" }}
           >
-            <WobbleButton onClick={openDialogue} disabled={isPending}>
+            <WobbleButton onClick={openDialogue} disabled={isPending || accepted}>
               Not quite right
             </WobbleButton>
             <SolidButton
@@ -202,8 +205,10 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
               size="large"
               onClick={looksGood}
               disabled={isPending}
+              pending={accepted}
+              pendingLabel="Setting up your first goalpost…"
             >
-              {isPending ? "Setting up your first goalpost…" : "Looks good, start"}
+              Looks good, start
             </SolidButton>
           </Stack>
         </Stack>
@@ -221,6 +226,9 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
         )}
       </Stack>
     );
+
+    if (!accepted) return gate;
+    return <ResearchFillWait intentId={intentId}>{gate}</ResearchFillWait>;
   }
 
   // ---- The opt-in clarifying dialogue (reused turn-taking primitive) ----
