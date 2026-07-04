@@ -27,7 +27,14 @@
  */
 
 import { createHash } from "node:crypto";
-import type { Bundle, Chunk, GapQueries, ResearchAgent, Source } from "@/lib/services/research";
+import type {
+  Bundle,
+  Chunk,
+  GapQueries,
+  ResearchAgent,
+  ResearchProgressSink,
+  Source,
+} from "@/lib/services/research";
 import { webSearch } from "@/lib/research/tavily";
 import { searchWorks } from "@/lib/research/openalex";
 import { searchPapers } from "@/lib/research/semanticScholar";
@@ -228,9 +235,23 @@ function parseYear(dateStr: string): number | null {
   return Number.isNaN(y) ? null : y;
 }
 
+/** Advisory-only: a throwing/rejecting sink must never abort research. */
+async function safeEmit(
+  onProgress: ResearchProgressSink | undefined,
+  event: Parameters<ResearchProgressSink>[0],
+): Promise<void> {
+  if (!onProgress) return;
+  try {
+    await onProgress(event);
+  } catch {
+    // Progress is advisory; never let a sink failure abort research.
+  }
+}
+
 async function fetchWebSources(
   query: string,
   topicLabel: string,
+  onProgress?: ResearchProgressSink,
 ): Promise<Source[]> {
   const hits = await webSearch(query, {
     maxResults: MAX_WEB_HITS,
@@ -240,9 +261,13 @@ async function fetchWebSources(
 
   const sources: Source[] = [];
   let ordinal = 0;
-  for (const hit of hits) {
-    const src = await sourceFromWebHit(hit, ordinal++, topicLabel);
+  if (hits.length > 0) {
+    await safeEmit(onProgress, { phase: "reading", done: 0, total: hits.length });
+  }
+  for (let i = 0; i < hits.length; i++) {
+    const src = await sourceFromWebHit(hits[i], ordinal++, topicLabel);
     if (src) sources.push(src);
+    await safeEmit(onProgress, { phase: "reading", done: i + 1, total: hits.length });
   }
   return sources;
 }
@@ -250,6 +275,7 @@ async function fetchWebSources(
 async function fetchAcademicSources(
   query: string,
   topicLabel: string,
+  onProgress?: ResearchProgressSink,
 ): Promise<Source[]> {
   const sources: Source[] = [];
 
@@ -259,10 +285,15 @@ async function fetchAcademicSources(
       perPage: MAX_ACADEMIC_WORKS,
       openAccessOnly: true,
     });
+    const toProcess = works.slice(0, MAX_ACADEMIC_WORKS);
     let ordinal = 0;
-    for (const work of works.slice(0, MAX_ACADEMIC_WORKS)) {
-      const src = await sourceFromOpenAlexWork(work, ordinal++, topicLabel);
+    if (toProcess.length > 0) {
+      await safeEmit(onProgress, { phase: "reading", done: 0, total: toProcess.length });
+    }
+    for (let i = 0; i < toProcess.length; i++) {
+      const src = await sourceFromOpenAlexWork(toProcess[i], ordinal++, topicLabel);
       if (src) sources.push(src);
+      await safeEmit(onProgress, { phase: "reading", done: i + 1, total: toProcess.length });
     }
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -273,10 +304,12 @@ async function fetchAcademicSources(
   if (sources.length < 2) {
     try {
       const papers = await searchPapers(query, { limit: MAX_ACADEMIC_WORKS });
+      const toProcess = papers.slice(0, MAX_ACADEMIC_WORKS);
       let ordinal = sources.length;
-      for (const paper of papers.slice(0, MAX_ACADEMIC_WORKS)) {
-        const src = await sourceFromSemanticPaper(paper, ordinal++, topicLabel);
+      for (let i = 0; i < toProcess.length; i++) {
+        const src = await sourceFromSemanticPaper(toProcess[i], ordinal++, topicLabel);
         if (src) sources.push(src);
+        await safeEmit(onProgress, { phase: "reading", done: i + 1, total: toProcess.length });
         if (sources.length >= MAX_ACADEMIC_WORKS) break;
       }
     } catch (err) {
@@ -293,6 +326,7 @@ export class LiveResearchAgent implements ResearchAgent {
     topicKey: string,
     topicLabel: string,
     goalpostQueries: string[],
+    onProgress?: ResearchProgressSink,
   ): Promise<Bundle> {
     // Fail fast if Tavily key is absent (T05: required for web tier).
     if (!process.env.TAVILY_API_KEY) {
@@ -301,6 +335,8 @@ export class LiveResearchAgent implements ResearchAgent {
           "Set TAVILY_API_KEY in .env locally and in the Vercel project env for preview/production.",
       );
     }
+
+    await safeEmit(onProgress, { phase: "searching" });
 
     const primaryQuery =
       goalpostQueries.length > 0 ? goalpostQueries.join(" ") : topicLabel;
@@ -323,12 +359,12 @@ export class LiveResearchAgent implements ResearchAgent {
 
     try {
       if (decision.tier === "web" || decision.tier === "both") {
-        const webSources = await fetchWebSources(primaryQuery, topicLabel);
+        const webSources = await fetchWebSources(primaryQuery, topicLabel, onProgress);
         sources.push(...webSources);
       }
 
       if (decision.tier === "academic" || decision.tier === "both") {
-        const academicSources = await fetchAcademicSources(primaryQuery, topicLabel);
+        const academicSources = await fetchAcademicSources(primaryQuery, topicLabel, onProgress);
         sources.push(...academicSources);
       }
     } catch (err) {
