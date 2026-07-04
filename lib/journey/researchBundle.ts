@@ -21,6 +21,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { ingestBundle } from "@/lib/research/embeddings/bundleIngest";
 import { getResearchAgent } from "@/lib/services";
 import type { Bundle } from "@/lib/services/research";
 
@@ -174,6 +175,13 @@ async function fillBundle(
         update: {},
         create: { bundleId, sourceId: source.id, scopeNote: src.scopeNote },
       });
+    }
+
+    // Best-effort: an ingest failure must not block bundle readiness; Postgres grounding stays intact.
+    try {
+      await ingestBundle(bundleId);
+    } catch (e) {
+      console.warn(`[research-bundle] ingest failed for ${bundleId}; ungrounded search`, e);
     }
 
     await prisma.researchBundle.update({

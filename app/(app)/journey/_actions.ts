@@ -576,12 +576,13 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
     });
   }
 
-  // L2 Phase 0 — bind this journey to its research bundle at path-confirm (the
-  // founder's "after the learner confirms the path" trigger). Compute the topic
+  // L2 — bind this journey to its research bundle at path-confirm (the founder's
+  // "after the learner confirms the path" trigger). Compute the topic
   // fingerprint from the canonical subject + outcome shape and read-through the
-  // Library cache (HIT binds; MISS creates + fills from the Phase 0 MOCK agent,
-  // which is instant + offline). Best-effort by contract: a failure leaves the
-  // journey ungrounded (downstream sourceIds stay []) but never breaks the spine.
+  // Library cache (HIT binds; MISS creates + fills via the live Research Agent,
+  // then embeds the chunks for Library search). Best-effort by contract: a
+  // failure leaves the journey ungrounded (downstream sourceIds stay []) but
+  // never breaks the spine.
   try {
     const [subject, outcome] = await Promise.all([
       prisma.subject.findUnique({ where: { intentId } }),

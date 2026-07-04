@@ -57,8 +57,6 @@ export type {
  * `GOOGLE_GENAI_API_KEY` and the selectors fail fast (throw) when it is missing.
  * There is no mock fallback and no per-service opt-out. The image/video SOURCES
  * are keyless (Openverse anonymous search, YouTube oEmbed) so they are not gated.
- * The researchAgent slot is the sole exception: no live agent exists yet, so it
- * still returns the mock (see the L2 Phase 0 section below).
  */
 
 /** Live-only guard: the LLM-backed selectors cannot run without the Gemini key. */
