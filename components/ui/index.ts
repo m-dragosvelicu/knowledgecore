@@ -16,6 +16,7 @@ export type { FeaturedCardProps } from "./FeaturedCard";
 export { PillTextField, SearchPill } from "./PillInput";
 export type { SearchPillProps } from "./PillInput";
 
-export { Eyebrow, SectionLabel, HeadlineUnderline } from "./Type";
+export { Eyebrow, SectionLabel } from "./Type";
+export { HeadlineUnderline } from "./HeadlineUnderline";
 
 export { Arrow, HandUnderline, ScoreBadge, CornerSquiggle } from "@/components/marks/Marks";
