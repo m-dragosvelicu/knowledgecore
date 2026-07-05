@@ -1,6 +1,6 @@
 "use client";
 
-// KnowledgeCore — HeadlineUnderline (Slice 1, wrapped-line fix).
+// KnowledgeCore — HeadlineUnderline (Slice 1, wrapped-line fix, variant B).
 //
 // Wraps an inline headline and draws the signature wobbly HandUnderline mark
 // beneath it. Use around a span/heading whose width should define the
@@ -18,13 +18,18 @@
 // two-line headline drew the mark at container width under the short final
 // line, floating past the actual text.
 //
-// The fix: an invisible zero-size marker renders as the headline's own last
-// child, right after its text, so it lands on the true final line. A layout
-// effect measures the marker's offset from the wrapper's left edge and hands
-// that pixel width down to HandUnderline. On a one-line headline this
-// measured width equals the CSS fit-content width, so the single-line look is
-// byte-for-byte unchanged; this is a client component only for that
-// measurement (Eyebrow/SectionLabel stay server-safe in ./Type).
+// Variant B: every rendered line gets its own swoosh, each hugging that
+// line's text. Line geometry comes from Range.getClientRects() over the
+// headline's text nodes (one rect per line fragment, grouped by vertical
+// band). The FINAL line keeps the variant A mechanism — an invisible
+// zero-size marker as the headline's last child, measured against the
+// wrapper — so a one-line headline renders exactly the variant A markup
+// (one swoosh, same width source, same delay semantics). Earlier lines are
+// extra HandUnderlines in zero-height positioned spans, vertically calibrated
+// so each sits at the same offset below its line as the final swoosh sits
+// below the wrapper. Draw-on stays alive on every line; lines stagger
+// top-to-bottom by 120ms each (animationDelay accepts calc(), so a
+// caller-supplied base delay composes with the stagger).
 
 import {
   cloneElement,
@@ -36,6 +41,49 @@ import {
   type ReactNode,
 } from "react";
 import { HandUnderline } from "@/components/marks/Marks";
+
+type LineBand = { left: number; right: number; top: number; bottom: number };
+type ExtraLine = { left: number; top: number; width: number };
+
+const STAGGER_MS = 120;
+
+// One rect per rendered line fragment of every text node under `root`,
+// merged into per-line bands (nested inline elements yield several fragments
+// on the same line; group by vertical-center containment).
+function collectLineBands(root: HTMLElement): LineBand[] {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const rects: DOMRect[] = [];
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    if (!node.textContent || !node.textContent.trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const rect of range.getClientRects()) {
+      if (rect.width > 1) rects.push(rect);
+    }
+  }
+  rects.sort((a, b) => a.top - b.top);
+
+  const bands: LineBand[] = [];
+  for (const rect of rects) {
+    const band = bands[bands.length - 1];
+    const centre = (rect.top + rect.bottom) / 2;
+    if (band && centre > band.top && centre < band.bottom) {
+      band.left = Math.min(band.left, rect.left);
+      band.right = Math.max(band.right, rect.right);
+      band.top = Math.min(band.top, rect.top);
+      band.bottom = Math.max(band.bottom, rect.bottom);
+    } else {
+      bands.push({
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+      });
+    }
+  }
+  return bands;
+}
 
 export function HeadlineUnderline({
   children,
@@ -51,6 +99,7 @@ export function HeadlineUnderline({
   const wrapRef = useRef<HTMLSpanElement>(null);
   const endMarkerRef = useRef<HTMLSpanElement>(null);
   const [lineWidth, setLineWidth] = useState<number | null>(null);
+  const [extraLines, setExtraLines] = useState<ExtraLine[]>([]);
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
@@ -58,10 +107,26 @@ export function HeadlineUnderline({
     if (!wrap || !marker) return;
 
     const measure = () => {
-      const width = Math.round(
-        marker.getBoundingClientRect().left - wrap.getBoundingClientRect().left,
-      );
+      const wrapRect = wrap.getBoundingClientRect();
+      const width = Math.round(marker.getBoundingClientRect().left - wrapRect.left);
       if (width > 0) setLineWidth(width);
+
+      const bands = collectLineBands(wrap);
+      if (bands.length < 2) {
+        setExtraLines((prev) => (prev.length ? [] : prev));
+        return;
+      }
+      // The final swoosh is centred on the wrapper's bottom edge (bottom:-7,
+      // height 14). Offset every earlier line by the same distance below its
+      // own text bottom so all swooshes sit at a consistent depth.
+      const calibration = wrapRect.bottom - bands[bands.length - 1].bottom;
+      setExtraLines(
+        bands.slice(0, -1).map((band) => ({
+          left: Math.round(band.left - wrapRect.left),
+          top: Math.round(band.bottom - wrapRect.top + calibration),
+          width: Math.round(band.right - band.left),
+        })),
+      );
     };
 
     measure();
@@ -100,6 +165,14 @@ export function HeadlineUnderline({
         </>
       );
 
+  // Stagger the draw-on top-to-bottom; a single line keeps the caller's delay
+  // untouched (variant A parity).
+  const delayFor = (index: number) => {
+    const extra = index * STAGGER_MS;
+    if (delay) return extra ? `calc(${delay} + ${extra}ms)` : delay;
+    return extra ? `${extra}ms` : undefined;
+  };
+
   return (
     <span
       ref={wrapRef}
@@ -112,10 +185,26 @@ export function HeadlineUnderline({
       }}
     >
       {headline}
+      {extraLines.map((line, i) => (
+        <span
+          key={`${line.top}-${line.left}`}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: line.left,
+            top: line.top,
+            width: line.width,
+            height: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <HandUnderline play={play} strokeWidth={strokeWidth} delay={delayFor(i)} />
+        </span>
+      ))}
       <HandUnderline
         play={play}
         strokeWidth={strokeWidth}
-        delay={delay}
+        delay={delayFor(extraLines.length)}
         width={lineWidth != null ? `${lineWidth}px` : "100%"}
       />
     </span>
