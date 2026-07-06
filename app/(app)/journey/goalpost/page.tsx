@@ -334,10 +334,10 @@ export default async function GoalpostPage({
           alignItems={{ sm: "flex-start" }}
         >
           <Box sx={{ flexShrink: 0 }}>
-            <ScoreBadge
-              big={advanced ? `+1` : `${overallScore}`}
-              sub={advanced ? "score" : "of 4"}
-            />
+            {/* Always the rounded rubric average: there is no points concept
+                for "+1" to refer to, and an earned advance deserves its real
+                number just as much as a repeat does. */}
+            <ScoreBadge big={`${overallScore}`} sub="of 4" />
           </Box>
           <Stack spacing={1.5}>
             {advanced ? (
