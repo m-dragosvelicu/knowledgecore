@@ -22,7 +22,31 @@ import {
   THIN_SIGNAL_OBSERVATIONS,
 } from "../lib/journey/profileAdaptation";
 import type { LearnerProfileState } from "../lib/journey/learnerProfile";
-import { MockLessonContentGenerator } from "../lib/services/mock/mockLessonContentGenerator";
+import type {
+  LessonContent,
+  LessonContentGenerator,
+  LessonContentInput,
+} from "../lib/services/lessonContent";
+
+// Local deterministic Call-B double. Mirrors the deleted MockLessonContentGenerator:
+// it honours the SAME derived support plan as the live generator, emitting one
+// "### Worked example" section per plan.workedExamples so section (e) can assert
+// the visible adaptation (low mastery -> more worked examples) without an LLM.
+class FakeLessonContentGenerator implements LessonContentGenerator {
+  async generate(input: LessonContentInput): Promise<LessonContent> {
+    const plan = deriveSupportPlan(input.profile, input.conceptKey);
+    const examples: string[] = [];
+    for (let i = 1; i <= plan.workedExamples; i++) {
+      examples.push(`### Worked example ${i}\nStep through a concrete instance.`);
+    }
+    return {
+      content: examples.join("\n"),
+      supportLevel: plan.supportLevel,
+      workedExamples: plan.workedExamples,
+      visuals: [],
+    };
+  }
+}
 
 let ok = 0;
 let fail = 0;
@@ -136,7 +160,7 @@ check(
 
 // ---- (e) end-to-end through the Mock Call B generator ------------------------
 async function endToEnd(): Promise<void> {
-  const gen = new MockLessonContentGenerator();
+  const gen = new FakeLessonContentGenerator();
   const base = {
     conceptKey: CONCEPT,
     subject: { canonicalName: "Test subject", scopeNote: "scope" },

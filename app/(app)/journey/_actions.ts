@@ -35,6 +35,12 @@ import {
   readLessonGenerationState,
 } from "@/lib/journey/lessonGeneration";
 import type { LessonGenerationState } from "@/lib/journey/lessonGenerationState";
+import {
+  bindJourneyBundle,
+  readBundleProgressForIntent,
+} from "@/lib/journey/researchBundle";
+import type { ResearchProgressState } from "@/lib/journey/researchProgressState";
+import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
 
 // Pre-journey owner context: a real OR guest (anonymous) owner id plus whether
 // the owner is a guest, so the cost-bearing pre-journey stages can apply the D2
@@ -573,6 +579,38 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
       data: { status: "in_progress" },
     });
   }
+
+  // L2 — bind this journey to its research bundle at path-confirm (the founder's
+  // "after the learner confirms the path" trigger). Compute the topic
+  // fingerprint from the canonical subject + outcome shape and read-through the
+  // Library cache (HIT binds; MISS creates + fills via the live Research Agent,
+  // then embeds the chunks for Library search). Best-effort by contract: a
+  // failure leaves the journey ungrounded (downstream sourceIds stay []) but
+  // never breaks the spine.
+  try {
+    const [subject, outcome] = await Promise.all([
+      prisma.subject.findUnique({ where: { intentId } }),
+      prisma.expectedOutcome.findUnique({ where: { intentId } }),
+    ]);
+    if (subject) {
+      const outcomeShape = (outcome?.canDoStatements ??
+        []) as unknown as OutcomeShape;
+      const fp = fingerprint(subject.canonicalName, outcomeShape);
+      await bindJourneyBundle({
+        intentId,
+        topicFingerprint: fp,
+        topicLabel: subject.canonicalName,
+        goalpostQueries: path?.goalposts.map((g) => g.objective) ?? [],
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[research-bundle] path-confirm bind failed for intent "${intentId}"; ` +
+        `journey stays ungrounded. ${(err as Error).message}`,
+    );
+  }
+
   redirect(`/journey/goalpost?j=${intentId}`);
 }
 
@@ -1248,6 +1286,26 @@ export async function readGoalpostGenerationStateAction(
   });
   if (!goalpost) return null;
   return readLessonGenerationState(parsed.goalpostId);
+}
+
+// ---------------------------------------------------------------------------
+// E04.S03 — research-fill progress channel (T3 ladder).
+//
+// The ResearchFillWait screen POLLS this (~1s) while acceptPathAction fills the
+// journey's research bundle on a cache MISS. Keyed by the journey id — the only
+// handle the client has (the bundle is created inside acceptPathAction) — and
+// resolved server-side by recomputing the topic fingerprint, the same key
+// ensureBundle uses. Same auth/ownership pattern as
+// readGoalpostGenerationStateAction: requireRealUserId + the resolved journey
+// must belong to the caller (enforced inside requireActiveIntentId).
+// ---------------------------------------------------------------------------
+
+export async function readBundleProgressAction(
+  intentId?: string | null,
+): Promise<ResearchProgressState | null> {
+  const userId = await requireRealUserId();
+  intentId = await requireActiveIntentId(userId, intentId);
+  return readBundleProgressForIntent(intentId);
 }
 
 // ---------------------------------------------------------------------------

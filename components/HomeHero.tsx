@@ -100,6 +100,8 @@ export default function HomeHero() {
             void ensureSessionThenSubmit(v);
           }}
           disabled={busy}
+          pending={busy}
+          pendingLabel="Reading your intent…"
           placeholder="Try: the ideas behind Art Nouveau"
           cta="Begin"
         />
