@@ -68,6 +68,21 @@ export type Bundle = {
 export type GapQueries = string[];
 
 /**
+ * Best-effort progress signal the agent may report as it works (E04.S03),
+ * mirroring the lesson orchestrator's `ProgressSink` contract
+ * (lib/journey/lessonOrchestration.ts): a sink that throws must not abort
+ * research. `reading` reports genuine per-hit extraction progress, never a
+ * fabricated count.
+ */
+export type ResearchProgressEvent =
+  | { phase: "searching" }
+  | { phase: "reading"; done: number; total: number };
+
+export type ResearchProgressSink = (
+  event: ResearchProgressEvent,
+) => Promise<void> | void;
+
+/**
  * The Research Agent service. Phase 0 ships the MOCK only; live retrieval +
  * `amend` real behaviour land in later phases.
  */
@@ -75,12 +90,14 @@ export interface ResearchAgent {
   /**
    * Assemble (or, live, research) the bundle for a topic. `goalpostQueries` is
    * the per-goalpost query set generation would ground against (ignored by the
-   * Phase 0 mock, which returns a fixed canned bundle).
+   * Phase 0 mock, which returns a fixed canned bundle). `onProgress` is
+   * optional and advisory only — omitting it changes nothing about the result.
    */
   research(
     topicKey: string,
     topicLabel: string,
     goalpostQueries: string[],
+    onProgress?: ResearchProgressSink,
   ): Promise<Bundle>;
 
   /**

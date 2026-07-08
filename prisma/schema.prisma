@@ -577,6 +577,14 @@ model ResearchBundle {
   topicLabel String
   status     BundleStatus @default(researching)
 
+  /// Honest sub-stage progress record for the T3 staged-wait ladder (E04.S03):
+  /// { stage, label, done, total, status, updatedAt }, shaped like
+  /// lib/journey/researchProgressState.ts#ResearchProgressState. Written
+  /// best-effort by fillBundle as it runs; null before the first write. `status`
+  /// above remains the authoritative terminal signal — this column only carries
+  /// the live sub-stage while `status` is "researching".
+  progress Json?
+
   /// Embedding model id + dimension this bundle's vectors were built with (set in
   /// a later phase when embeddings land; null in Phase 0).
   embeddingModel String?
