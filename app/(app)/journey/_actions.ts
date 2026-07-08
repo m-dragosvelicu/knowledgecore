@@ -35,7 +35,11 @@ import {
   readLessonGenerationState,
 } from "@/lib/journey/lessonGeneration";
 import type { LessonGenerationState } from "@/lib/journey/lessonGenerationState";
-import { bindJourneyBundle } from "@/lib/journey/researchBundle";
+import {
+  bindJourneyBundle,
+  readBundleProgressForIntent,
+} from "@/lib/journey/researchBundle";
+import type { ResearchProgressState } from "@/lib/journey/researchProgressState";
 import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
 
 // Pre-journey owner context: a real OR guest (anonymous) owner id plus whether
@@ -1282,6 +1286,26 @@ export async function readGoalpostGenerationStateAction(
   });
   if (!goalpost) return null;
   return readLessonGenerationState(parsed.goalpostId);
+}
+
+// ---------------------------------------------------------------------------
+// E04.S03 — research-fill progress channel (T3 ladder).
+//
+// The ResearchFillWait screen POLLS this (~1s) while acceptPathAction fills the
+// journey's research bundle on a cache MISS. Keyed by the journey id — the only
+// handle the client has (the bundle is created inside acceptPathAction) — and
+// resolved server-side by recomputing the topic fingerprint, the same key
+// ensureBundle uses. Same auth/ownership pattern as
+// readGoalpostGenerationStateAction: requireRealUserId + the resolved journey
+// must belong to the caller (enforced inside requireActiveIntentId).
+// ---------------------------------------------------------------------------
+
+export async function readBundleProgressAction(
+  intentId?: string | null,
+): Promise<ResearchProgressState | null> {
+  const userId = await requireRealUserId();
+  intentId = await requireActiveIntentId(userId, intentId);
+  return readBundleProgressForIntent(intentId);
 }
 
 // ---------------------------------------------------------------------------

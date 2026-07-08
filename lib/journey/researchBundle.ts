@@ -5,8 +5,8 @@
  * turns a topic fingerprint into a bound `ResearchBundle`:
  *
  *   - HIT  (a ready bundle for the fingerprint exists) -> just bind the journey.
- *   - MISS -> create the bundle (status researching), run the (Phase 0 MOCK)
- *             agent to fill its Sources / SourceChunks / BundleSourceLink rows, mark
+ *   - MISS -> create the bundle (status researching), run the live Research
+ *             Agent to fill its Sources / SourceChunks / BundleSourceLink rows, mark
  *             it ready, then bind the journey via JourneyBundleLink.
  *
  * The create is made IDEMPOTENT against the `topicFingerprint` UNIQUE constraint:
@@ -22,15 +22,95 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ingestBundle } from "@/lib/research/embeddings/bundleIngest";
+import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
 import { getResearchAgent } from "@/lib/services";
 import type { Bundle } from "@/lib/services/research";
+import {
+  isResearchProgressState,
+  makeResearchProgressState,
+  stateForResearchEvent,
+  type ResearchProgressState,
+} from "./researchProgressState";
 
 /** Prisma's unique-constraint violation code. */
 const UNIQUE_VIOLATION = "P2002";
 
 /**
+ * Best-effort write of the live sub-stage onto the bundle row (E04.S03). The
+ * `status` enum stays the authoritative terminal signal; this column only
+ * carries the honest in-flight detail the T3 ladder polls. A write failure
+ * must never break the fill.
+ */
+async function writeBundleProgress(
+  bundleId: string,
+  state: ResearchProgressState,
+): Promise<void> {
+  try {
+    await prisma.researchBundle.update({
+      where: { id: bundleId },
+      data: { progress: state as unknown as Prisma.InputJsonValue },
+    });
+  } catch {
+    // Progress telemetry is advisory; never let a write failure break the fill.
+  }
+}
+
+/**
+ * The progress record the research-fill ladder polls, keyed by the journey
+ * (the client never has the bundle id — the bundle is created inside
+ * acceptPathAction). Resolves the bundle exactly the way ensureBundle is keyed:
+ * recompute the topic fingerprint from the journey's subject + outcome shape
+ * and look it up. Returns:
+ *
+ *   - null       -> this journey can never have a fill (no subject) or the
+ *                   read itself failed; the client keeps its fallback UI.
+ *   - searching  -> no bundle row yet (accept is between confirming and
+ *                   creating it) or a fill is running with no sub-stage write.
+ *   - the record -> the live sub-stage, or a terminal ready/failed.
+ *
+ * `status` (the enum) stays authoritative for terminals, with one deliberate
+ * exception: a bundle whose status is "failed" but whose progress record is
+ * RUNNING is a re-fill in flight (fillBundle rewrites progress from its first
+ * step, but only flips status at the end), so the live record wins.
+ */
+export async function readBundleProgressForIntent(
+  intentId: string,
+): Promise<ResearchProgressState | null> {
+  try {
+    const [subject, outcome] = await Promise.all([
+      prisma.subject.findUnique({ where: { intentId } }),
+      prisma.expectedOutcome.findUnique({ where: { intentId } }),
+    ]);
+    if (!subject) return null;
+
+    const fp = fingerprint(
+      subject.canonicalName,
+      (outcome?.canDoStatements ?? []) as unknown as OutcomeShape,
+    );
+    const bundle = await prisma.researchBundle.findUnique({
+      where: { topicFingerprint: fp },
+      select: { status: true, progress: true },
+    });
+    if (!bundle) return makeResearchProgressState("searching");
+
+    const live = isResearchProgressState(bundle.progress) ? bundle.progress : null;
+    if (bundle.status === "ready") return makeResearchProgressState("ready");
+    if (bundle.status === "failed") {
+      return live?.status === "running" ? live : makeResearchProgressState("failed");
+    }
+    return live ?? makeResearchProgressState("searching");
+  } catch (err) {
+    console.warn(
+      `[research-bundle] progress read failed for intent "${intentId}". ` +
+        `${(err as Error).message}`,
+    );
+    return null;
+  }
+}
+
+/**
  * Ensure the journey is bound to a ready ResearchBundle for `topicFingerprint`,
- * researching + persisting one (via the Phase 0 mock agent) on cache miss.
+ * researching + persisting one (via the live Research Agent) on cache miss.
  *
  * Returns the bound bundle id, or null if anything failed (the spine stays
  * ungrounded, never broken). Idempotent: re-binding an already-bound journey is a
@@ -129,11 +209,14 @@ async function fillBundle(
   goalpostQueries: string[],
 ): Promise<string | null> {
   try {
+    await writeBundleProgress(bundleId, makeResearchProgressState("searching"));
+
     const agent = getResearchAgent();
     const bundle: Bundle = await agent.research(
       topicFingerprint,
       topicLabel,
       goalpostQueries,
+      (event) => writeBundleProgress(bundleId, stateForResearchEvent(event)),
     );
 
     for (const src of bundle.sources) {
@@ -177,7 +260,12 @@ async function fillBundle(
       });
     }
 
-    // Best-effort: an ingest failure must not block bundle readiness; Postgres grounding stays intact.
+    // Indexing is a single opaque stage (no honest per-chunk count without an
+    // invasive change to the embedding loop — see E04.S03 report). Best-effort:
+    // an ingest failure must not block bundle readiness; Postgres grounding
+    // stays intact, and the ladder degrades straight to "ready" below, never a
+    // hard error, per the E01.S09 contract.
+    await writeBundleProgress(bundleId, makeResearchProgressState("indexing"));
     try {
       await ingestBundle(bundleId);
     } catch (e) {
@@ -186,7 +274,10 @@ async function fillBundle(
 
     await prisma.researchBundle.update({
       where: { id: bundleId },
-      data: { status: "ready" },
+      data: {
+        status: "ready",
+        progress: makeResearchProgressState("ready") as unknown as Prisma.InputJsonValue,
+      },
     });
     return bundleId;
   } catch (err) {
@@ -198,7 +289,12 @@ async function fillBundle(
     try {
       await prisma.researchBundle.update({
         where: { id: bundleId },
-        data: { status: "failed" },
+        data: {
+          status: "failed",
+          progress: makeResearchProgressState("failed", {
+            label: "We could not gather sources just now",
+          }) as unknown as Prisma.InputJsonValue,
+        },
       });
     } catch {
       // best-effort status write; ignore
