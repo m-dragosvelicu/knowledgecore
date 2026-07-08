@@ -41,6 +41,7 @@ import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import SolidButton from "@/components/ui/SolidButton";
+import SourcesPanel from "@/components/journey/SourcesPanel";
 
 const DECISION_COLORS: Record<Decision, "success" | "warning" | "info"> = {
   advance: "success",
@@ -174,15 +175,18 @@ export default async function GoalpostPage({
 
   const header = (
     <Stack spacing={1.5}>
-      <Eyebrow>
-        Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
-        &middot;{" "}
-        {phase === "information"
-          ? "read"
-          : phase === "experience"
-            ? "build"
-            : "checkpoint"}
-      </Eyebrow>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+        <Eyebrow>
+          Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
+          &middot;{" "}
+          {phase === "information"
+            ? "read"
+            : phase === "experience"
+              ? "build"
+              : "checkpoint"}
+        </Eyebrow>
+        <SourcesPanel journeyId={intent.id} />
+      </Stack>
       <HeadlineUnderline>
         <Typography variant="h3" component="h1">
           {goalpost!.title}
@@ -330,10 +334,10 @@ export default async function GoalpostPage({
           alignItems={{ sm: "flex-start" }}
         >
           <Box sx={{ flexShrink: 0 }}>
-            <ScoreBadge
-              big={advanced ? `+1` : `${overallScore}`}
-              sub={advanced ? "score" : "of 4"}
-            />
+            {/* Always the rounded rubric average: there is no points concept
+                for "+1" to refer to, and an earned advance deserves its real
+                number just as much as a repeat does. */}
+            <ScoreBadge big={`${overallScore}`} sub="of 4" />
           </Box>
           <Stack spacing={1.5}>
             {advanced ? (

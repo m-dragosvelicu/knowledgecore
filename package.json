@@ -21,7 +21,19 @@
     "verify:stt": "bun run scripts/verify-stt.ts",
     "verify:visual-media": "bun run scripts/verify-visual-media.ts",
     "verify:landing-flow": "bun run scripts/verify-landing-flow.ts",
-    "cleanup:guests": "bun run scripts/cleanup-guests.ts"
+    "verify:research-bundle": "bun run scripts/verify-research-bundle.ts",
+    "verify:live-research-agent": "bun run scripts/verify-live-research-agent.ts",
+    "verify:qdrant-ingest": "bun run scripts/verify-qdrant-ingest.ts",
+    "verify:sources": "bun run scripts/verify-sources-route.ts",
+    "verify:learner-search": "bun run scripts/verify-learner-search.ts",
+    "cleanup:guests": "bun run scripts/cleanup-guests.ts",
+    "eval:sidecars:up": "docker compose -f docker-compose.eval.yml up -d --build",
+    "eval:sidecars:down": "docker compose -f docker-compose.eval.yml down",
+    "eval:search": "bun run lib/research/eval/run-search.ts",
+    "eval:embeddings": "bun run lib/research/embeddings/run-embeddings.ts",
+    "eval:kappa-sheet": "bun run lib/research/eval/make-kappa-sheet.ts",
+    "eval:summary": "bun run lib/research/eval/make-summary.ts",
+    "eval:kappa": "bun run scripts/compute-kappa.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",

@@ -47,17 +47,21 @@ export function Arrow({ size = 16 }: { size?: number }) {
  * headline. Designed to be absolutely positioned under inline text (see the
  * HeadlineUnderline wrapper). `play` toggles the draw-on; turn it off to render
  * the finished stroke immediately (e.g. for a re-render that should not redraw).
+ * `width` lets a positioned ancestor hand down an explicit measured pixel
+ * width instead of the default 100% (see HeadlineUnderline's wrapped-line fix).
  * ------------------------------------------------------------------------- */
 export function HandUnderline({
   play = true,
   strokeWidth = 2.4,
   color = TEAL,
   delay,
+  width = "100%",
 }: {
   play?: boolean;
   strokeWidth?: number;
   color?: string;
   delay?: string;
+  width?: string;
 }) {
   return (
     <svg
@@ -71,7 +75,7 @@ export function HandUnderline({
         left: 0,
         right: 0,
         bottom: -7,
-        width: "100%",
+        width,
         height: 14,
         overflow: "visible",
         pointerEvents: "none",

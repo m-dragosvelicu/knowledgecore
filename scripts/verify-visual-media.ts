@@ -2,10 +2,11 @@
  * L1 Slice 4 — deterministic proof of the visual-media gate.
  * Run: `bun run scripts/verify-visual-media.ts`.
  *
- * Forces the offline mock sources (LIVE_IMAGE_SOURCE=false / LIVE_VIDEO_SOURCE=
- * false make the registry pick the mock ImageSource / VideoSource) so the gate
- * runs with NO network. The not-helpful proof uses the LOCAL docker Postgres (a
- * throwaway journey it creates and deletes).
+ * The registry is now LIVE-ONLY, so this script uses LOCAL offline source doubles
+ * (FakeImageSource / FakeVideoSource) for the gate + sourcing checks to stay
+ * network-free, while asserting that the registry itself returns the LIVE source
+ * types. The not-helpful proof uses the LOCAL docker Postgres (a throwaway journey
+ * it creates and deletes).
  *
  * Proves the as-built contract:
  *   (1) THE GATE routes each visualKind to the correct medium (simple switch, not
@@ -23,21 +24,25 @@
  *   (6) ENUM DEBT: LlmCallPurpose.visual_generate exists.
  */
 
-// Force offline mock sources in the registry (the per-source opt-out flags; no
-// NODE_ENV mutation needed — those flags alone make the registry pick the mocks).
-process.env.LIVE_IMAGE_SOURCE = "false";
-process.env.LIVE_VIDEO_SOURCE = "false";
-
 import { sanitizeSvg, DENIED_ELEMENTS } from "../lib/services/visual/svgSanitizer";
 import { mediumForKind, routeVisual } from "../lib/services/visual/gate";
-import { getImageSource, getVideoSource, getVisualResolvers } from "../lib/services";
-import { MockImageSource } from "../lib/services/mock/mockImageSource";
-import { MockVideoSource } from "../lib/services/mock/mockVideoSource";
+import { getImageSource, getVideoSource } from "../lib/services";
+import { LiveOpenverseImageSource } from "../lib/services/live/liveOpenverseImageSource";
+import { LiveYouTubeVideoSource } from "../lib/services/live/liveYouTubeVideoSource";
 import { incrementVisualNotHelpful, emptyProfileState } from "../lib/journey/learnerProfile";
 import { recordVisualNotHelpful } from "../lib/journey/profileStore";
 import { prisma } from "../lib/db";
 import { LlmCallPurpose } from "@prisma/client";
-import type { VisualKind, VisualNeed } from "../lib/services/visualMedia";
+import type {
+  ImageSearchInput,
+  ImageSource,
+  SourcedImage,
+  SourcedVideo,
+  VideoSearchInput,
+  VideoSource,
+  VisualKind,
+  VisualNeed,
+} from "../lib/services/visualMedia";
 
 let ok = 0;
 let fail = 0;
@@ -46,7 +51,45 @@ function check(name: string, pass: boolean, detail = ""): void {
   pass ? ok++ : fail++;
 }
 
-const resolvers = getVisualResolvers();
+// Local offline source doubles (mirroring the deleted mocks): deterministic,
+// license-clean-SHAPED results so the gate + sourcing checks run WITHOUT network.
+// Empty query -> null so the gate's `none` path is exercisable.
+class FakeImageSource implements ImageSource {
+  readonly sourceName = "Openverse";
+  async search(input: ImageSearchInput): Promise<SourcedImage | null> {
+    const q = input.query.trim();
+    if (q.length === 0) return null;
+    const slug = q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return {
+      url: `https://mock.openverse.test/image/${slug}.jpg`,
+      attribution: {
+        creator: "Jane Mock",
+        licenseName: "CC BY 2.0",
+        licenseUrl: "https://creativecommons.org/licenses/by/2.0/",
+        sourcePage: `https://mock.openverse.test/photos/${slug}`,
+        source: this.sourceName,
+        title: `Mock photo of ${q}`,
+      },
+    };
+  }
+}
+
+class FakeVideoSource implements VideoSource {
+  readonly providerName = "YouTube";
+  async resolve(input: VideoSearchInput): Promise<SourcedVideo | null> {
+    const q = input.query.trim();
+    if (q.length === 0) return null;
+    const id = `mock${q.length.toString().padStart(7, "0")}`;
+    return {
+      embedUrl: `https://www.youtube-nocookie.com/embed/${id}`,
+      provider: this.providerName,
+    };
+  }
+}
+
+const fakeImageSource = new FakeImageSource();
+const fakeVideoSource = new FakeVideoSource();
+const resolvers = { imageSource: fakeImageSource, videoSource: fakeVideoSource };
 
 async function gateChecks() {
   // (1) The switch: every visualKind maps to the documented medium.
@@ -65,9 +108,9 @@ async function gateChecks() {
     check(`gate: ${kind} -> ${medium}`, mediumForKind(kind) === medium, mediumForKind(kind));
   }
 
-  // The registry returns the MOCK (offline) sources under NODE_ENV=test.
-  check("registry image source is the offline mock", getImageSource() instanceof MockImageSource);
-  check("registry video source is the offline mock", getVideoSource() instanceof MockVideoSource);
+  // Live-only registry: the selectors now return the LIVE keyless source types.
+  check("registry image source is the live Openverse source", getImageSource() instanceof LiveOpenverseImageSource);
+  check("registry video source is the live YouTube source", getVideoSource() instanceof LiveYouTubeVideoSource);
 
   // End-to-end route per medium through the real gate + mock sources.
   const svgNeed: VisualNeed = {
@@ -159,8 +202,9 @@ async function svgSecurityChecks() {
 }
 
 async function sourcingChecks() {
-  // (3) Image sourcing: real attribution + ONLY the allowed source.
-  const img = await getImageSource().search({ query: "a red bicycle", safeSearch: true });
+  // (3) Image sourcing: real attribution + ONLY the allowed source. Exercised
+  // against the offline source double (the live registry source would hit the net).
+  const img = await fakeImageSource.search({ query: "a red bicycle", safeSearch: true });
   check("image source returns a result for a real query", img !== null);
   if (img) {
     check("sourced image carries an attribution object", typeof img.attribution === "object");
@@ -170,10 +214,10 @@ async function sourcingChecks() {
     check("image url is from the allowed source host, not arbitrary web", img.url.includes("openverse"), img.url);
   }
   // No query -> no fabricated image (the gate's `none` path).
-  check("empty query -> no image (no fabrication)", (await getImageSource().search({ query: "" })) === null);
+  check("empty query -> no image (no fabrication)", (await fakeImageSource.search({ query: "" })) === null);
 
   // (4) Video: a privacy-friendly embed URL.
-  const vid = await getVideoSource().resolve({ query: "how a heart pumps blood" });
+  const vid = await fakeVideoSource.resolve({ query: "how a heart pumps blood" });
   check("video source resolves an embed", vid !== null);
   if (vid) {
     check("video embed is privacy-friendly (youtube-nocookie)", vid.embedUrl.includes("youtube-nocookie.com/embed/"), vid.embedUrl);

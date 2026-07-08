@@ -1,0 +1,24 @@
+# L2 ingestion-bench sidecars. Kept separate from the prod compose so it does
+# not disturb the running knowledgecore-postgres / -qdrant containers.
+#   SearXNG  -> general-web meta-search (JSON API) on :8088
+#   Trafilatura -> clean-text extractor on :8055
+# Jina Reader is used via the public https://r.jina.ai endpoint (no container).
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: kc-eval-searxng
+    ports:
+      - "8088:8080"
+    volumes:
+      - ./sidecars/searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8088/
+      - SEARXNG_SECRET=705e6b3fbaf0e7943249b3f9aaba6e2658dc92b8656a429441498070630ff92f
+    restart: unless-stopped
+
+  trafilatura:
+    build: ./sidecars/trafilatura
+    container_name: kc-eval-trafilatura
+    ports:
+      - "8055:8055"
+    restart: unless-stopped

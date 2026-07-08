@@ -9,27 +9,17 @@
  * characters: a binary search tree, a flowchart/process, a bar chart, a sorting
  * algorithm, an org structure, and a network/graph.
  *
- * MODES (auto-detected):
- *   - LIVE  : GOOGLE_GENAI_API_KEY set and LIVE_LESSON_CONTENT != "false" -> the real
- *             Gemini Author runs. This is the empirical N-run.
- *   - MOCK  : no key / opted out -> the MockLessonAuthor runs.
- *             The ASCII scan still runs, but the no-ASCII guarantee in mock mode is
- *             STRUCTURAL (the Author schema has no draw field — see verify-pipeline
- *             §11.2), so this run is marked STRUCTURAL-ONLY and the live N-run is
- *             flagged as REQUIRED on the CEO drive.
+ * Live-only: the real Gemini Phase-1 Author runs against GOOGLE_GENAI_API_KEY. The
+ * run fails fast if the key is absent (the app itself runs live-only).
  *
  * Run: `bun run scripts/verify-no-ascii.ts`. Exits non-zero if any prose block in any
- * lesson contains an ASCII-art fence (live mode), or on an Author error.
+ * lesson contains an ASCII-art fence, or on an Author error.
  */
 
 import { getLessonOrchestratorPorts } from "../lib/services";
 import { isProseBlock, isVisualBlock } from "../lib/services/lessonDoc";
 import type { DraftLessonDoc } from "../lib/services/lessonDoc";
 import type { LessonContentInput } from "../lib/services/lessonContent";
-
-const LIVE =
-  !!process.env.GOOGLE_GENAI_API_KEY &&
-  process.env.LIVE_LESSON_CONTENT !== "false";
 
 // ---------------------------------------------------------------------------
 // The N ASCII-trap concepts. Each is a self-contained goalpost context.
@@ -176,7 +166,12 @@ async function authorOne(c: Concept): Promise<{ draft: DraftLessonDoc; prose: nu
 }
 
 async function main() {
-  console.log(`verify-no-ascii — mode: ${LIVE ? "LIVE (real Gemini Author)" : "MOCK (structural-only)"}`);
+  if (!process.env.GOOGLE_GENAI_API_KEY) {
+    throw new Error(
+      "GOOGLE_GENAI_API_KEY is not set; the empirical no-ASCII N-run requires the live Gemini Author.",
+    );
+  }
+  console.log("verify-no-ascii — live empirical N-run (real Gemini Author)");
   console.log(`Concepts (N=${CONCEPTS.length}): ${CONCEPTS.map((c) => c.key).join(", ")}\n`);
 
   // Self-test the detector so a green run is trustworthy: a known ASCII tree MUST
@@ -227,20 +222,8 @@ async function main() {
     }
   }
 
-  if (!LIVE) {
-    console.log(
-      "\nNOTE: MOCK mode. The no-ASCII guarantee here is STRUCTURAL ONLY (the Author " +
-        "schema has no draw field; see verify-pipeline §11.2). The empirical LIVE N-run " +
-        "MUST be performed on the CEO drive / with GOOGLE_GENAI_API_KEY set.",
-    );
-  }
-
-  const detectorFailed = !detOk;
-  // In LIVE mode, any finding or author error fails. In MOCK mode, the scan is
-  // informational (structural-only), so only a broken detector fails the run.
-  const liveFail = LIVE && (allFindings.length > 0 || authorErrors > 0);
-  const failed = detectorFailed || liveFail;
-  console.log(`\n${failed ? "RESULT: FAIL" : "RESULT: PASS"} (${LIVE ? "live empirical" : "structural-only"})`);
+  const failed = !detOk || allFindings.length > 0 || authorErrors > 0;
+  console.log(`\n${failed ? "RESULT: FAIL" : "RESULT: PASS"} (live empirical)`);
   process.exit(failed ? 1 : 0);
 }
 

@@ -42,6 +42,10 @@ export type SearchPillProps = {
   /** Tone of the inline commit button. */
   tone?: "ink" | "teal";
   disabled?: boolean;
+  /** Shows the commit button's spinner + pendingLabel (passed through to SolidButton). */
+  pending?: boolean;
+  /** Label shown on the commit button while pending; defaults to `cta`. */
+  pendingLabel?: string;
 };
 
 export function SearchPill({
@@ -53,6 +57,8 @@ export function SearchPill({
   cta = "Begin",
   tone = "ink",
   disabled,
+  pending,
+  pendingLabel,
 }: SearchPillProps) {
   const [focused, setFocused] = useState(false);
   // Support controlled and uncontrolled use.
@@ -104,7 +110,14 @@ export function SearchPill({
           "& input::placeholder": { color: "var(--ink-3)", opacity: 1 },
         }}
       />
-      <SolidButton type="submit" tone={tone} disabled={disabled} arrow={false}>
+      <SolidButton
+        type="submit"
+        tone={tone}
+        disabled={disabled}
+        arrow={false}
+        pending={pending}
+        pendingLabel={pendingLabel}
+      >
         {cta}
       </SolidButton>
     </Box>

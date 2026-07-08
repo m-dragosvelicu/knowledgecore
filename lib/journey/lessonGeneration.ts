@@ -10,6 +10,7 @@ import { StepType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getLessonOrchestratorPorts } from "@/lib/services";
 import { readOrCreateProfile } from "./profileStore";
+import { resolveJourneySourceIds, scrubSourceIds } from "./researchBundle";
 import type { Competency } from "@/lib/services/types";
 import { runLessonPipeline } from "./lessonOrchestration";
 import type { LessonDoc } from "@/lib/services/lessonDoc";
@@ -162,6 +163,16 @@ export async function ensureLessonContent(
       { ...ports, onProgress },
     );
 
+    // L2 Phase 0 — PROVENANCE: thread REAL sourceIds (was always []). Phase 0
+    // grounds the information step in the WHOLE bound bundle (per-claim citation
+    // extraction is a later phase): resolve every Source reachable from a ready
+    // bundle the journey is bound to, then scrub against that same set so only
+    // valid, journey-reachable ids are ever written (R-4 integrity invariant). A
+    // journey bound to no ready bundle (older journeys) resolves to [] — exactly
+    // as today, so nothing breaks. Best-effort: a resolution failure returns [].
+    const boundSourceIds = await resolveJourneySourceIds(intentId);
+    const sourceIds = await scrubSourceIds(intentId, boundSourceIds);
+
     // Write the COMPLETE LessonDoc + a `ready` state in one update. The reveal
     // invariant holds: the page only ever sees a complete doc (contentGeneratedAt
     // set) or the progress/error screen, never a partial doc.
@@ -169,7 +180,7 @@ export async function ensureLessonContent(
       ...payload,
       sections: doc.sections,
       contentGeneratedAt: doc.contentGeneratedAt,
-      sourceIds: payload.sourceIds ?? [],
+      sourceIds,
       generationState: makeGenerationState("ready"),
     };
     await prisma.step.update({
