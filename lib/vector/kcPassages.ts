@@ -99,8 +99,12 @@ export interface PassageHit {
 export interface PassageQueryFilter {
   /** Match a single bundle id (matches if the chunk's bundleIds array contains it). */
   bundleId?: string;
+  /** Match any of several bundle ids — the journey-scope filter for learner search. */
+  bundleIds?: string[];
   /** Match a single source id. */
   sourceId?: string;
+  /** Match any of several source ids — the provenance-scope filter for learner search. */
+  sourceIds?: string[];
   /** Match a source kind ("academic" | "web"). */
   sourceKind?: string;
 }
@@ -120,7 +124,9 @@ export async function searchPassages(args: {
 }): Promise<PassageHit[]> {
   const must: Array<Record<string, unknown>> = [];
   if (args.filter?.bundleId) must.push({ key: "bundleIds", match: { value: args.filter.bundleId } });
+  if (args.filter?.bundleIds?.length) must.push({ key: "bundleIds", match: { any: args.filter.bundleIds } });
   if (args.filter?.sourceId) must.push({ key: "sourceId", match: { value: args.filter.sourceId } });
+  if (args.filter?.sourceIds?.length) must.push({ key: "sourceId", match: { any: args.filter.sourceIds } });
   if (args.filter?.sourceKind) must.push({ key: "sourceKind", match: { value: args.filter.sourceKind } });
 
   const res = await qdrant.search(KC_PASSAGES, {
