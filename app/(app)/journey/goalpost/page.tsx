@@ -19,7 +19,8 @@ import {
   prepareGoalpostContentAction,
   readGoalpostGenerationStateAction,
   repeatGoalpostAction,
-  skipGoalpostAction,
+  // skipGoalpostAction: import commented out with its only call sites below
+  // (founder-ordered temporary removal of the skip affordance, 2026-07-17).
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
 import { isLessonContentReady } from "@/lib/journey/lessonGeneration";
@@ -34,7 +35,9 @@ import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import ExperienceForm from "@/components/journey/ExperienceForm";
 import InformationView from "@/components/journey/InformationView";
 import OverrideControl from "@/components/journey/OverrideControl";
-import SkipControl from "@/components/journey/SkipControl";
+// SkipControl: import commented out with its only render sites below
+// (founder-ordered temporary removal of the skip affordance, 2026-07-17).
+// import SkipControl from "@/components/journey/SkipControl";
 import ThresholdView from "@/components/journey/ThresholdView";
 import ReviewView from "@/components/journey/ReviewView";
 import Markdown from "@/components/Markdown";
@@ -243,8 +246,10 @@ export default async function GoalpostPage({
           dwellSeconds={dwellSeconds}
           readMinutes={estimateReadMinutes(lessonDoc)}
         />
-        {/* §9.2 skip-with-confirm, available during the information phase. */}
+        {/* §9.2 skip-with-confirm, commented out: founder-ordered temporary
+            removal of the skip affordance, 2026-07-17 (hollow-completion bug).
         <SkipControl goalpostId={goalpost!.id} intentId={intent.id} action={skipGoalpostAction} />
+        */}
       </Stack>
     );
   }
@@ -270,8 +275,10 @@ export default async function GoalpostPage({
             prompt={<Markdown>{prompt}</Markdown>}
           />
         </Box>
-        {/* §9.2 skip-with-confirm, available during the experience phase. */}
+        {/* §9.2 skip-with-confirm, commented out: founder-ordered temporary
+            removal of the skip affordance, 2026-07-17 (hollow-completion bug).
         <SkipControl goalpostId={goalpost!.id} intentId={intent.id} action={skipGoalpostAction} />
+        */}
       </Stack>
     );
   }
