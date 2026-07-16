@@ -1,5 +1,5 @@
 // Static system prompt for the path adjuster (adjust_plan remediation step).
-// Owned by lib/services/providers/pathAdjuster.ts; kept here so the prompt
+// Owned by lib/services/providers/pathAdjuster.service.ts; kept here so the prompt
 // text is separate from the response schema/telemetry plumbing around it.
 
 export const PATH_ADJUSTER_SYSTEM = `You are the PATH ADJUSTER of an AI learning platform. A learner

@@ -11,13 +11,13 @@
 
 import { sanitizeSvg } from "./svgSanitizer";
 import type {
-  ImageSource,
   ResolvedVisual,
-  VideoSource,
   VisualKind,
   VisualMedium,
   VisualNeed,
 } from "@/lib/services/visualMedia";
+import type { ImageSource } from "@/lib/services/interfaces/imageSource.interface";
+import type { VideoSource } from "@/lib/services/interfaces/videoSource.interface";
 
 /**
  * The pure routing decision: visualKind -> medium. Exhaustive switch (no default

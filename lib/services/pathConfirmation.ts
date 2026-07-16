@@ -1,10 +1,12 @@
 /**
- * Path Confirmation clarifying dialogue contract. Same turn-taking primitive as
- * the Goal Interview (`InterviewTurn` / an `InterviewStep`-isomorphic step),
+ * Path Confirmation clarifying dialogue data types. Same turn-taking primitive
+ * as the Goal Interview (`InterviewTurn` / an `InterviewStep`-isomorphic step),
  * reused across three contexts so the client's stateless turn-loop drives it
  * unchanged. Asks what is off in the proposed overview and returns a concern
  * summary fed to the existing Path Adjuster. Additive — does not touch the
- * locked `lib/services/types.ts` boundary.
+ * locked `lib/services/types.ts` boundary. The `PathConfirmationInterviewer`
+ * interface itself lives in
+ * `lib/services/interfaces/pathConfirmationInterviewer.interface.ts`.
  */
 
 import type { CanDoStatement, InterviewTurn } from "@/lib/services/types";
@@ -38,13 +40,3 @@ export type PathConfirmationInput = {
 export type PathConfirmationStep =
   | { kind: "question"; question: string }
   | { kind: "complete"; concern: string };
-
-export interface PathConfirmationInterviewer {
-  /**
-   * Given the subject, the end achievement, the proposed overview, and the
-   * transcript so far, return the next step. Terminates with kind="complete"
-   * once the concern is clear enough to revise the path (capped at a few
-   * questions so the dialogue stays short).
-   */
-  clarify(input: PathConfirmationInput): Promise<PathConfirmationStep>;
-}

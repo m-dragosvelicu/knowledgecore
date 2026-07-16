@@ -1,5 +1,5 @@
 // Static system prompt for the path outliner (curriculum-design step). Owned
-// by lib/services/providers/pathOutliner.ts; kept here so the prompt text is
+// by lib/services/providers/pathOutliner.service.ts; kept here so the prompt text is
 // separate from the clamping/repair/telemetry plumbing around it.
 
 export const PATH_OUTLINER_SYSTEM = `You are the curriculum-design step of an AI learning platform.

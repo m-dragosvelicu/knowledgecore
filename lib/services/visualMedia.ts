@@ -1,10 +1,13 @@
 /**
- * Visual-media contract: the visualKind gate + media sources. The generator
+ * Visual-media data types: the visualKind gate + media sources. The generator
  * tags each need with a `visualKind`; a simple switch (gate.ts) routes it to
  * SVG, a license-clean sourced image (Openverse, real attribution), or a
  * reference video embed. Additive — lives alongside the locked
  * `lib/services/types.ts` boundary. SAFETY: SVG is code — sanitized on its
  * own dedicated path (svgSanitizer.ts), never through the markdown sanitizer.
+ * The `ImageSource`/`VideoSource` interfaces themselves live in
+ * `lib/services/interfaces/imageSource.interface.ts` and
+ * `lib/services/interfaces/videoSource.interface.ts`.
  */
 
 import type { Competency } from "@/lib/services/types";
@@ -130,19 +133,6 @@ export type SourcedImage = {
   attribution: ImageAttribution;
 };
 
-/**
- * A source of LICENSE-CLEAN images. The ONLY allowed source family in L1 is
- * Creative-Commons / public-domain (Openverse). An implementation MUST NOT pull
- * arbitrary web images and MUST return real attribution. A test double behind
- * this interface keeps the gate testable offline (see verify-visual-media.ts).
- */
-export interface ImageSource {
-  /** Stable identifier of the source, surfaced in attribution (e.g. "Openverse"). */
-  readonly sourceName: string;
-  /** Returns the best license-clean match, or null if none was found. */
-  search(input: ImageSearchInput): Promise<SourcedImage | null>;
-}
-
 // =====================================================================
 // Video sourcing — a reference embed for motion/process concepts.
 // =====================================================================
@@ -155,16 +145,6 @@ export type SourcedVideo = {
   embedUrl: string;
   provider: string;
 };
-
-/**
- * A source of reference videos (e.g. a YouTube oEmbed lookup). Same testable
- * seam as ImageSource. The result is labelled an UNEVALUATED suggestion in
- * the UI (we do not vouch for third-party video content).
- */
-export interface VideoSource {
-  readonly providerName: string;
-  resolve(input: VideoSearchInput): Promise<SourcedVideo | null>;
-}
 
 // =====================================================================
 // Lesson-content visual extension — additive to LessonContent.

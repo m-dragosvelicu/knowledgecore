@@ -28,7 +28,7 @@ import {
   TERMINAL_GOALPOST_STATUSES,
 } from "@/lib/journey/pathRevision";
 import type { RubricScores } from "@/lib/services/types";
-import type { PathConfirmationStep } from "@/lib/services";
+import type { PathConfirmationStep } from "@/lib/services/pathConfirmation";
 import {
   applyCheckpointEvidence,
   recordRetry,

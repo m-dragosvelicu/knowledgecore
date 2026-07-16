@@ -10,11 +10,8 @@
 import { prisma } from "../lib/db";
 import { getCurrentGoalpost } from "../lib/journey/state";
 import { applyPathAdjustment } from "../lib/journey/pathRevision";
-import type {
-  PathAdjuster,
-  PathAdjusterInput,
-  PathAdjustment,
-} from "../lib/services/types";
+import type { PathAdjusterInput, PathAdjustment } from "../lib/services/types";
+import type { PathAdjuster } from "../lib/services/interfaces/pathAdjuster.interface";
 
 // Local deterministic adjuster double. Mirrors the deleted MockPathAdjuster:
 // inserts ONE remediation goalpost at currentOrder+1, titled "Shore up: <title>",
