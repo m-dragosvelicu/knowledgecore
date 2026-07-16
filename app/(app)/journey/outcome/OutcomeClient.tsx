@@ -27,11 +27,9 @@ import { Eyebrow } from "@/components/ui";
 import SolidButton from "@/components/ui/SolidButton";
 import WobbleButton from "@/components/ui/WobbleButton";
 
-// Next.js server actions signal a redirect() by throwing an error whose
-// `digest` starts with "NEXT_REDIRECT" -- that throw must propagate, not be
-// swallowed as a revision failure. reviseOutcomeAction only redirects on
-// guard conditions (missing subject/draft) that should not occur once the
-// learner is already looking at a rendered draft outcome.
+// Next.js server actions signal redirect() by throwing an error whose `digest`
+// starts with "NEXT_REDIRECT" -- that throw must propagate, not be swallowed
+// as a revision failure.
 function isNextRedirectError(err: unknown): boolean {
   return (
     typeof err === "object" &&
@@ -76,8 +74,6 @@ type Props = {
   resumeDraftOutcome: Complete | null;
 };
 
-// The subject heading -- used to live above OutcomeClient server-side, now owned
-// here since revision can rewrite the subject itself.
 function SubjectHeader({ subject }: { subject: OutcomeSubject }) {
   return (
     <Box className="kc-fade" sx={{ mb: "32px", animationDelay: ".04s" }}>
@@ -114,9 +110,6 @@ function activeQuestion(transcript: InterviewTurn[]): string {
   return last?.role === "assistant" ? last.content : "";
 }
 
-// A heading set in Fraunces at the light/medium display weight — the voice that
-// asks the questions through this flow. Used for the motivation prompt, the
-// opening interview question, and the "what success looks like" header.
 function AskHeadline({ children }: { children: React.ReactNode }) {
   return (
     <Box
@@ -137,7 +130,6 @@ function AskHeadline({ children }: { children: React.ReactNode }) {
   );
 }
 
-// The shared paper-surface panel the flow draws its turns and steps on.
 function Surface({
   children,
   recessed = false,
@@ -197,7 +189,7 @@ export default function OutcomeClient({
   );
   const [isPending, startTransition] = useTransition();
 
-  // --- Outcome revision (founder ruling 2026-07-16) ---
+  // Outcome revision (founder ruling 2026-07-16)
   const [revising, setRevising] = useState(false);
   const [revisionFeedback, setRevisionFeedback] = useState("");
   const [acknowledgment, setAcknowledgment] = useState<string | null>(null);
@@ -293,7 +285,7 @@ export default function OutcomeClient({
     });
   }
 
-  // ---- Phase 1: motivation selection (seeds LearningGoal.motivation) ----
+  // Phase 1: motivation selection (seeds LearningGoal.motivation)
   if (phase === "motivation") {
     return (
       <>
@@ -340,7 +332,7 @@ export default function OutcomeClient({
     );
   }
 
-  // ---- Phase 3: confirm synthesized outcome (the can-do statements) ----
+  // Phase 3: confirm synthesized outcome (the can-do statements)
   if (phase === "complete" && complete) {
     return (
       <>
@@ -358,9 +350,6 @@ export default function OutcomeClient({
               </Box>
             </Box>
 
-            {/* Can-do statements: a clean list of surface cards. The statement itself
-                is set in Fraunces (the voice); the Bloom level is a quiet teal-soft
-                chip and an eyebrow marks the list. */}
             <Box>
               <Eyebrow sx={{ mb: "12px" }}>You&rsquo;ll be able to</Eyebrow>
               <Stack spacing={1.5}>
@@ -394,8 +383,6 @@ export default function OutcomeClient({
               </Stack>
             </Box>
 
-            {/* Conversational acknowledgment of the last revision -- the same
-                "your guide" bubble the transcript uses elsewhere in this flow. */}
             {acknowledgment && (
               <Box
                 sx={{
@@ -514,13 +501,10 @@ export default function OutcomeClient({
     );
   }
 
-  // ---- Phase 2: the multi-turn goal interview (turn-taking dialogue) ----
-  // The active question is drawn EXACTLY ONCE, in one of two presentations:
-  //   opening question (nothing said yet) -> the hero ask card: there is no
-  //     conversation to show, so the question carries the screen on its own.
-  //   once the back-and-forth exists -> chat: DialogueTurns draws the whole
-  //     thread, active question included as the newest guide bubble, and the
-  //     composer stays a plain input so one voice keeps one scale.
+  // Phase 2: multi-turn goal interview (turn-taking dialogue).
+  // The active question renders exactly once: opening question -> hero ask
+  // card (no conversation yet); once back-and-forth exists -> DialogueTurns
+  // renders the whole thread with it as the newest guide bubble.
   const question = activeQuestion(transcript);
   const isOpeningQuestion = priorTurns(transcript).length === 0;
 
@@ -568,8 +552,6 @@ export default function OutcomeClient({
           <Stack spacing={3}>
             <DialogueTurns transcript={transcript} />
 
-            {/* The composer reads as one field: the container carries the only
-                border, so the box inside is drawn without an outline of its own. */}
             <Box
               sx={{
                 bgcolor: "background.paper",
