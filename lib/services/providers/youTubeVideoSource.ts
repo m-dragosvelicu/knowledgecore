@@ -5,7 +5,7 @@ import type {
 } from "@/lib/services/visualMedia";
 
 /**
- * Live reference-video source (YouTube). Video is a reference suggestion for
+ * Reference-video source (YouTube). Video is a reference suggestion for
  * motion/process concepts, labelled "unevaluated" in the UI. The generator
  * supplies a `query` expected to be a YouTube watch URL or video id (no
  * search-ranking); this validates + normalizes it into a `youtube-nocookie`
@@ -33,7 +33,7 @@ export function extractYouTubeId(input: string): string | null {
   return null;
 }
 
-export class LiveYouTubeVideoSource implements VideoSource {
+export class YouTubeVideoSource implements VideoSource {
   readonly providerName = "YouTube";
 
   constructor(private readonly fetchImpl: typeof fetch = fetch) {}

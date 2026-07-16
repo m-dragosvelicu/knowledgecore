@@ -1,28 +1,28 @@
 import type { Services } from "@/lib/services/types";
 import type { LLMClient } from "@/lib/llm";
 import { getDefaultClient } from "@/lib/llm";
-import { LiveIntentParser } from "@/lib/services/live/liveIntentParser";
-import { LiveGoalInterviewer } from "@/lib/services/live/liveGoalInterviewer";
-import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
-import { LivePathOutliner } from "@/lib/services/live/livePathOutliner";
-import { LiveCheckpointEvaluator } from "@/lib/services/live/liveCheckpointEvaluator";
-import { LivePathAdjuster } from "@/lib/services/live/livePathAdjuster";
+import { GeminiIntentParser } from "@/lib/services/providers/intentParser";
+import { GeminiGoalInterviewer } from "@/lib/services/providers/goalInterviewer";
+import { GeminiKnowledgeProbe } from "@/lib/services/providers/knowledgeProbe";
+import { GeminiPathOutliner } from "@/lib/services/providers/pathOutliner";
+import { GeminiCheckpointEvaluator } from "@/lib/services/providers/checkpointEvaluator";
+import { GeminiPathAdjuster } from "@/lib/services/providers/pathAdjuster";
 import type { Author, OrchestratorPorts } from "@/lib/journey/lessonOrchestration";
-import { LiveLessonAuthor } from "@/lib/services/live/liveLessonAuthor";
-import { buildVisualWorkers } from "@/lib/services/live/liveVisualWorkers";
+import { LessonAuthor } from "@/lib/services/providers/lessonAuthor";
+import { buildVisualWorkers } from "@/lib/services/providers/visualWorkers";
 import type { VisualWorkers } from "@/lib/journey/lessonOrchestration";
 import type { PathConfirmationInterviewer } from "@/lib/services/pathConfirmation";
-import { LivePathConfirmationInterviewer } from "@/lib/services/live/livePathConfirmationInterviewer";
+import { GeminiPathConfirmationInterviewer } from "@/lib/services/providers/pathConfirmationInterviewer";
 import type { OutcomeReviser } from "@/lib/services/outcomeRevision";
-import { LiveOutcomeReviser } from "@/lib/services/live/liveOutcomeReviser";
+import { GeminiOutcomeReviser } from "@/lib/services/providers/outcomeReviser";
 import type { Transcriber } from "@/lib/services/transcription";
-import { LiveTranscriber } from "@/lib/services/live/liveTranscriber";
+import { GeminiTranscriber } from "@/lib/services/providers/transcriber";
 import { getDefaultTranscriptionClient } from "@/lib/llm";
 import type { ImageSource, VideoSource } from "@/lib/services/visualMedia";
-import { LiveOpenverseImageSource } from "@/lib/services/live/liveOpenverseImageSource";
-import { LiveYouTubeVideoSource } from "@/lib/services/live/liveYouTubeVideoSource";
+import { OpenverseImageSource } from "@/lib/services/providers/openverseImageSource";
+import { YouTubeVideoSource } from "@/lib/services/providers/youTubeVideoSource";
 import type { ResearchAgent } from "@/lib/services/research";
-import { LiveResearchAgent } from "@/lib/services/live/liveResearchAgent";
+import { MultiSourceResearchAgent } from "@/lib/services/providers/researchAgent";
 
 export * from "@/lib/services/types";
 export type { LessonContentGenerator } from "@/lib/services/lessonContent";
@@ -61,17 +61,18 @@ export type {
 } from "@/lib/services/research";
 
 /**
- * Service registry. LIVE-ONLY: every LLM-backed service requires
- * `GOOGLE_GENAI_API_KEY` and the selectors fail fast (throw) when it is missing.
- * There is no mock fallback and no per-service opt-out. The image/video SOURCES
- * are keyless (Openverse anonymous search, YouTube oEmbed) so they are not gated.
+ * Service registry: builds each service contract's Gemini-backed
+ * implementation. Every LLM-backed service requires `GOOGLE_GENAI_API_KEY`
+ * and the selectors fail fast (throw) when it is missing. The image/video
+ * SOURCES are keyless (Openverse anonymous search, YouTube oEmbed) so they
+ * are not gated.
  */
 
-/** Live-only guard: the LLM-backed selectors cannot run without the Gemini key. */
+/** The LLM-backed selectors cannot run without the Gemini key. */
 function requireApiKey(): void {
   if (!process.env.GOOGLE_GENAI_API_KEY)
     throw new Error(
-      "GOOGLE_GENAI_API_KEY is required: KnowledgeCore runs live-only and cannot start without it. Set it in .env locally and in the Vercel project env for preview/production.",
+      "GOOGLE_GENAI_API_KEY is required: KnowledgeCore cannot start without it. Set it in .env locally and in the Vercel project env for preview/production.",
     );
 }
 
@@ -89,13 +90,12 @@ export function getServices(): Services {
   requireApiKey();
   const client = getSharedClient();
   return {
-    intentParser: new LiveIntentParser(client),
-    goalInterviewer: new LiveGoalInterviewer(client),
-    knowledgeProbe: new LiveKnowledgeProbe(client),
-    pathOutliner: new LivePathOutliner(client),
-    checkpointEvaluator: new LiveCheckpointEvaluator(client),
-    pathAdjuster: new LivePathAdjuster(client),
-    mode: "live",
+    intentParser: new GeminiIntentParser(client),
+    goalInterviewer: new GeminiGoalInterviewer(client),
+    knowledgeProbe: new GeminiKnowledgeProbe(client),
+    pathOutliner: new GeminiPathOutliner(client),
+    checkpointEvaluator: new GeminiCheckpointEvaluator(client),
+    pathAdjuster: new GeminiPathAdjuster(client),
   };
 }
 
@@ -104,7 +104,7 @@ export function getServices(): Services {
 // ensureLessonContent seam stay untouched.
 
 function buildLessonAuthor(): Author {
-  return new LiveLessonAuthor(getSharedClient());
+  return new LessonAuthor(getSharedClient());
 }
 
 function buildLessonVisualWorkers(): VisualWorkers {
@@ -129,7 +129,7 @@ export function getLessonOrchestratorPorts(): OrchestratorPorts {
 
 export function getPathConfirmationInterviewer(): PathConfirmationInterviewer {
   requireApiKey();
-  return new LivePathConfirmationInterviewer(getSharedClient());
+  return new GeminiPathConfirmationInterviewer(getSharedClient());
 }
 
 // Outcome revision (founder ruling 2026-07-16): a single-shot revise call, not
@@ -138,7 +138,7 @@ export function getPathConfirmationInterviewer(): PathConfirmationInterviewer {
 
 export function getOutcomeReviser(): OutcomeReviser {
   requireApiKey();
-  return new LiveOutcomeReviser(getSharedClient());
+  return new GeminiOutcomeReviser(getSharedClient());
 }
 
 // L1 Slice 3 — speech-to-text Transcriber (Gemini audio). Uses the Gemini
@@ -146,7 +146,7 @@ export function getOutcomeReviser(): OutcomeReviser {
 
 export function getTranscriber(): Transcriber {
   requireApiKey();
-  return new LiveTranscriber(getDefaultTranscriptionClient());
+  return new GeminiTranscriber(getDefaultTranscriptionClient());
 }
 
 // L1 Slice 4 — visual-media sources (image + video halves of the gate).
@@ -154,11 +154,11 @@ export function getTranscriber(): Transcriber {
 // model and sanitized locally; it has no source selector.
 
 export function getImageSource(): ImageSource {
-  return new LiveOpenverseImageSource();
+  return new OpenverseImageSource();
 }
 
 export function getVideoSource(): VideoSource {
-  return new LiveYouTubeVideoSource();
+  return new YouTubeVideoSource();
 }
 
 /** Convenience: the resolver pair the gate (routeVisual) consumes. */
@@ -169,17 +169,17 @@ export function getVisualResolvers(): {
   return { imageSource: getImageSource(), videoSource: getVideoSource() };
 }
 
-// L2 — the Research Agent (live, ADR 9). TAVILY_API_KEY is required; the
-// selector fails fast if absent. Empty-retrieval (zero sources with a valid
-// key) is handled gracefully inside LiveResearchAgent (T04): it returns an
+// L2 — the Research Agent (ADR 9). TAVILY_API_KEY is required; the selector
+// fails fast if absent. Empty-retrieval (zero sources with a valid key) is
+// handled gracefully inside MultiSourceResearchAgent (T04): it returns an
 // empty Bundle and the journey stays ungrounded rather than failing hard.
 
 export function getResearchAgent(): ResearchAgent {
   if (!process.env.TAVILY_API_KEY) {
     throw new Error(
-      "TAVILY_API_KEY is required: KnowledgeCore's Research Agent runs live-only. " +
+      "TAVILY_API_KEY is required: KnowledgeCore's Research Agent needs it to run. " +
         "Set TAVILY_API_KEY in .env locally and in the Vercel project env for preview/production.",
     );
   }
-  return new LiveResearchAgent();
+  return new MultiSourceResearchAgent();
 }

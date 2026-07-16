@@ -22,7 +22,7 @@
     "verify:visual-media": "bun run scripts/verify-visual-media.ts",
     "verify:landing-flow": "bun run scripts/verify-landing-flow.ts",
     "verify:research-bundle": "bun run scripts/verify-research-bundle.ts",
-    "verify:live-research-agent": "bun run scripts/verify-live-research-agent.ts",
+    "verify:research-agent": "bun run scripts/verify-research-agent.ts",
     "verify:query-builder": "bun run scripts/verify-query-builder.ts",
     "verify:qdrant-ingest": "bun run scripts/verify-qdrant-ingest.ts",
     "verify:sources": "bun run scripts/verify-sources-route.ts",
