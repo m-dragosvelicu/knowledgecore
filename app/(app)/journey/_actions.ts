@@ -1327,7 +1327,7 @@ export async function readBundleProgressAction(
 export async function prepareProbeQuestionsAction(
   intentId?: string | null,
 ): Promise<void> {
-  const userId = await requireRealUserId();
+  const userId = await requireOwnerId();
   intentId = await requireActiveIntentId(userId, intentId);
   await ensureProbeQuestions(intentId);
   await touchIntentRecency(intentId);
@@ -1336,7 +1336,7 @@ export async function prepareProbeQuestionsAction(
 export async function readProbeGenerationStateAction(
   intentId?: string | null,
 ): Promise<ProbeResumeState | null> {
-  const userId = await requireRealUserId();
+  const userId = await requireOwnerId();
   intentId = await requireActiveIntentId(userId, intentId);
   return readProbeState(intentId);
 }
@@ -1351,7 +1351,7 @@ export async function saveProbeAnswerAction(
   questionIndex: number,
   answer: string,
 ): Promise<void> {
-  const userId = await requireRealUserId();
+  const userId = await requireOwnerId();
   const resolvedIntentId = await requireActiveIntentId(userId, intentId);
   const parsed = probeAnswerSchema.parse({ questionIndex, answer });
   await saveProbeAnswer(resolvedIntentId, parsed.questionIndex, parsed.answer);
