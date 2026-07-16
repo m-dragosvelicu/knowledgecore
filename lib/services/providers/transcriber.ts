@@ -8,7 +8,7 @@ import type {
 } from "@/lib/services/transcription";
 
 // Fallback model id for the telemetry row when a failure short-circuits the call
-// before usage is reported. Mirrors the other live services' TELEMETRY_MODEL.
+// before usage is reported. Mirrors the other providers' TELEMETRY_MODEL.
 const TELEMETRY_MODEL =
   process.env.GEMINI_STT_MODEL ?? process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
@@ -21,13 +21,13 @@ type TelemetrySnapshot = {
 };
 
 /**
- * Live (Gemini-audio) speech-to-text transcriber. Sends audio to Gemini via
+ * Gemini-audio speech-to-text transcriber. Sends audio to Gemini via
  * TranscriptionClient.transcribe; audio bytes are held only for the call —
  * nothing about the audio is persisted, only the LlmCall telemetry row
  * (purpose=stt_transcribe) and the returned transcript. Telemetry is
  * best-effort and never breaks transcription.
  */
-export class LiveTranscriber implements Transcriber {
+export class GeminiTranscriber implements Transcriber {
   constructor(private readonly client: TranscriptionClient) {}
 
   private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {

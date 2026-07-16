@@ -1,5 +1,5 @@
 /**
- * LiveResearchAgent: live ResearchAgent implementation. Routing (ADR 9):
+ * MultiSourceResearchAgent: the ResearchAgent implementation. Routing (ADR 9):
  * introductory/intermediate -> web only (Tavily); advanced -> web then
  * academic (OpenAlex); research-grade -> academic (OpenAlex + Semantic
  * Scholar). Pipeline: search -> extract text (Trafilatura, falls back to
@@ -274,7 +274,7 @@ async function fetchAcademicSources(
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn(`[live-research-agent] OpenAlex search failed: ${(err as Error).message}`);
+    console.warn(`[research-agent] OpenAlex search failed: ${(err as Error).message}`);
   }
 
   // Semantic Scholar expansion (if OpenAlex returned few results).
@@ -291,14 +291,14 @@ async function fetchAcademicSources(
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.warn(`[live-research-agent] Semantic Scholar search failed: ${(err as Error).message}`);
+      console.warn(`[research-agent] Semantic Scholar search failed: ${(err as Error).message}`);
     }
   }
 
   return sources;
 }
 
-export class LiveResearchAgent implements ResearchAgent {
+export class MultiSourceResearchAgent implements ResearchAgent {
   async research(
     topicKey: string,
     topicLabel: string,
@@ -308,7 +308,7 @@ export class LiveResearchAgent implements ResearchAgent {
     // Fail fast if Tavily key is absent (T05: required for web tier).
     if (!process.env.TAVILY_API_KEY) {
       throw new Error(
-        "TAVILY_API_KEY is required: the live Research Agent cannot run without it. " +
+        "TAVILY_API_KEY is required: the Research Agent cannot run without it. " +
           "Set TAVILY_API_KEY in .env locally and in the Vercel project env for preview/production.",
       );
     }
@@ -324,7 +324,7 @@ export class LiveResearchAgent implements ResearchAgent {
     // eslint-disable-next-line no-console
     console.log(
       JSON.stringify({
-        event: "live_research_agent.routing",
+        event: "research_agent.routing",
         topicKey,
         topicLabel,
         depth: decision.depth,
@@ -354,7 +354,7 @@ export class LiveResearchAgent implements ResearchAgent {
         // eslint-disable-next-line no-console
         console.error(
           JSON.stringify({
-            event: "live_research_agent.client_error",
+            event: "research_agent.client_error",
             topicKey,
             topicLabel,
             status: err.status,
@@ -368,7 +368,7 @@ export class LiveResearchAgent implements ResearchAgent {
         // which may be zero sources (T04).
         // eslint-disable-next-line no-console
         console.warn(
-          `[live-research-agent] retrieval error for "${topicLabel}": ${(err as Error).message}`,
+          `[research-agent] retrieval error for "${topicLabel}": ${(err as Error).message}`,
         );
       }
     }
@@ -376,7 +376,7 @@ export class LiveResearchAgent implements ResearchAgent {
     // eslint-disable-next-line no-console
     console.log(
       JSON.stringify({
-        event: "live_research_agent.bundle_assembled",
+        event: "research_agent.bundle_assembled",
         topicKey,
         topicLabel,
         sourceCount: sources.length,

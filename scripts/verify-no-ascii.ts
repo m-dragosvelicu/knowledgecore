@@ -3,8 +3,8 @@
  *
  * Runs N ASCII-trap concepts (BST, flowchart, bar chart, sort, org chart,
  * graph) through the real Phase-1 Author and asserts zero ASCII-art code
- * fences in any prose block. Live-only: requires GOOGLE_GENAI_API_KEY, fails
- * fast if absent.
+ * fences in any prose block. Requires GOOGLE_GENAI_API_KEY, fails fast if
+ * absent.
  *
  * Run: `bun run scripts/verify-no-ascii.ts`. Exits non-zero on any ASCII-art
  * finding or Author error.
