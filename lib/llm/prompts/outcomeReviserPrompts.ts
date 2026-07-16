@@ -1,5 +1,5 @@
 // Static system prompt for outcome revision. Owned by
-// lib/services/providers/outcomeReviser.ts; kept here so the prompt text is
+// lib/services/providers/outcomeReviser.service.ts; kept here so the prompt text is
 // separate from the response schema/telemetry plumbing around it.
 
 export const OUTCOME_REVISER_SYSTEM = `You are the outcome-revision step of an AI learning platform. A

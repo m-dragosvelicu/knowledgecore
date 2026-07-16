@@ -1,5 +1,5 @@
 // Static system prompts for the Phase-2 visual workers (SVG illustrator +
-// video-candidate librarian). Owned by lib/services/providers/visualWorkers.ts;
+// video-candidate librarian). Owned by lib/services/providers/visualWorkers.service.ts;
 // kept here so the prompt text is separate from the retry/validation plumbing
 // around it.
 

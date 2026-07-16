@@ -1,5 +1,5 @@
 // Static system prompt for the Phase-1 lesson Author. Owned by
-// lib/services/providers/lessonAuthor.ts; kept here so the prompt text is
+// lib/services/providers/lessonAuthor.service.ts; kept here so the prompt text is
 // separate from the block-splitting/telemetry plumbing around it.
 
 // Stable, cacheable system prefix (no per-learner data); the profile + goalpost

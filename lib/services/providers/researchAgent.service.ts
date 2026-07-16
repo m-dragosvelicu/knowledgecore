@@ -14,10 +14,10 @@ import type {
   Bundle,
   Chunk,
   GapQueries,
-  ResearchAgent,
   ResearchProgressSink,
   Source,
 } from "@/lib/services/research";
+import type { ResearchAgent } from "@/lib/services/interfaces/researchAgent.interface";
 import { webSearch, TavilyRequestError } from "@/lib/research/tavily";
 import { searchWorks } from "@/lib/research/openalex";
 import { searchPapers } from "@/lib/research/semanticScholar";

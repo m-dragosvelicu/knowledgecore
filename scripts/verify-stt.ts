@@ -12,10 +12,10 @@
 import { GeminiClient } from "../lib/llm/gemini";
 import type { TranscriptionClient } from "../lib/llm";
 import type {
-  Transcriber,
   TranscribeInput,
   TranscribeResult,
 } from "../lib/services/transcription";
+import type { Transcriber } from "../lib/services/interfaces/transcriber.interface";
 import { LlmCallPurpose } from "@prisma/client";
 
 // Local deterministic transcriber double: empty audio -> empty transcript;

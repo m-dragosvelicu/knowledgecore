@@ -18,22 +18,22 @@
 import { sanitizeSvg, DENIED_ELEMENTS } from "../lib/services/visual/svgSanitizer";
 import { mediumForKind, routeVisual } from "../lib/services/visual/gate";
 import { getImageSource, getVideoSource } from "../lib/services";
-import { OpenverseImageSource } from "../lib/services/providers/openverseImageSource";
-import { YouTubeVideoSource } from "../lib/services/providers/youTubeVideoSource";
+import { OpenverseImageSource } from "../lib/services/providers/openverseImageSource.service";
+import { YouTubeVideoSource } from "../lib/services/providers/youTubeVideoSource.service";
 import { incrementVisualNotHelpful, emptyProfileState } from "../lib/journey/learnerProfile";
 import { recordVisualNotHelpful } from "../lib/journey/profileStore";
 import { prisma } from "../lib/db";
 import { LlmCallPurpose } from "@prisma/client";
 import type {
   ImageSearchInput,
-  ImageSource,
   SourcedImage,
   SourcedVideo,
   VideoSearchInput,
-  VideoSource,
   VisualKind,
   VisualNeed,
 } from "../lib/services/visualMedia";
+import type { ImageSource } from "../lib/services/interfaces/imageSource.interface";
+import type { VideoSource } from "../lib/services/interfaces/videoSource.interface";
 
 let ok = 0;
 let fail = 0;

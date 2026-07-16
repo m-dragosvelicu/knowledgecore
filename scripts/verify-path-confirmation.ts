@@ -15,17 +15,17 @@ import { prisma } from "../lib/db";
 import { getCurrentGoalpost } from "../lib/journey/state";
 import { applyPreAcceptancePathAdjustment } from "../lib/journey/pathRevision";
 import type {
-  PathAdjuster,
   PathAdjusterInput,
   PathAdjustment,
+  InterviewTurn,
 } from "../lib/services/types";
-import type { InterviewTurn } from "../lib/services/types";
+import type { PathAdjuster } from "../lib/services/interfaces/pathAdjuster.interface";
 import type {
   OverviewGoalpost,
   PathConfirmationInput,
-  PathConfirmationInterviewer,
   PathConfirmationStep,
 } from "../lib/services/pathConfirmation";
+import type { PathConfirmationInterviewer } from "../lib/services/interfaces/pathConfirmationInterviewer.interface";
 
 // Local deterministic doubles for the dialogue engine + adjuster. The
 // interviewer asks one canned question, then completes with a concern

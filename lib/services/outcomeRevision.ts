@@ -20,6 +20,8 @@
  *
  * ADDITIVE like `PathConfirmationInterviewer`: does not touch the LOCKED
  * `lib/services/types.ts` Services boundary; wired through its own selector.
+ * The `OutcomeReviser` interface itself lives in
+ * `lib/services/interfaces/outcomeReviser.interface.ts`.
  */
 
 import type { CanDoStatement } from "@/lib/services/types";
@@ -44,11 +46,3 @@ export type OutcomeRevisionResult = {
   /** Short, warm, second-person acknowledgment the UI shows above the revised outcome. */
   acknowledgment: string;
 };
-
-export interface OutcomeReviser {
-  /**
-   * Revise the outcome from one piece of learner feedback. Preserves whatever
-   * the feedback did not object to; only the parts it calls out should change.
-   */
-  revise(input: OutcomeRevisionInput): Promise<OutcomeRevisionResult>;
-}

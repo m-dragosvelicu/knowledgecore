@@ -3,11 +3,11 @@ import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
-  OutcomeReviser,
   OutcomeRevisionInput,
   OutcomeRevisionResult,
 } from "@/lib/services/outcomeRevision";
-import { canDoStatementSchema } from "./schemas";
+import type { OutcomeReviser } from "@/lib/services/interfaces/outcomeReviser.interface";
+import { canDoStatementSchema } from "./shared.schemas";
 import { OUTCOME_REVISER_SYSTEM } from "@/lib/llm/prompts/outcomeReviserPrompts";
 
 // gemini-3.5-flash is the live default for L0/L1 generative services. Fallback

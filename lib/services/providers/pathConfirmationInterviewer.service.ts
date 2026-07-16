@@ -4,9 +4,9 @@ import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   PathConfirmationInput,
-  PathConfirmationInterviewer,
   PathConfirmationStep,
 } from "@/lib/services/pathConfirmation";
+import type { PathConfirmationInterviewer } from "@/lib/services/interfaces/pathConfirmationInterviewer.interface";
 import { PATH_CONFIRMATION_INTERVIEWER_SYSTEM } from "@/lib/llm/prompts/pathConfirmationInterviewerPrompts";
 
 // gemini-3.5-flash is the live default for L0/L1 services. Fallback model id for

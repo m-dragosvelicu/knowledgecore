@@ -1,14 +1,59 @@
+import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
-import type {
-  GoalpostPlan,
-  PathOutliner,
-  PathOutlinerInput,
-} from "@/lib/services/types";
-import type { z } from "zod";
-import { pathResultSchema } from "./schemas";
+import type { GoalpostPlan, PathOutlinerInput } from "@/lib/services/types";
+import type { PathOutliner } from "@/lib/services/interfaces/pathOutliner.interface";
 import { PATH_OUTLINER_SYSTEM } from "@/lib/llm/prompts/pathOutlinerPrompts";
+
+// Aligned with Prisma StepType.
+export const stepTypeSchema = z.enum([
+  "information",
+  "experience_socratic",
+  "experience_applied_problem",
+  "experience_mini_project",
+]);
+
+// SKELETON ONLY (redesign §9): the outliner emits structure (order + type); the
+// two-phase pipeline authors `content` lazily on entry, so it is absent here.
+const informationStepSchema = z.object({
+  order: z.number().int(),
+  type: z.literal("information"),
+});
+
+// Experience step payload.
+const experienceStepSchema = z.object({
+  order: z.number().int(),
+  type: z.enum([
+    "experience_socratic",
+    "experience_applied_problem",
+    "experience_mini_project",
+  ]),
+  prompt: z.string().min(1),
+  rubricFocus: z.array(
+    z.enum([
+      "recall",
+      "application",
+      "conceptual",
+      "transfer",
+      "communication",
+      "coverage",
+    ]),
+  ),
+});
+
+const goalpostPlanSchema = z.object({
+  order: z.number().int(),
+  title: z.string().min(1),
+  objective: z.string().min(1),
+  estimatedMinutes: z.number().int().min(1),
+  information: informationStepSchema,
+  experience: experienceStepSchema,
+});
+
+const pathResultSchema = z.object({
+  goalposts: z.array(goalpostPlanSchema).min(1),
+});
 
 type PathResult = z.infer<typeof pathResultSchema>;
 

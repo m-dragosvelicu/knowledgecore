@@ -30,8 +30,8 @@ import type { LessonContentInput } from "../lib/services/lessonContent";
 import type { ResolvedVisual } from "../lib/services/visualMedia";
 import type { LessonGenerationState } from "../lib/journey/lessonGenerationState";
 import { mediumForKind } from "../lib/services/visual/gate";
-import { authoredBlockSchema } from "../lib/services/providers/schemas";
-import { SvgWorker, judgeSanitizedSvg } from "../lib/services/providers/visualWorkers";
+import { authoredBlockSchema } from "../lib/services/providers/lessonAuthor.service";
+import { SvgWorker, judgeSanitizedSvg } from "../lib/services/providers/visualWorkers.service";
 import { sanitizeSvg } from "../lib/services/visual/svgSanitizer";
 import type { LLMClient, CompletionResult } from "../lib/llm";
 

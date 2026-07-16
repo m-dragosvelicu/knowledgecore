@@ -1,14 +1,31 @@
+import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   CanDoStatement,
-  GoalInterviewer,
   GoalInterviewInput,
   InterviewStep,
 } from "@/lib/services/types";
-import { interviewStepSchema } from "./schemas";
+import type { GoalInterviewer } from "@/lib/services/interfaces/goalInterviewer.interface";
+import { canDoStatementSchema } from "./shared.schemas";
 import { GOAL_INTERVIEWER_SYSTEM } from "@/lib/llm/prompts/goalInterviewerPrompts";
+
+// Not currently sent as a standalone structured-output schema (interviewStepSchema
+// carries canDoStatements inline); kept for parity with the schema family this
+// provider owns.
+export const goalInterviewResultSchema = z.object({
+  canDoStatements: z.array(canDoStatementSchema).min(1),
+});
+
+// Flat object (not a discriminated union): the Gemini converter has no oneOf/anyOf,
+// so the optional fields are normalized in this file by `kind`.
+const interviewStepSchema = z.object({
+  kind: z.enum(["question", "complete"]),
+  question: z.string().nullish(),
+  canDoStatements: z.array(canDoStatementSchema).nullish(),
+  successCriterion: z.string().nullish(),
+});
 
 // gemini-3.5-flash is the live default for L0 services. Fallback model id for
 // telemetry when a failure short-circuits the call before usage fires.
