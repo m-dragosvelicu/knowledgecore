@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import BeginClient from "./BeginClient";
 

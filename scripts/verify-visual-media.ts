@@ -20,8 +20,8 @@ import { mediumForKind, routeVisual } from "../lib/services/visual/gate";
 import { getImageSource, getVideoSource } from "../lib/services";
 import { OpenverseImageSource } from "../lib/services/providers/openverseImageSource.service";
 import { YouTubeVideoSource } from "../lib/services/providers/youTubeVideoSource.service";
-import { incrementVisualNotHelpful, emptyProfileState } from "../lib/journey/learnerProfile";
-import { recordVisualNotHelpful } from "../lib/journey/profileStore";
+import { incrementVisualNotHelpful, emptyProfileState } from "../lib/journey/profile/model";
+import { recordVisualNotHelpful } from "../lib/journey/profile/store";
 import { prisma } from "../lib/db";
 import { LlmCallPurpose } from "@prisma/client";
 import type {

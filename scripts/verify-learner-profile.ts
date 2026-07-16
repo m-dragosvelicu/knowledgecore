@@ -1,7 +1,7 @@
 /**
  * Standalone check of the L1 learner-profile mastery rule
- * (lib/journey/learnerProfile.ts). Run: `bun run scripts/verify-learner-profile.ts`.
- * No DB or LLM needed — learnerProfile.ts is pure. Exits non-zero on any failure.
+ * (lib/journey/profile/model.ts). Run: `bun run scripts/verify-learner-profile.ts`.
+ * No DB or LLM needed — profile/model.ts is pure. Exits non-zero on any failure.
  *
  * Covers the BKT update rule: direction + clamping to [0,1], convergence over
  * repeated evidence, applyMasteryEvidence's immutability/observation-count/
@@ -16,7 +16,7 @@ import {
   decisionToMasteryEvidence,
   emptyProfileState,
   type ConceptMasteryMap,
-} from "../lib/journey/learnerProfile";
+} from "../lib/journey/profile/model";
 
 let ok = 0;
 let fail = 0;

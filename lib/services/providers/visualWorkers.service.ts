@@ -9,7 +9,7 @@ import type {
   VisualWorker,
   VisualWorkerInput,
   VisualWorkers,
-} from "@/lib/journey/lessonOrchestration";
+} from "@/lib/services/interfaces/lessonOrchestrator.interface";
 import type { ResolvedVisual } from "@/lib/services/visualMedia";
 import type { ImageSource } from "@/lib/services/interfaces/imageSource.interface";
 import type { VideoSource } from "@/lib/services/interfaces/videoSource.interface";

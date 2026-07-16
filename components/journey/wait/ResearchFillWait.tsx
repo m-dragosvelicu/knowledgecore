@@ -20,7 +20,7 @@ import {
 import type {
   ResearchProgressState,
   ResearchStage,
-} from "@/lib/journey/researchProgressState";
+} from "@/lib/journey/research/progressState";
 
 // Visible stage ladder (failed branches to the failure card instead).
 const STAGE_LADDER: ResearchStage[] = [

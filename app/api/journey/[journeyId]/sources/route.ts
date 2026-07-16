@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { buildAttribution } from "@/lib/journey/sourceAttribution";
+import { buildAttribution } from "@/lib/research/attribution";
 
 export const runtime = "nodejs";
 

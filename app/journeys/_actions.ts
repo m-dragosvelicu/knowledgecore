@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRealUserId } from "@/lib/auth-guards";
-import { prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
 
 const deleteJourneySchema = z.object({
   intentId: z.string().min(1),

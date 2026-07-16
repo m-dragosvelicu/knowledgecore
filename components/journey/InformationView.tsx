@@ -16,7 +16,7 @@ type Props = {
   content: React.ReactNode;
   /**
    * Minimum dwell before continue is enabled, in seconds. Comes from the
-   * presenter seam (lib/journey/presenter.ts); defaults to
+   * presenter seam (lib/journey/profile/presenter.ts); defaults to
    * DEFAULT_DWELL_SECONDS when a caller doesn't thread the presenter through.
    */
   dwellSeconds?: number;
