@@ -14,16 +14,15 @@ import { submitProbeAction } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
 import { SaveAndLeaveLink } from "@/components/journey/SaveAndLeave";
 import { Eyebrow, SkipButton } from "@/components/ui";
+import SolidButton from "@/components/ui/SolidButton";
 
 type Props = {
   questions: ProbeQuestion[];
   // The resolved journey id (from ?j), threaded so scoring writes to and
   // advances the journey the learner actually opened, not the most-recent one.
   intentId: string;
-  // Resume support (backend slice): answers already persisted for this probe,
-  // keyed by question id, plus the incremental per-answer save action. Not
-  // wired into local state/index yet — the frontend engineer owns seeding the
-  // resume position and calling saveAnswerAction as each question is finished.
+  // Resume support: answers already persisted for this probe, keyed by
+  // question id, plus the incremental per-answer save action.
   initialAnswers?: Record<string, string>;
   saveAnswerAction?: (
     intentId: string | null | undefined,
@@ -32,14 +31,33 @@ type Props = {
   ) => Promise<void>;
 };
 
+// First index with no (or a blank) saved answer — a learner who dropped
+// mid-probe resumes at the exact question they left, not the start.
+// All-answered resolves to the last question, so a completed-but-unsubmitted
+// resume lands on Submit rather than looping back to question 1.
+function firstUnansweredIndex(
+  questions: ProbeQuestion[],
+  answers: Record<string, string>,
+): number {
+  for (let i = 0; i < questions.length; i++) {
+    const value = answers[questions[i].id];
+    if (!value || value.trim().length === 0) return i;
+  }
+  return Math.max(0, questions.length - 1);
+}
+
 export default function ProbeClient({
   questions,
   intentId,
   initialAnswers,
   saveAnswerAction,
 }: Props) {
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [index, setIndex] = useState(() =>
+    firstUnansweredIndex(questions, initialAnswers ?? {}),
+  );
+  const [answers, setAnswers] = useState<Record<string, string>>(
+    () => initialAnswers ?? {},
+  );
   const [isPending, startTransition] = useTransition();
 
   if (questions.length === 0) {
@@ -59,13 +77,22 @@ export default function ProbeClient({
     setAnswers((prev) => ({ ...prev, [current.id]: value }));
   }
 
+  // Discrete per-question persistence (never per keystroke): fire-and-forget
+  // so a slow save never blocks moving on. Best-effort — a dropped save just
+  // means a resume re-asks that one question, matching the backend's design.
+  function persistAnswer(questionIndex: number, value: string) {
+    saveAnswerAction?.(intentId, questionIndex, value).catch(() => {});
+  }
+
   function next() {
     if (!isLast) {
+      persistAnswer(index, currentValue);
       setIndex((i) => i + 1);
     }
   }
 
   function submit() {
+    persistAnswer(index, currentValue);
     const payload: ProbeAnswer[] = questions.map((q) => ({
       questionId: q.id,
       response: answers[q.id] ?? "",
@@ -187,14 +214,16 @@ export default function ProbeClient({
               </SkipButton>
             </Stack>
             {isLast ? (
-              <Button
-                variant="contained"
-                color="kcInk"
+              <SolidButton
+                tone="ink"
+                arrow={false}
                 onClick={submit}
-                disabled={!canAdvance || isPending}
+                disabled={!canAdvance}
+                pending={isPending}
+                pendingLabel="Scoring…"
               >
-                {isPending ? "Scoring…" : "Submit"}
-              </Button>
+                Submit
+              </SolidButton>
             ) : (
               <Button
                 variant="contained"

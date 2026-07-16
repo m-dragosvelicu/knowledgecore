@@ -13,16 +13,19 @@ type Props = {
 
 const POLL_INTERVAL_MS = 1000;
 
-// Backend slice placeholder: the probe questions call has no sub-stages (a
-// single blocking structured call, unlike the lesson pipeline GettingReady
-// ladder-tracks), so this is intentionally a single-dot wait, not a ladder.
-// Thin wrapper over the shared T3 primitives (usePolledStage + StagedWait),
-// same wiring shape as GettingReady.tsx; the frontend engineer owns final
-// copy/visuals and may replace this component outright.
+// The probe-questions call has no sub-stages to poll (a single blocking
+// structured call, unlike the lesson pipeline's multi-phase ladder), so this
+// renders a single active step rather than inventing stages that do not map
+// to real progress. Same wiring shape as GettingReady.tsx: usePolledStage
+// owns the kickoff+poll state machine, StagedWait renders it.
 export default function ProbeWait({ intentId, action, pollAction }: Props) {
   const router = useRouter();
 
-  const { state, failed, retry } = usePolledStage<ProbeResumeState>(
+  // The raw `error` field on a failed poll is an internal exception message
+  // (e.g. from the LLM client), not user-facing copy — GettingReady shows a
+  // curated message on failure rather than that raw string, so this mirrors
+  // that and does not read `state` at all.
+  const { failed, retry } = usePolledStage<ProbeResumeState>(
     () => action(intentId),
     () => pollAction(intentId),
     [intentId, action, pollAction],
@@ -33,20 +36,23 @@ export default function ProbeWait({ intentId, action, pollAction }: Props) {
     return (
       <StagedWait
         failed
-        failureHeadline="We could not prepare your questions just now."
+        failureHeadline="We could not prepare your questions just now"
         failureDetail="This sometimes happens on a busy connection. You can try again."
         onRetry={retry}
       />
     );
   }
 
+  // Headline is deliberately distinct from the page's own "Finding your
+  // starting point" eyebrow above it, to avoid repeating the same phrase
+  // twice on screen.
   return (
     <StagedWait
-      headline="Finding your starting point"
+      headline="Shaping your first few questions"
       stageCount={1}
       activeIndex={0}
       label="Preparing your questions"
-      detail="This takes a moment while we shape a few quick questions to calibrate where your trail begins."
+      detail="This takes a moment while we put together a few quick questions to calibrate where your trail begins."
     />
   );
 }
