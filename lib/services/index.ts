@@ -13,6 +13,8 @@ import { buildVisualWorkers } from "@/lib/services/live/liveVisualWorkers";
 import type { VisualWorkers } from "@/lib/journey/lessonOrchestration";
 import type { PathConfirmationInterviewer } from "@/lib/services/pathConfirmation";
 import { LivePathConfirmationInterviewer } from "@/lib/services/live/livePathConfirmationInterviewer";
+import type { OutcomeReviser } from "@/lib/services/outcomeRevision";
+import { LiveOutcomeReviser } from "@/lib/services/live/liveOutcomeReviser";
 import type { Transcriber } from "@/lib/services/transcription";
 import { LiveTranscriber } from "@/lib/services/live/liveTranscriber";
 import { getDefaultTranscriptionClient } from "@/lib/llm";
@@ -30,6 +32,12 @@ export type {
   PathConfirmationStep,
   OverviewGoalpost,
 } from "@/lib/services/pathConfirmation";
+export type {
+  OutcomeReviser,
+  OutcomeSubject,
+  OutcomeRevisionInput,
+  OutcomeRevisionResult,
+} from "@/lib/services/outcomeRevision";
 export type {
   Transcriber,
   TranscribeInput,
@@ -126,6 +134,17 @@ export function getLessonOrchestratorPorts(): OrchestratorPorts {
 export function getPathConfirmationInterviewer(): PathConfirmationInterviewer {
   requireApiKey();
   return new LivePathConfirmationInterviewer(getSharedClient());
+}
+
+// ---------------------------------------------------------------------------
+// Outcome revision (founder ruling 2026-07-16) — a single-shot revise call, NOT
+// an instantiation of the shared dialogue engine. See outcomeRevision.ts for why.
+// Kept as a SEPARATE selector (the LOCKED `Services` type must not change).
+// ---------------------------------------------------------------------------
+
+export function getOutcomeReviser(): OutcomeReviser {
+  requireApiKey();
+  return new LiveOutcomeReviser(getSharedClient());
 }
 
 // ---------------------------------------------------------------------------
