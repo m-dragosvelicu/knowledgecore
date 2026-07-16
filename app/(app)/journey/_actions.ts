@@ -41,6 +41,12 @@ import {
 } from "@/lib/journey/researchBundle";
 import type { ResearchProgressState } from "@/lib/journey/researchProgressState";
 import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
+import {
+  ensureProbeQuestions,
+  readProbeState,
+  saveProbeAnswer,
+  type ProbeResumeState,
+} from "@/lib/journey/probeState";
 
 // Pre-journey owner context: a real OR guest (anonymous) owner id plus whether
 // the owner is a guest, so the cost-bearing pre-journey stages can apply the D2
@@ -1306,6 +1312,49 @@ export async function readBundleProgressAction(
   const userId = await requireRealUserId();
   intentId = await requireActiveIntentId(userId, intentId);
   return readBundleProgressForIntent(intentId);
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge-probe resume — mirrors the goalpost lazy-generation pair above.
+// The probe wait screen fires prepareProbeQuestionsAction on mount (idempotent
+// — a no-op if questions are already ready or a generation is already in
+// flight) and polls readProbeGenerationStateAction until `status: "ready"`
+// (then the page re-renders with the persisted questions + saved answers) or
+// `status: "failed"` (a real error, not a loop). saveProbeAnswerAction
+// persists one answer at a time so a refresh or resume never loses progress.
+// ---------------------------------------------------------------------------
+
+export async function prepareProbeQuestionsAction(
+  intentId?: string | null,
+): Promise<void> {
+  const userId = await requireOwnerId();
+  intentId = await requireActiveIntentId(userId, intentId);
+  await ensureProbeQuestions(intentId);
+  await touchIntentRecency(intentId);
+}
+
+export async function readProbeGenerationStateAction(
+  intentId?: string | null,
+): Promise<ProbeResumeState | null> {
+  const userId = await requireOwnerId();
+  intentId = await requireActiveIntentId(userId, intentId);
+  return readProbeState(intentId);
+}
+
+const probeAnswerSchema = z.object({
+  questionIndex: z.number().int().min(0),
+  answer: z.string(),
+});
+
+export async function saveProbeAnswerAction(
+  intentId: string | null | undefined,
+  questionIndex: number,
+  answer: string,
+): Promise<void> {
+  const userId = await requireOwnerId();
+  const resolvedIntentId = await requireActiveIntentId(userId, intentId);
+  const parsed = probeAnswerSchema.parse({ questionIndex, answer });
+  await saveProbeAnswer(resolvedIntentId, parsed.questionIndex, parsed.answer);
 }
 
 // ---------------------------------------------------------------------------
