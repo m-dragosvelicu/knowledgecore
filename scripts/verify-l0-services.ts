@@ -7,11 +7,11 @@
  * quote is a genuine verbatim substring of the artifact.
  */
 import { GeminiClient } from "@/lib/llm";
-import { GeminiIntentParser } from "@/lib/services/providers/intentParser";
-import { GeminiGoalInterviewer } from "@/lib/services/providers/goalInterviewer";
-import { GeminiKnowledgeProbe } from "@/lib/services/providers/knowledgeProbe";
-import { GeminiPathOutliner } from "@/lib/services/providers/pathOutliner";
-import { GeminiCheckpointEvaluator } from "@/lib/services/providers/checkpointEvaluator";
+import { GeminiIntentParser } from "@/lib/services/providers/intentParser.service";
+import { GeminiGoalInterviewer } from "@/lib/services/providers/goalInterviewer.service";
+import { GeminiKnowledgeProbe } from "@/lib/services/providers/knowledgeProbe.service";
+import { GeminiPathOutliner } from "@/lib/services/providers/pathOutliner.service";
+import { GeminiCheckpointEvaluator } from "@/lib/services/providers/checkpointEvaluator.service";
 import type {
   CanDoStatement,
   InterviewTurn,

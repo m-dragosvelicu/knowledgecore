@@ -1,5 +1,5 @@
 // Static system prompt for the intake/intent-parsing step. Owned by
-// lib/services/providers/intentParser.ts; kept here so the prompt text is
+// lib/services/providers/intentParser.service.ts; kept here so the prompt text is
 // separate from the request/telemetry plumbing around it.
 
 export const INTENT_PARSER_SYSTEM = `You are the intake step of an AI learning platform. A learner has

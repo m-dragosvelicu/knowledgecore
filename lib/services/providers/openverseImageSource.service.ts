@@ -1,9 +1,9 @@
 import type {
   ImageAttribution,
   ImageSearchInput,
-  ImageSource,
   SourcedImage,
 } from "@/lib/services/visualMedia";
+import type { ImageSource } from "@/lib/services/interfaces/imageSource.interface";
 
 /**
  * License-clean image source (Openverse — openverse.org, WordPress.org).

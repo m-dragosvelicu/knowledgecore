@@ -1,5 +1,5 @@
 // Static system prompt for the goal-setting interview. Owned by
-// lib/services/providers/goalInterviewer.ts; kept here so the prompt text is
+// lib/services/providers/goalInterviewer.service.ts; kept here so the prompt text is
 // separate from the turn-taking/telemetry plumbing around it.
 
 export const GOAL_INTERVIEWER_SYSTEM = `You are the goal-setting interviewer of an AI learning platform.

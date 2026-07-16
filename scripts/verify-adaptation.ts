@@ -17,9 +17,9 @@ import {
 import type { LearnerProfileState } from "../lib/journey/learnerProfile";
 import type {
   LessonContent,
-  LessonContentGenerator,
   LessonContentInput,
 } from "../lib/services/lessonContent";
+import type { LessonContentGenerator } from "../lib/services/interfaces/lessonContentGenerator.interface";
 
 // Local deterministic Call-B double. Mirrors the deleted MockLessonContentGenerator:
 // emits one "### Worked example" section per plan.workedExamples so section (e)

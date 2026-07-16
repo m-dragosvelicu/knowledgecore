@@ -10,7 +10,7 @@
  */
 
 import { routeQueries } from "../lib/research/intentRouter";
-import { MultiSourceResearchAgent } from "../lib/services/providers/researchAgent";
+import { MultiSourceResearchAgent } from "../lib/services/providers/researchAgent.service";
 import {
   bindJourneyBundle,
   resolveJourneySourceIds,

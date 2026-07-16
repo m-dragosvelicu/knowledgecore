@@ -18,9 +18,41 @@ import type {
   VisualBlock,
 } from "@/lib/services/lessonDoc";
 import type { LessonContentInput } from "@/lib/services/lessonContent";
-import type { z } from "zod";
-import { authoredLessonSchema } from "./schemas";
+import { z } from "zod";
 import { LESSON_AUTHOR_SYSTEM } from "@/lib/llm/prompts/lessonAuthorPrompts";
+
+// Mirrors lib/services/visualMedia.ts VISUAL_KINDS exactly.
+const visualKindSchema = z.enum([
+  "diagram",
+  "structural",
+  "quantitative",
+  "photographic",
+  "real_world",
+  "human",
+  "situational",
+  "process",
+  "motion",
+]);
+
+// Phase-1 Author schema. Anti-ASCII guarantee (redesign §6): no field lets
+// the Author emit a drawn figure — a visual is only { kind, spec }; the
+// drawn payload comes later from a Phase-2 worker. Flat object (Gemini has
+// no oneOf/anyOf) normalized in code by `type`. Exported for the verify script.
+export const authoredBlockSchema = z.object({
+  type: z.enum(["prose", "visual"]),
+  md: z.string().nullish(),
+  kind: visualKindSchema.nullish(),
+  spec: z.string().nullish(),
+});
+
+const authoredSectionSchema = z.object({
+  heading: z.string().min(1),
+  blocks: z.array(authoredBlockSchema).min(1),
+});
+
+const authoredLessonSchema = z.object({
+  sections: z.array(authoredSectionSchema).min(1),
+});
 
 type AuthoredLesson = z.infer<typeof authoredLessonSchema>;
 

@@ -1,9 +1,20 @@
+import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
-import type { IntentParser, ParsedSubject } from "@/lib/services/types";
-import { parsedSubjectSchema } from "./schemas";
+import type { ParsedSubject } from "@/lib/services/types";
+import type { IntentParser } from "@/lib/services/interfaces/intentParser.interface";
 import { INTENT_PARSER_SYSTEM } from "@/lib/llm/prompts/intentParserPrompts";
+
+// Gemini emits the ambiguity fields even when unambiguous (false/null), so accept
+// nullish. NO top-level .transform: a transformed schema passed to completeStructured<T>
+// unifies T to the pre-transform input type; this file normalizes nullish after.
+const parsedSubjectSchema = z.object({
+  canonicalName: z.string().min(1),
+  scopeNote: z.string().min(1),
+  ambiguous: z.boolean().nullish(),
+  clarification: z.string().nullish(),
+});
 
 // Intent parsing is a tiny extraction task, so it runs on the cheapest
 // structured-output Gemini tier (Flash-Lite) rather than the heavier

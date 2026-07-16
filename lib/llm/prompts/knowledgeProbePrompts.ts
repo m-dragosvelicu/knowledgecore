@@ -1,5 +1,5 @@
 // Static system prompts for the knowledge probe (question generation +
-// scoring). Owned by lib/services/providers/knowledgeProbe.ts; kept here so
+// scoring). Owned by lib/services/providers/knowledgeProbe.service.ts; kept here so
 // the prompt text is separate from the request/telemetry plumbing around it.
 
 export const KNOWLEDGE_PROBE_QUESTIONS_SYSTEM = `You are the diagnostic step of an AI learning platform.

@@ -1,10 +1,11 @@
 /**
- * Research Agent service contract (additive). Finds credible sources and
+ * Research Agent data types (additive). Finds credible sources and
  * assembles a "core source material bundle" that grounded-generation reads.
  * Does not touch the locked `lib/services/types.ts` boundary — lives
  * alongside it (same pattern as lessonContent.ts, pathConfirmation.ts,
- * transcription.ts, visualMedia.ts) and is wired through `getServices()`'s
- * separate-selector pattern.
+ * transcription.ts, visualMedia.ts). The `ResearchAgent` interface itself
+ * lives in `lib/services/interfaces/researchAgent.interface.ts`; it is wired
+ * through `getServices()`'s separate-selector pattern.
  */
 
 import type { SourceKind } from "@prisma/client";
@@ -72,24 +73,3 @@ export type ResearchProgressEvent =
 export type ResearchProgressSink = (
   event: ResearchProgressEvent,
 ) => Promise<void> | void;
-
-/**
- * The Research Agent service. `amend` (targeted gap-fill) is not yet
- * implemented; see the provider for its current placeholder behaviour.
- */
-export interface ResearchAgent {
-  /**
-   * Assemble (or research live) the bundle for a topic. `goalpostQueries` is
-   * the per-goalpost query set generation grounds against. `onProgress` is
-   * optional and advisory only — omitting it changes nothing about the result.
-   */
-  research(
-    topicKey: string,
-    topicLabel: string,
-    goalpostQueries: string[],
-    onProgress?: ResearchProgressSink,
-  ): Promise<Bundle>;
-
-  /** Targeted amend of an existing bundle (later phase, not yet implemented). */
-  amend(bundleId: string, gapQueries: GapQueries): Promise<Bundle>;
-}

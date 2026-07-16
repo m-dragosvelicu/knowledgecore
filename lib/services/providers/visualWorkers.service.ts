@@ -10,11 +10,9 @@ import type {
   VisualWorkerInput,
   VisualWorkers,
 } from "@/lib/journey/lessonOrchestration";
-import type {
-  ImageSource,
-  ResolvedVisual,
-  VideoSource,
-} from "@/lib/services/visualMedia";
+import type { ResolvedVisual } from "@/lib/services/visualMedia";
+import type { ImageSource } from "@/lib/services/interfaces/imageSource.interface";
+import type { VideoSource } from "@/lib/services/interfaces/videoSource.interface";
 import { sanitizeSvg } from "@/lib/services/visual/svgSanitizer";
 import {
   SVG_WORKER_SYSTEM,

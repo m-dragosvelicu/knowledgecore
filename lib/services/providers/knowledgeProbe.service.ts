@@ -1,21 +1,57 @@
-import type { z } from "zod";
+import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   CanDoStatement,
-  KnowledgeProbe,
   ParsedSubject,
   ProbeAnswer,
   ProbeQuestion,
   ProbeScoreResult,
   ProbeTranscriptEntry,
 } from "@/lib/services/types";
-import { competenciesResultSchema, probeQuestionsResultSchema } from "./schemas";
+import type { KnowledgeProbe } from "@/lib/services/interfaces/knowledgeProbe.interface";
+import { rubricLevelSchema } from "./shared.schemas";
 import {
   KNOWLEDGE_PROBE_QUESTIONS_SYSTEM,
   KNOWLEDGE_PROBE_SCORE_SYSTEM,
 } from "@/lib/llm/prompts/knowledgeProbePrompts";
+
+const probeQuestionSchema = z
+  .object({
+    id: z.string().min(1),
+    prompt: z.string().min(1),
+    kind: z.enum(["open", "multiple_choice"]),
+    // Gemini emits options even for open questions (null); normalized to undefined below.
+    options: z.array(z.string()).nullish(),
+    competencyTag: z.string().min(1),
+  })
+  .transform((q) => ({
+    ...q,
+    options: q.options ?? undefined,
+  }));
+
+const probeQuestionsResultSchema = z.object({
+  questions: z.array(probeQuestionSchema).min(1),
+});
+
+const competencySchema = z.object({
+  competency: z.string().min(1),
+  estimatedLevel: rubricLevelSchema,
+  confidence: z.number().min(0).max(1),
+});
+
+// One-sentence judgement keyed back to the probe question by id; assembled in code
+// into ProbeTranscriptEntry rows with the passed-in prompt/answer.
+const probeJudgementSchema = z.object({
+  questionId: z.string().min(1),
+  judgement: z.string().min(1),
+});
+
+const competenciesResultSchema = z.object({
+  competencies: z.array(competencySchema).min(1),
+  judgements: z.array(probeJudgementSchema),
+});
 
 // gemini-3.5-flash is the live default. Token usage is surfaced from
 // completeStructured via the onUsage callback (lib/llm/types.ts); this
