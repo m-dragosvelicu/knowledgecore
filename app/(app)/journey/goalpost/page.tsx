@@ -25,25 +25,25 @@ import { isLessonContentReady } from "@/lib/journey/lesson/generation";
 import { estimateReadMinutes } from "@/lib/journey/readTime";
 import { isLessonDoc } from "@/lib/services/lessonDoc";
 import type { LessonDoc } from "@/lib/services/lessonDoc";
-import LessonDocView from "@/components/journey/LessonDocView";
-import GettingReady from "@/components/journey/GettingReady";
-import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
+import LessonDocView from "@/app/(app)/journey/goalpost/_components/LessonDocView";
+import GettingReady from "@/app/(app)/journey/goalpost/_components/GettingReady";
+import RubricGrid from "@/app/(app)/journey/goalpost/_components/RubricGrid";
 import SubmitButton from "@/components/journey/SubmitButton";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
-import ExperienceForm from "@/components/journey/ExperienceForm";
-import InformationView from "@/components/journey/InformationView";
-import OverrideControl from "@/components/journey/OverrideControl";
+import ExperienceForm from "@/app/(app)/journey/goalpost/_components/ExperienceForm";
+import InformationView from "@/app/(app)/journey/goalpost/_components/InformationView";
+import OverrideControl from "@/app/(app)/journey/goalpost/_components/OverrideControl";
 // SkipControl: import commented out with its only render sites below
 // (founder-ordered temporary removal of the skip affordance, 2026-07-17).
 // import SkipControl from "@/components/journey/SkipControl";
-import ThresholdView from "@/components/journey/ThresholdView";
-import ReviewView from "@/components/journey/ReviewView";
+import ThresholdView from "@/app/(app)/journey/goalpost/_components/ThresholdView";
+import ReviewView from "@/app/(app)/journey/goalpost/_components/ReviewView";
 import Markdown from "@/components/Markdown";
 import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import SolidButton from "@/components/ui/SolidButton";
-import SourcesPanel from "@/components/journey/SourcesPanel";
+import SourcesPanel from "@/app/(app)/journey/goalpost/_components/SourcesPanel";
 
 const DECISION_COLORS: Record<Decision, "success" | "warning" | "info"> = {
   advance: "success",

@@ -16,9 +16,9 @@ import type {
   PathAdjustment,
   RubricScores,
 } from "@/lib/services/types";
-import CompetencyBars from "@/app/(app)/journey/_components/CompetencyBars";
+import CompetencyBars from "@/app/(app)/journey/path/_components/CompetencyBars";
 import PathTrail, { type TrailNode } from "@/components/journey/PathTrail";
-import PathConfirmationGate from "@/components/journey/PathConfirmationGate";
+import PathConfirmationGate from "@/app/(app)/journey/path/_components/PathConfirmationGate";
 import { GoalpostStatus } from "@prisma/client";
 
 export default async function PathPage({
