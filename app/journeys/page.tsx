@@ -9,7 +9,7 @@ import { nextWizardRoute } from "@/lib/journey/intent/routing";
 import AppHeader from "@/components/AppHeader";
 import HomeHero from "@/components/HomeHero";
 import { Eyebrow, WobbleButton } from "@/components/ui";
-import JourneyListRow, { type JourneyListRowData } from "@/components/journey/JourneyListRow";
+import JourneyListRow, { type JourneyListRowData } from "@/app/journeys/_components/JourneyListRow";
 
 // Status copy mirrors the home dashboard's one-teal palette: sentence case, the
 // difference carried by copy + metadata, never a traffic-light hue.

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import { Eyebrow } from "@/components/ui";
 import ProbeClient from "./ProbeClient";
-import ProbeWait from "@/components/journey/wait/ProbeWait";
+import ProbeWait from "@/app/(app)/journey/probe/_components/ProbeWait";
 import {
   prepareProbeQuestionsAction,
   readProbeGenerationStateAction,
