@@ -11,10 +11,10 @@ import { getLessonOrchestratorPorts } from '@/lib/services';
 import { isLessonDoc, isProseBlock } from '@/lib/services/lessonDoc';
 import { StepType } from '@prisma/client';
 
-import { LessonGenerationState, makeGenerationState } from './lessonGenerationState';
-import { runLessonPipeline } from './lessonOrchestration';
-import { readOrCreateProfile } from './profileStore';
-import { resolveJourneySourceIds, scrubSourceIds } from './researchBundle';
+import { LessonGenerationState, makeGenerationState } from './generationState';
+import { runLessonPipeline } from './orchestrator';
+import { readOrCreateProfile } from '../profile/store';
+import { resolveJourneySourceIds, scrubSourceIds } from '../research/bundle';
 
 import type { Competency } from "@/lib/services/types";
 import type { LessonDoc } from "@/lib/services/lessonDoc";

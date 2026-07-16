@@ -1,7 +1,7 @@
 /**
  * L1 Slice 1 — deterministic proof of the one visible adaptation.
  * Run: `bun run scripts/verify-adaptation.ts`. No DB or LLM needed —
- * lib/journey/profileAdaptation.ts is pure. Exits non-zero on any failure.
+ * lib/journey/profile/adaptation.ts is pure. Exits non-zero on any failure.
  *
  * Checks low- vs high-mastery support plans (worked examples, support level),
  * the serialized Call B prompt text, the conservative-early guard on thin
@@ -13,8 +13,8 @@ import {
   WORKED_EXAMPLES_LOW,
   WORKED_EXAMPLES_HIGH,
   THIN_SIGNAL_OBSERVATIONS,
-} from "../lib/journey/profileAdaptation";
-import type { LearnerProfileState } from "../lib/journey/learnerProfile";
+} from "../lib/journey/profile/adaptation";
+import type { LearnerProfileState } from "../lib/journey/profile/model";
 import type {
   LessonContent,
   LessonContentInput,

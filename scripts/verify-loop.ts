@@ -8,8 +8,8 @@
  * Cleans up the throwaway user at the end. Exits non-zero on any failed assertion.
  */
 import { prisma } from "../lib/db";
-import { getCurrentGoalpost } from "../lib/journey/state";
-import { applyPathAdjustment } from "../lib/journey/pathRevision";
+import { getCurrentGoalpost } from "../lib/journey/intent/queries";
+import { applyPathAdjustment } from "../lib/journey/path/revision";
 import type { PathAdjusterInput, PathAdjustment } from "../lib/services/types";
 import type { PathAdjuster } from "../lib/services/interfaces/pathAdjuster.interface";
 

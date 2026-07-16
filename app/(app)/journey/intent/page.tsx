@@ -10,7 +10,8 @@ import {
 } from "@/app/(app)/journey/_actions";
 import { getCurrentSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 
 type SearchParams = Promise<{ confirm?: string; note?: string; j?: string }>;
 

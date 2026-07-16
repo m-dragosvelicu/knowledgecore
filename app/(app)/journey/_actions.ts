@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { requireOwnerId, requireRealUserId } from "@/lib/auth-guards";
-import { assertGuestLlmBudget } from "@/lib/journey/guestRateLimit";
-import { prisma, getOrCreateActiveIntent, getCurrentGoalpost } from "@/lib/journey/state";
+import { assertGuestLlmBudget } from "@/lib/llm/guestRateLimit";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
 import {
   getServices,
   getPathConfirmationInterviewer,
@@ -26,32 +28,32 @@ import {
   applyPathAdjustment,
   applyPreAcceptancePathAdjustment,
   TERMINAL_GOALPOST_STATUSES,
-} from "@/lib/journey/pathRevision";
+} from "@/lib/journey/path/revision";
 import type { RubricScores } from "@/lib/services/types";
 import type { PathConfirmationStep } from "@/lib/services/pathConfirmation";
 import {
   applyCheckpointEvidence,
   recordRetry,
   recordVisualNotHelpful,
-} from "@/lib/journey/profileStore";
+} from "@/lib/journey/profile/store";
 import {
   ensureLessonContent,
   lessonContentText,
   readLessonGenerationState,
-} from "@/lib/journey/lessonGeneration";
-import type { LessonGenerationState } from "@/lib/journey/lessonGenerationState";
+} from "@/lib/journey/lesson/generation";
+import type { LessonGenerationState } from "@/lib/journey/lesson/generationState";
 import {
   bindJourneyBundle,
   readBundleProgressForIntent,
-} from "@/lib/journey/researchBundle";
-import type { ResearchProgressState } from "@/lib/journey/researchProgressState";
+} from "@/lib/journey/research/bundle";
+import type { ResearchProgressState } from "@/lib/journey/research/progressState";
 import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
 import {
   ensureProbeQuestions,
   readProbeState,
   saveProbeAnswer,
   type ProbeResumeState,
-} from "@/lib/journey/probeState";
+} from "@/lib/journey/probe/state";
 
 // Pre-journey owner context: a real OR guest (anonymous) owner id plus whether
 // the owner is a guest, so the cost-bearing pre-journey stages can apply the D2

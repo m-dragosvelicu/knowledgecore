@@ -9,8 +9,8 @@ import { prisma } from "@/lib/db";
 import {
   deriveSupportPlan,
   serializeProfileForGeneration,
-} from "@/lib/journey/profileAdaptation";
-import type { Author } from "@/lib/journey/lessonOrchestration";
+} from "@/lib/journey/profile/adaptation";
+import type { Author } from "@/lib/services/interfaces/lessonOrchestrator.interface";
 import type {
   DraftLessonDoc,
   ProseBlock,

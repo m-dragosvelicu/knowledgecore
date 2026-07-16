@@ -1,7 +1,5 @@
-import type { Goalpost, LearningIntent, Step } from "@prisma/client";
+import type { LearningIntent } from "@prisma/client";
 import { prisma } from '@/lib/db';
-
-export { prisma };
 
 export const PAUSE_AFTER_DAYS = 7;
 export const ABANDON_AFTER_DAYS = 30;
@@ -77,54 +75,4 @@ export async function getOrCreateActiveIntent(
   });
   if (!intent) return null;
   return applyInactivityTransitions(intent);
-}
-
-export function nextWizardRoute(intent: LearningIntent | null): string {
-  if (!intent) return "/journey/intent";
-  // Route is addressable by journey id (`?j=<id>`), resolved by
-  // getOrCreateActiveIntent — otherwise every card links to a generic
-  // id-less route and clicking journey A could open journey B.
-  const withId = (path: string) => `${path}?j=${intent.id}`;
-  switch (intent.status) {
-    case "created":
-      return withId("/journey/intent");
-    case "goal_assessed":
-      return withId("/journey/outcome");
-    case "outcome_assessed":
-      return withId("/journey/probe");
-    case "knowledge_assessed":
-      return withId("/journey/path");
-    case "path_outlined":
-      return withId("/journey/path");
-    case "in_progress":
-      return withId("/journey/goalpost");
-    case "paused":
-      // §9.5: a resumed journey gets a warm-up recap before the goalpost.
-      return withId("/journey/resume");
-    case "complete":
-      return "/journey/complete";
-    case "abandoned":
-      return "/journey/intent";
-    default:
-      return "/journey/intent";
-  }
-}
-
-export type GoalpostWithSteps = Goalpost & { steps: Step[] };
-
-export async function getCurrentGoalpost(
-  intentId: string,
-): Promise<GoalpostWithSteps | null> {
-  const path = await prisma.learningPath.findUnique({
-    where: { intentId },
-    select: { id: true },
-  });
-  if (!path) return null;
-  return prisma.goalpost.findFirst({
-    // Serve the lowest-order goalpost that is not done. "skipped" goalposts
-    // (dropped by a path revision) are terminal like "complete".
-    where: { pathId: path.id, status: { notIn: ["complete", "skipped"] } },
-    orderBy: { order: "asc" },
-    include: { steps: { orderBy: { order: "asc" } } },
-  });
 }

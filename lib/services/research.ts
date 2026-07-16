@@ -62,7 +62,7 @@ export type GapQueries = string[];
 
 /**
  * Best-effort progress signal (E04.S03), mirroring the orchestrator's
- * `ProgressSink` contract (lib/journey/lessonOrchestration.ts): a sink that
+ * `ProgressSink` contract (lib/services/interfaces/lessonOrchestrator.interface.ts): a sink that
  * throws must not abort research. `reading` reports genuine per-hit
  * extraction progress, never a fabricated count.
  */

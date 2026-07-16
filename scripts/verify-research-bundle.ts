@@ -15,7 +15,7 @@ import {
   bindJourneyBundle,
   resolveJourneySourceIds,
   scrubSourceIds,
-} from "../lib/journey/researchBundle";
+} from "../lib/journey/research/bundle";
 import { prisma } from "../lib/db";
 
 let ok = 0;

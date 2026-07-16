@@ -1,9 +1,10 @@
 /**
  * Persistence + orchestration for the knowledge-probe resume slice. Mirrors
- * ensureLessonContent's idempotent generate-once contract (lessonGeneration.ts)
- * and researchBundle.ts's race-safe create-then-claim (a loser catches the
- * unique-constraint violation and re-reads the winner's row, converging on the
- * DB instead of application-level locking).
+ * ensureLessonContent's idempotent generate-once contract (lib/journey/lesson/
+ * generation.ts) and lib/journey/research/bundle.ts's race-safe
+ * create-then-claim (a loser catches the unique-constraint violation and
+ * re-reads the winner's row, converging on the DB instead of
+ * application-level locking).
  *
  * ProbeState is a NEW table rather than reusing KnowledgeAssessment's Json
  * columns — see the model comment in schema.prisma for why.
@@ -18,7 +19,7 @@ import {
   isProbeGenerationState,
   type ProbeGenerationState,
   type ProbeRunStatus,
-} from "./probeGenerationState";
+} from "./generationState";
 
 const UNIQUE_VIOLATION = "P2002";
 

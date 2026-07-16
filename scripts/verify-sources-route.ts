@@ -11,7 +11,7 @@
  */
 
 import { prisma } from "../lib/db";
-import { buildAttribution } from "../lib/journey/sourceAttribution";
+import { buildAttribution } from "../lib/research/attribution";
 
 let ok = 0;
 let fail = 0;

@@ -7,10 +7,13 @@ import { GeminiKnowledgeProbe } from "@/lib/services/providers/knowledgeProbe.se
 import { GeminiPathOutliner } from "@/lib/services/providers/pathOutliner.service";
 import { GeminiCheckpointEvaluator } from "@/lib/services/providers/checkpointEvaluator.service";
 import { GeminiPathAdjuster } from "@/lib/services/providers/pathAdjuster.service";
-import type { Author, OrchestratorPorts } from "@/lib/journey/lessonOrchestration";
+import type {
+  Author,
+  OrchestratorPorts,
+  VisualWorkers,
+} from "@/lib/services/interfaces/lessonOrchestrator.interface";
 import { LessonAuthor } from "@/lib/services/providers/lessonAuthor.service";
 import { buildVisualWorkers } from "@/lib/services/providers/visualWorkers.service";
-import type { VisualWorkers } from "@/lib/journey/lessonOrchestration";
 import type { PathConfirmationInterviewer } from "@/lib/services/interfaces/pathConfirmationInterviewer.interface";
 import { GeminiPathConfirmationInterviewer } from "@/lib/services/providers/pathConfirmationInterviewer.service";
 import type { OutcomeReviser } from "@/lib/services/interfaces/outcomeReviser.interface";

@@ -9,8 +9,8 @@
  * Ranking is cosine similarity with a deterministic tie-break.
  */
 import { prisma } from '@/lib/db';
-import { resolveJourneySourceIds } from '@/lib/journey/researchBundle';
-import { buildAttribution } from '@/lib/journey/sourceAttribution';
+import { resolveJourneySourceIds } from '@/lib/journey/research/bundle';
+import { buildAttribution } from '@/lib/research/attribution';
 import { embedPassages } from '@/lib/research/embeddings/embed';
 import { PassageHit, searchPassages } from '@/lib/vector/kcPassages';
 

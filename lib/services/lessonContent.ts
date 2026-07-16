@@ -8,7 +8,7 @@
  * `lib/services/interfaces/lessonContentGenerator.interface.ts`.
  */
 
-import type { LearnerProfileState } from "@/lib/journey/learnerProfile";
+import type { LearnerProfileState } from "@/lib/journey/profile/model";
 import type { Competency } from "@/lib/services/types";
 import type { VisualNeed } from "@/lib/services/visualMedia";
 

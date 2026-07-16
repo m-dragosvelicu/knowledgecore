@@ -2,7 +2,7 @@
  * The generation-state record the research-fill ladder polls (E04.S03). A
  * server action cannot stream sub-steps, so `fillBundle` writes its current
  * stage onto `ResearchBundle.progress` and the client polls it — the same
- * shape of contract as `lib/journey/lessonGenerationState.ts`, adapted to the
+ * shape of contract as `lib/journey/lesson/generationState.ts`, adapted to the
  * research-bundle pipeline (search -> per-source read -> best-effort index).
  */
 

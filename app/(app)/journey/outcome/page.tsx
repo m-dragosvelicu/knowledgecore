@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getCurrentSession } from "@/lib/auth";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import type { CanDoStatement, InterviewTurn } from "@/lib/services/types";
 import OutcomeClient from "./OutcomeClient";
 

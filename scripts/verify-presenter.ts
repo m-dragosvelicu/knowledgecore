@@ -1,5 +1,5 @@
 /**
- * Standalone check of the L1 presenter-strategy seam (lib/journey/presenter.ts).
+ * Standalone check of the L1 presenter-strategy seam (lib/journey/profile/presenter.ts).
  * Run: `bun run scripts/verify-presenter.ts`. No DB or LLM needed — presenter.ts
  * has only a type-level import of StepType. Exits non-zero on any failure.
  *
@@ -16,7 +16,7 @@ import {
   type RenderDirectives,
   type PresenterStep,
   type MaybeLearnerProfile,
-} from "../lib/journey/presenter";
+} from "../lib/journey/profile/presenter";
 import { StepType } from "@prisma/client";
 
 let ok = 0;

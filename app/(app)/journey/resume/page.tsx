@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
+import { prisma } from "@/lib/db";
+import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
 import {
-  getCurrentGoalpost,
   getOrCreateActiveIntent,
-  nextWizardRoute,
   daysSince,
   REFRESHER_OFFER_AFTER_DAYS,
-  prisma,
-} from "@/lib/journey/state";
+} from "@/lib/journey/intent/resolution";
+import { nextWizardRoute } from "@/lib/journey/intent/routing";
 import { StepType } from "@prisma/client";
 import WarmUpRecap from "@/components/journey/WarmUpRecap";
 

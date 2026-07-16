@@ -14,7 +14,7 @@ import { MultiSourceResearchAgent } from "../lib/services/providers/researchAgen
 import {
   bindJourneyBundle,
   resolveJourneySourceIds,
-} from "../lib/journey/researchBundle";
+} from "../lib/journey/research/bundle";
 import { prisma } from "../lib/db";
 import { FINGERPRINT_VERSION } from "../lib/research/fingerprint";
 
@@ -140,7 +140,7 @@ try {
     // The sourceIds are bound BEFORE any lesson generation call. The lesson
     // generator reads sourceIds from DB; it never opens the live web. This is
     // enforced structurally: MultiSourceResearchAgent.research() is called from
-    // fillBundle() in researchBundle.ts BEFORE bindJourneyBundle returns, and
+    // fillBundle() in lib/journey/research/bundle.ts BEFORE bindJourneyBundle returns, and
     // grounded generation reads scrubSourceIds() from the already-persisted rows.
     check(
       "closed-book semantics: sourceIds available before generation (structural guarantee)",

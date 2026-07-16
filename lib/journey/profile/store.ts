@@ -1,6 +1,6 @@
 /**
  * L1 Slice 1 — the living-loop persistence layer for the LearnerProfile: the
- * DB-facing bridge between the pure profile logic (learnerProfile.ts, no
+ * DB-facing bridge between the pure profile logic (./model.ts, no
  * Prisma) and the journey server actions. Lazily creates the per-intent
  * LearnerProfile row (seeded from the empty state, writing an `init`
  * snapshot), reads it back into the plain `LearnerProfileState` shape, and
@@ -24,7 +24,7 @@ import {
   type DerivedSignals,
   type LearnerProfileState,
   type SignalVector,
-} from "./learnerProfile";
+} from "./model";
 
 type Tx = PrismaClient | Prisma.TransactionClient;
 
@@ -196,7 +196,7 @@ export interface CheckpointEvidence {
 /**
  * Apply one checkpoint's evidence to the journey profile and persist it,
  * writing a new append-only snapshot. Pure folding is delegated to
- * learnerProfile.ts; this only sequences read -> fold -> write-row ->
+ * ./model.ts; this only sequences read -> fold -> write-row ->
  * write-snapshot in a single transaction. `adjust_plan` is NOT mastery
  * evidence (Coverage Mismatch = the plan was wrong), so no BKT update is
  * applied, but the snapshot is still written for the audit stream.
@@ -309,30 +309,5 @@ export async function recordVisualNotHelpful(
     const next = incrementVisualNotHelpful(state);
     await writeLiveRow(tx, profileId, next);
     await writeSnapshot(tx, profileId, next, "visual_not_helpful", { visualId });
-  });
-}
-
-/**
- * Server-side hook for the post-experience Paas effort tap (the UI that captures
- * it is a later UX task; this leaves the capture path ready). Records the latest
- * effort rating and writes a snapshot. Clamps to the Paas 1..9 range.
- */
-export async function recordPaasEffort(
-  intentId: string,
-  userId: string,
-  rating: number,
-): Promise<void> {
-  const clamped = Math.min(9, Math.max(1, Math.round(rating)));
-  const profileId = await ensureProfile(intentId, userId);
-  await prisma.$transaction(async (tx) => {
-    const row = await tx.learnerProfile.findUnique({ where: { id: profileId } });
-    if (!row) return;
-    const state = rowToState(row);
-    const next: LearnerProfileState = {
-      ...state,
-      signals: { ...state.signals, latestPaasEffort: clamped },
-    };
-    await writeLiveRow(tx, profileId, next);
-    await writeSnapshot(tx, profileId, next, "paas_effort", { rating: clamped });
   });
 }
