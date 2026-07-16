@@ -2,10 +2,11 @@
  * L1 Slice 4 — deterministic proof of the visual-media gate.
  * Run: `bun run scripts/verify-visual-media.ts`.
  *
- * Registry is live-only, so gate/sourcing checks use local offline doubles
- * (FakeImageSource/FakeVideoSource) to stay network-free, while asserting the
- * registry itself resolves to the live source types. The not-helpful proof
- * uses the local docker Postgres (throwaway journey, created and deleted).
+ * The registry's image/video sources require network access, so gate/sourcing
+ * checks use local offline doubles (FakeImageSource/FakeVideoSource) to stay
+ * network-free, while asserting the registry itself resolves to the real
+ * provider types. The not-helpful proof uses the local docker Postgres
+ * (throwaway journey, created and deleted).
  *
  * Covers: the visualKind->medium routing switch; SVG sanitization (strips
  * script/handlers/foreignObject/external refs, markdown sanitizer untouched);
@@ -17,8 +18,8 @@
 import { sanitizeSvg, DENIED_ELEMENTS } from "../lib/services/visual/svgSanitizer";
 import { mediumForKind, routeVisual } from "../lib/services/visual/gate";
 import { getImageSource, getVideoSource } from "../lib/services";
-import { LiveOpenverseImageSource } from "../lib/services/live/liveOpenverseImageSource";
-import { LiveYouTubeVideoSource } from "../lib/services/live/liveYouTubeVideoSource";
+import { OpenverseImageSource } from "../lib/services/providers/openverseImageSource";
+import { YouTubeVideoSource } from "../lib/services/providers/youTubeVideoSource";
 import { incrementVisualNotHelpful, emptyProfileState } from "../lib/journey/learnerProfile";
 import { recordVisualNotHelpful } from "../lib/journey/profileStore";
 import { prisma } from "../lib/db";
@@ -98,9 +99,9 @@ async function gateChecks() {
     check(`gate: ${kind} -> ${medium}`, mediumForKind(kind) === medium, mediumForKind(kind));
   }
 
-  // Live-only registry: the selectors now return the LIVE keyless source types.
-  check("registry image source is the live Openverse source", getImageSource() instanceof LiveOpenverseImageSource);
-  check("registry video source is the live YouTube source", getVideoSource() instanceof LiveYouTubeVideoSource);
+  // Registry check: the selectors return the real keyless source types.
+  check("registry image source is OpenverseImageSource", getImageSource() instanceof OpenverseImageSource);
+  check("registry video source is YouTubeVideoSource", getVideoSource() instanceof YouTubeVideoSource);
 
   // End-to-end route per medium through the real gate + mock sources.
   const svgNeed: VisualNeed = {

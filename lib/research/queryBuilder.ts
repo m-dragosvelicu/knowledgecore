@@ -1,7 +1,7 @@
 /**
  * Search query construction + length guarding shared by all L2 search clients.
  *
- * Root cause (fixed here): LiveResearchAgent used to build its query by
+ * Root cause (fixed here): the Research Agent used to build its query by
  * naively joining every goalpost objective into one string. Long paths blow
  * past Tavily's hard 400-character query cap, Tavily rejects with a 400, and
  * that 400 used to be swallowed by the "degrade gracefully" catch, producing

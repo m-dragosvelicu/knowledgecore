@@ -74,8 +74,8 @@ export type ResearchProgressSink = (
 ) => Promise<void> | void;
 
 /**
- * The Research Agent service. Phase 0 ships the MOCK only; live retrieval +
- * `amend` real behaviour land in later phases.
+ * The Research Agent service. `amend` (targeted gap-fill) is not yet
+ * implemented; see the provider for its current placeholder behaviour.
  */
 export interface ResearchAgent {
   /**
