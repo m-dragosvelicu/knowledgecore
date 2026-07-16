@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth";
-import { getOrCreateActiveIntent } from "@/lib/journey/state";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";

@@ -7,7 +7,8 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import Box from "@mui/material/Box";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import { getCurrentSession } from "@/lib/auth";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import { generatePathAction } from "@/app/(app)/journey/_actions";
 import type {
   CanDoStatement,

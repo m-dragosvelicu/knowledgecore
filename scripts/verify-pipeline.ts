@@ -13,12 +13,14 @@
 import {
   runLessonPipeline,
   assemble,
-  type Author,
-  type VisualWorker,
-  type VisualWorkerInput,
-  type VisualWorkers,
-  type OrchestratorPorts,
-} from "../lib/journey/lessonOrchestration";
+} from "../lib/journey/lesson/orchestrator";
+import type {
+  Author,
+  VisualWorker,
+  VisualWorkerInput,
+  VisualWorkers,
+  OrchestratorPorts,
+} from "../lib/services/interfaces/lessonOrchestrator.interface";
 import {
   isVisualBlock,
   isProseBlock,
@@ -28,7 +30,7 @@ import {
 } from "../lib/services/lessonDoc";
 import type { LessonContentInput } from "../lib/services/lessonContent";
 import type { ResolvedVisual } from "../lib/services/visualMedia";
-import type { LessonGenerationState } from "../lib/journey/lessonGenerationState";
+import type { LessonGenerationState } from "../lib/journey/lesson/generationState";
 import { mediumForKind } from "../lib/services/visual/gate";
 import { authoredBlockSchema } from "../lib/services/providers/lessonAuthor.service";
 import { SvgWorker, judgeSanitizedSvg } from "../lib/services/providers/visualWorkers.service";

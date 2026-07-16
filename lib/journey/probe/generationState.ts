@@ -1,7 +1,7 @@
 /**
  * The generation-state record the probe wait screen polls. Mirrors
- * lessonGenerationState.ts's contract (status/label/error, client polls,
- * `failed` surfaces as a real error instead of looping). The probe-questions
+ * lib/journey/lesson/generationState.ts's contract (status/label/error,
+ * client polls, `failed` surfaces as a real error instead of looping). The probe-questions
  * call has no sub-stages to report — a single blocking structured call, unlike
  * the lesson's multi-phase pipeline — so there is no stage ladder here, only
  * the coarse run status.

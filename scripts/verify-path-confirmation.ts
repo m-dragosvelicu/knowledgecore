@@ -12,8 +12,8 @@
  * Cleans up the throwaway user. Exits non-zero on any failure.
  */
 import { prisma } from "../lib/db";
-import { getCurrentGoalpost } from "../lib/journey/state";
-import { applyPreAcceptancePathAdjustment } from "../lib/journey/pathRevision";
+import { getCurrentGoalpost } from "../lib/journey/intent/queries";
+import { applyPreAcceptancePathAdjustment } from "../lib/journey/path/revision";
 import type {
   PathAdjusterInput,
   PathAdjustment,

@@ -4,7 +4,7 @@ import { getTranscriber } from "@/lib/services";
 import {
   assertGuestLlmBudget,
   GuestRateLimitError,
-} from "@/lib/journey/guestRateLimit";
+} from "@/lib/llm/guestRateLimit";
 
 /**
  * L1 Slice 3 speech-to-text route. Takes a recorded-audio Blob (`audio` form

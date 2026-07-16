@@ -23,7 +23,7 @@ import {
   makeResearchProgressState,
   ResearchProgressState,
   stateForResearchEvent,
-} from './researchProgressState';
+} from './progressState';
 
 import type { Bundle } from "@/lib/services/research";
 /** Prisma's unique-constraint violation code. */

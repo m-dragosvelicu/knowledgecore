@@ -9,7 +9,7 @@
  */
 import { prisma } from "@/lib/db";
 import { claimAnonymousJourney, isAnonymousSession } from "@/lib/auth";
-import { assertGuestLlmBudget, GuestRateLimitError, GUEST_LLM_LIMIT } from "@/lib/journey/guestRateLimit";
+import { assertGuestLlmBudget, GuestRateLimitError, GUEST_LLM_LIMIT } from "@/lib/llm/guestRateLimit";
 import { cleanupOrphanedGuests } from "@/scripts/cleanup-guests";
 
 const TAG = `lf-verify-${Date.now()}`;

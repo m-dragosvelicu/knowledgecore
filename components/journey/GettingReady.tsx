@@ -7,7 +7,7 @@ import {
   defaultLabelForStage,
   type GenerationStage,
   type LessonGenerationState,
-} from "@/lib/journey/lessonGenerationState";
+} from "@/lib/journey/lesson/generationState";
 
 type Props = {
   goalpostId: string;

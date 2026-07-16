@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db";
 import {
   bindJourneyBundle,
   readBundleProgressForIntent,
-} from "@/lib/journey/researchBundle";
+} from "@/lib/journey/research/bundle";
 import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
 import { qdrant } from "@/lib/vector/qdrant";
 import { KC_PASSAGES } from "@/lib/vector/kcPassages";
