@@ -2,10 +2,14 @@ import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
-import { getServices } from "@/lib/services";
-import type { CanDoStatement } from "@/lib/services/types";
 import { Eyebrow } from "@/components/ui";
 import ProbeClient from "./ProbeClient";
+import ProbeWait from "@/components/journey/wait/ProbeWait";
+import {
+  prepareProbeQuestionsAction,
+  readProbeGenerationStateAction,
+  saveProbeAnswerAction,
+} from "@/app/(app)/journey/_actions";
 
 export default async function ProbePage({
   searchParams,
@@ -22,43 +26,63 @@ export default async function ProbePage({
   const outcome = await prisma.expectedOutcome.findUnique({ where: { intentId: intent.id } });
   if (!subject || !outcome) redirect(`/journey/outcome?j=${intent.id}`);
 
-  const services = getServices();
-  const canDo = outcome!.canDoStatements as unknown as CanDoStatement[];
-  const questions = await services.knowledgeProbe.questions(
-    { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    canDo,
+  // Lazy generation (mirrors the goalpost lesson-content gate in
+  // goalpost/page.tsx): no inline LLM await here. A missing/not-ready record
+  // renders the wait screen, which kicks off generation and polls; a `ready`
+  // record renders the real questions + any saved answers immediately.
+  const probeState = await readProbeGenerationStateAction(intent.id);
+
+  const header = (
+    <Box className="kc-fade" sx={{ mb: "30px", animationDelay: ".04s" }}>
+      <Eyebrow sx={{ mb: "12px" }}>Finding your starting point</Eyebrow>
+      <Box
+        component="h1"
+        sx={{
+          m: 0,
+          fontFamily: "var(--font-display)",
+          fontWeight: 400,
+          fontSize: "clamp(30px, 4.4vw, 48px)",
+          lineHeight: 1.06,
+          letterSpacing: "-.02em",
+          fontVariationSettings: '"SOFT" 20, "opsz" 144',
+          color: "var(--ink)",
+        }}
+      >
+        A few quick questions
+      </Box>
+      <Box
+        component="p"
+        sx={{ mt: "12px", fontSize: 15.5, lineHeight: 1.55, color: "var(--ink-2)" }}
+      >
+        Just enough to calibrate where your trail begins. There&rsquo;s no
+        score here, and a blank or unsure answer tells us just as much.
+      </Box>
+    </Box>
   );
+
+  if (!probeState || probeState.status !== "ready") {
+    return (
+      <Box sx={{ maxWidth: 720 }}>
+        {header}
+        <ProbeWait
+          intentId={intent.id}
+          action={prepareProbeQuestionsAction}
+          pollAction={readProbeGenerationStateAction}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ maxWidth: 720 }}>
-      <Box className="kc-fade" sx={{ mb: "30px", animationDelay: ".04s" }}>
-        <Eyebrow sx={{ mb: "12px" }}>Finding your starting point</Eyebrow>
-        <Box
-          component="h1"
-          sx={{
-            m: 0,
-            fontFamily: "var(--font-display)",
-            fontWeight: 400,
-            fontSize: "clamp(30px, 4.4vw, 48px)",
-            lineHeight: 1.06,
-            letterSpacing: "-.02em",
-            fontVariationSettings: '"SOFT" 20, "opsz" 144',
-            color: "var(--ink)",
-          }}
-        >
-          A few quick questions
-        </Box>
-        <Box
-          component="p"
-          sx={{ mt: "12px", fontSize: 15.5, lineHeight: 1.55, color: "var(--ink-2)" }}
-        >
-          Just enough to calibrate where your trail begins. There&rsquo;s no
-          score here, and a blank or unsure answer tells us just as much.
-        </Box>
-      </Box>
-
+      {header}
       <Box className="kc-fade" sx={{ animationDelay: ".12s" }}>
-        <ProbeClient questions={questions} intentId={intent.id} />
+        <ProbeClient
+          questions={probeState.questions ?? []}
+          intentId={intent.id}
+          initialAnswers={probeState.answers}
+          saveAnswerAction={saveProbeAnswerAction}
+        />
       </Box>
     </Box>
   );

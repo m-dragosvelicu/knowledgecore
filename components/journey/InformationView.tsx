@@ -22,6 +22,12 @@ type Props = {
    * presenter through keeps today's behavior.
    */
   dwellSeconds?: number;
+  /**
+   * Minutes shown in the eyebrow ("Read · about N min"), computed by the
+   * caller from the actual lesson content (lib/journey/readTime.ts) — not
+   * derived from the dwell gate, which is a UX floor, not a content measure.
+   */
+  readMinutes: number;
 };
 
 // Default minimum dwell before the learner can continue. A gentle gate (B.6 Q1):
@@ -29,13 +35,6 @@ type Props = {
 // frustrates. The presenter seam can scale this via paceMultiplier; with the
 // default pass-through strategy it stays 6s.
 const DEFAULT_DWELL_SECONDS = 6;
-
-// An approximate read time, shown in the eyebrow ("Read · about 4 min") the way
-// the kit checkpoint does. Derived from the dwell, kept human and approximate so
-// it never reads as a precise system measurement.
-function approxReadMinutes(dwellSeconds: number): number {
-  return Math.max(1, Math.round(dwellSeconds / 60) || 1);
-}
 
 /**
  * The Information surface (B.6 Q4): the calm READING half of a goalpost.
@@ -54,6 +53,7 @@ export default function InformationView({
   action,
   content,
   dwellSeconds = DEFAULT_DWELL_SECONDS,
+  readMinutes,
 }: Props) {
   const [remaining, setRemaining] = useState(dwellSeconds);
   const [scrolledToEnd, setScrolledToEnd] = useState(false);
@@ -93,7 +93,7 @@ export default function InformationView({
       }}
     >
       <Stack spacing={4}>
-        <Eyebrow>Read &middot; about {approxReadMinutes(dwellSeconds)} min</Eyebrow>
+        <Eyebrow>Read &middot; about {readMinutes} min</Eyebrow>
 
         <Box
           sx={{

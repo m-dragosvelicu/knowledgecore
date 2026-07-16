@@ -180,6 +180,7 @@ model LearningIntent {
   goal       LearningGoal?
   outcome    ExpectedOutcome?
   assessment KnowledgeAssessment?
+  probeState ProbeState?
   path       LearningPath?
   profile    LearnerProfile?
 
@@ -245,6 +246,28 @@ model KnowledgeAssessment {
   probeTranscript Json?
   /// L0 §4 — `string[]` appended when §7 checkpoints reveal the initial estimate was off.
   recalibrationFlags Json?
+}
+
+/// Probe-resume support: generated questions + per-question learner answers +
+/// generation status, kept separate from KnowledgeAssessment. That model's mere
+/// EXISTENCE is already the "probe submitted" signal at several call sites
+/// (journey/path/page.tsx, generatePathAction, revisePathFromConfirmationAction,
+/// adjustPlan's pre-generation lookup); an early-created row here with
+/// placeholder competencies would falsely trip those gates. Additive, all
+/// generation-related fields nullable until a run completes.
+model ProbeState {
+  id       String         @id @default(cuid())
+  intentId String         @unique
+  intent   LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  /// The generated ProbeQuestion[] payload, set together with `questionsGeneratedAt`.
+  questions Json?
+  /// Presence = ready (mirrors LessonDoc's `contentGeneratedAt` convention).
+  questionsGeneratedAt DateTime?
+  /// Per-question learner answers keyed by question id, `Record<string, string>`.
+  /// Updated incrementally as each question is answered.
+  answers Json?
+  /// The polled run-status record (ProbeGenerationState: status/label/error/updatedAt).
+  generationState Json?
 }
 
 model LearningPath {
