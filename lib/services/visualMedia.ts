@@ -133,8 +133,8 @@ export type SourcedImage = {
 /**
  * A source of LICENSE-CLEAN images. The ONLY allowed source family in L1 is
  * Creative-Commons / public-domain (Openverse). An implementation MUST NOT pull
- * arbitrary web images and MUST return real attribution. Behind the registry
- * mock/live pattern so the gate is testable offline.
+ * arbitrary web images and MUST return real attribution. A test double behind
+ * this interface keeps the gate testable offline (see verify-visual-media.ts).
  */
 export interface ImageSource {
   /** Stable identifier of the source, surfaced in attribution (e.g. "Openverse"). */
@@ -157,9 +157,9 @@ export type SourcedVideo = {
 };
 
 /**
- * A source of reference videos (e.g. a YouTube oEmbed lookup). Behind the same
- * testable mock/live pattern. The result is labelled an UNEVALUATED suggestion
- * in the UI (we do not vouch for third-party video content).
+ * A source of reference videos (e.g. a YouTube oEmbed lookup). Same testable
+ * seam as ImageSource. The result is labelled an UNEVALUATED suggestion in
+ * the UI (we do not vouch for third-party video content).
  */
 export interface VideoSource {
   readonly providerName: string;

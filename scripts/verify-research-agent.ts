@@ -1,15 +1,16 @@
 /**
- * E01.S03 verification: live Research Agent end-to-end.
- * Run: bun run scripts/verify-live-research-agent.ts
+ * E01.S03 verification: Research Agent end-to-end.
+ * Run: bun run scripts/verify-research-agent.ts
  *
- * Checks: intent-router tier classification, LiveResearchAgent returns a real
- * Tavily-backed bundle (real URLs, non-empty chunks), DB persistence (source +
- * chunks + bound bundle), and the closed-book guarantee (sources pre-assembled
- * before generation, never fetched mid-lesson). Exits non-zero on failure.
+ * Checks: intent-router tier classification, MultiSourceResearchAgent returns
+ * a real Tavily-backed bundle (real URLs, non-empty chunks), DB persistence
+ * (source + chunks + bound bundle), and the closed-book guarantee (sources
+ * pre-assembled before generation, never fetched mid-lesson). Exits non-zero
+ * on failure.
  */
 
 import { routeQueries } from "../lib/research/intentRouter";
-import { LiveResearchAgent } from "../lib/services/live/liveResearchAgent";
+import { MultiSourceResearchAgent } from "../lib/services/providers/researchAgent";
 import {
   bindJourneyBundle,
   resolveJourneySourceIds,
@@ -47,13 +48,13 @@ const noSignalDecision = routeQueries("Art Nouveau", []);
 check("no goalpost queries -> web tier (default)", noSignalDecision.tier === "web", `tier=${noSignalDecision.tier} depth=${noSignalDecision.depth}`);
 
 // ---------------------------------------------------------------------------
-// (B) Live agent: real Tavily fetch
+// (B) Research Agent: real Tavily fetch
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line no-console
-console.log("\n[verify] Running live Research Agent for 'Lean Manufacturing'...");
+console.log("\n[verify] Running the Research Agent for 'Lean Manufacturing'...");
 
-const agent = new LiveResearchAgent();
+const agent = new MultiSourceResearchAgent();
 const bundle = await agent.research(
   "fp1:test-lean-manufacturing-verify",
   "Lean Manufacturing",
@@ -76,7 +77,7 @@ if (bundle.sources.length > 0) {
   check("first source kind is web or academic", src.kind === "web" || src.kind === "academic", src.kind);
 
   // eslint-disable-next-line no-console
-  console.log("\n[verify] Source URLs returned by live agent:");
+  console.log("\n[verify] Source URLs returned by the agent:");
   for (const s of bundle.sources) {
     // eslint-disable-next-line no-console
     console.log(`  [${s.kind}] ${s.canonicalUrl ?? "(no URL)"} | chunks=${s.chunks.length} | text=${s.rawText?.length ?? 0}ch`);
@@ -90,7 +91,7 @@ if (bundle.sources.length > 0) {
 // eslint-disable-next-line no-console
 console.log("\n[verify] Testing DB persistence (bindJourneyBundle)...");
 
-const stamp = `verify-live-agent-${Date.now()}`;
+const stamp = `verify-research-agent-${Date.now()}`;
 const topicFingerprint = `${FINGERPRINT_VERSION}:test-${stamp}`;
 const topicLabel = "Lean Manufacturing (verify)";
 
@@ -138,7 +139,7 @@ try {
     // Closed-book check: sources are pre-assembled, not fetched mid-lesson.
     // The sourceIds are bound BEFORE any lesson generation call. The lesson
     // generator reads sourceIds from DB; it never opens the live web. This is
-    // enforced structurally: LiveResearchAgent.research() is called from
+    // enforced structurally: MultiSourceResearchAgent.research() is called from
     // fillBundle() in researchBundle.ts BEFORE bindJourneyBundle returns, and
     // grounded generation reads scrubSourceIds() from the already-persisted rows.
     check(
