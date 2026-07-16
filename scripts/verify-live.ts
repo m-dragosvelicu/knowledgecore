@@ -33,7 +33,6 @@ async function main() {
   const llm = new GeminiClient();
   console.log("Model: gemini-3.5-flash | key present:", true);
 
-  // 1. Intent ----------------------------------------------------------
   hr("1. IntentParser.parse");
   const intentParser = new LiveIntentParser(llm);
   const subject = await intentParser.parse(
@@ -41,7 +40,6 @@ async function main() {
   );
   console.log(JSON.stringify(subject, null, 2));
 
-  // 2. Goal ------------------------------------------------------------
   hr("2. GoalInterviewer.interview");
   const goalInterviewer = new LiveGoalInterviewer(llm);
   // Drive the multi-turn interview to completion with canned learner answers.
@@ -71,7 +69,6 @@ async function main() {
   }
   console.log(JSON.stringify(canDoStatements, null, 2));
 
-  // 3. Probe -----------------------------------------------------------
   hr("3. KnowledgeProbe.questions");
   const probe = new LiveKnowledgeProbe(llm);
   const questions = await probe.questions(subject, canDoStatements);
@@ -90,7 +87,6 @@ async function main() {
   const { competencies, transcript } = await probe.score(questions, answers);
   console.log(JSON.stringify({ competencies, transcript }, null, 2));
 
-  // 4. Path ------------------------------------------------------------
   hr("4. PathOutliner.outline");
   const outliner = new LivePathOutliner(llm);
   const goalposts = await outliner.outline({
@@ -115,7 +111,6 @@ async function main() {
     }
   }
 
-  // 5. Checkpoint evaluation + verbatim guard --------------------------
   // Use a SELF-CONSISTENT goalpost + artifact (not the dynamically generated
   // one) so the artifact genuinely answers the prompt and the verbatim-quote
   // guard is exercised with real, scorable evidence.

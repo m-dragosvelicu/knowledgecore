@@ -73,7 +73,6 @@ const sx: SxProps<Theme> = {
     my: 2,
   },
   "& hr": { border: "none", borderTop: "1px solid", borderColor: "divider", my: 3 },
-  // inline code
   "& :not(pre) > code": {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
     fontSize: "0.875em",
@@ -82,7 +81,6 @@ const sx: SxProps<Theme> = {
     py: 0.25,
     borderRadius: 1,
   },
-  // fenced code blocks
   "& pre": {
     bgcolor: "grey.100",
     border: "1px solid",
@@ -99,7 +97,6 @@ const sx: SxProps<Theme> = {
     bgcolor: "transparent",
     p: 0,
   },
-  // GFM tables
   "& table": {
     borderCollapse: "collapse",
     width: "100%",

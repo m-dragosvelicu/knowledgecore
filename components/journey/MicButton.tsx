@@ -37,11 +37,10 @@ type Props = {
   disabled?: boolean;
   /** Optional language hint forwarded to the route (English-first default). */
   languageHint?: string;
-  /** Visual size of the icon button. */
   size?: "small" | "medium";
 };
 
-// Pick a MIME type the browser can actually record. Ordered by Gemini-friendliness.
+// Ordered by Gemini-friendliness.
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   const candidates = [

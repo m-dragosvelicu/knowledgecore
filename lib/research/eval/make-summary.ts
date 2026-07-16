@@ -123,7 +123,6 @@ ${ingestRows}
 `;
   }
 
-  // --- Search tables ---
   const overallHeader = "| Engine | Useful% | Band | mean Rel | mean Cred | mean Ground | mean latency | vs Tavily |";
   const overallSep = "|---|---|---|---|---|---|---|---|";
   const tavily = search.perEngine.find((e) => e.engine === "tavily");

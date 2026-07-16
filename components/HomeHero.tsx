@@ -1,13 +1,5 @@
 "use client";
 
-// KnowledgeCore — home hero (the kit's signature question), shown on the empty
-// state and as the entry to starting a journey when there is no active journey.
-//
-// "What do you want to actually know?" set in Fraunces, with the italic teal
-// accent on the expressive words ("actually know") and the self-drawing
-// underline beneath them, plus the pill input with the teal focus ring. The
-// section fades up on load (staggered via .kc-fade + a delay).
-//
 // The SearchPill is a self-contained <form> (its design contract; it is reused
 // standalone). The hero must NOT wrap it in a second <form> — that nests
 // <form> inside <form>, which React rejects with a hydration error and then

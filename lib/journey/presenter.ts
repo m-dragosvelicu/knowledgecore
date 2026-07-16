@@ -40,10 +40,6 @@
 import type { StepType } from "@prisma/client";
 import type { LearnerProfileState } from "./learnerProfile";
 
-// ---------------------------------------------------------------------------
-// Inputs
-// ---------------------------------------------------------------------------
-
 /**
  * The minimal slice of a goalpost step the presenter needs. Decoupled from the
  * Prisma `Step` model on purpose — the directive computation only depends on the
@@ -74,10 +70,6 @@ export type LearnerProfile = LearnerProfileState;
 
 /** A profile may legitimately be absent (e.g. anonymous / not-yet-built). */
 export type MaybeLearnerProfile = LearnerProfile | null | undefined;
-
-// ---------------------------------------------------------------------------
-// Outputs (render directives)
-// ---------------------------------------------------------------------------
 
 /**
  * How much supporting framing/scaffolding to surface around a step.
@@ -120,10 +112,6 @@ export const IDENTITY_DIRECTIVES: Readonly<RenderDirectives> = Object.freeze({
   supportLevel: "standard",
   modalityWeight: "neutral",
 });
-
-// ---------------------------------------------------------------------------
-// Strategy interface
-// ---------------------------------------------------------------------------
 
 /**
  * A presenter strategy maps `(step, learnerProfile)` to render directives.
@@ -175,10 +163,6 @@ const REGISTRY: Record<PresenterName, PresenterStrategy> = {
 export function getPresenter(): PresenterStrategy {
   return REGISTRY.default;
 }
-
-// ---------------------------------------------------------------------------
-// Render helpers
-// ---------------------------------------------------------------------------
 
 /**
  * Apply a pace multiplier to a base duration in seconds. Centralized so every

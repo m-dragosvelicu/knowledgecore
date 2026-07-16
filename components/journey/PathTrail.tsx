@@ -151,8 +151,7 @@ function NodeCard({ node }: { node: TrailNode }) {
 
 // The card, wrapped in its interaction affordance. Completed goalposts are
 // tappable for read-only review; the current goalpost links into the live
-// execution loop; locked goalposts are inert (tooltip). Unchanged from before
-// the restyle -- only the surrounding marks moved to the hand-drawn language.
+// execution loop; locked goalposts are inert (tooltip).
 function NodeCardLink({
   node,
   intentId,

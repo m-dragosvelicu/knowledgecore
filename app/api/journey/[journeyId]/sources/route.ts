@@ -34,7 +34,6 @@ export async function GET(
 
   const { journeyId } = await params;
 
-  // Ownership check: the intent must belong to the authenticated user.
   const intent = await prisma.learningIntent.findUnique({
     where: { id: journeyId },
     select: { userId: true },

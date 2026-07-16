@@ -195,7 +195,6 @@ export default function SpecimensClient() {
           </Stack>
         </Section>
 
-        {/* ---- Inputs ---- */}
         <Section
           title="Inputs"
           desc="Pill text field and the hero search pill. Focus adds the teal-soft ring plus a teal border."
@@ -222,7 +221,6 @@ export default function SpecimensClient() {
           </Stack>
         </Section>
 
-        {/* ---- Chips ---- */}
         <Section
           title="Chips"
           desc="Only two tones: teal-soft fill and ghost outline. No traffic-light status colors."
@@ -235,7 +233,6 @@ export default function SpecimensClient() {
           </Stack>
         </Section>
 
-        {/* ---- Type ---- */}
         <Section
           title="Type components"
           desc="The eyebrow, the quieter section label, and the self-drawing headline underline wrapper."
@@ -253,7 +250,6 @@ export default function SpecimensClient() {
           </Stack>
         </Section>
 
-        {/* ---- Score badge ---- */}
         <Section
           title="Score badge"
           desc="A roughened ellipse (not a perfect circle) with a Fraunces figure inside."

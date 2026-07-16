@@ -1,15 +1,12 @@
 "use client";
 
-// KnowledgeCore — a single journey row on the "all journeys" page.
-//
-// Renders the SAME design-system journey row as the home dashboard (Fraunces
-// title, middot status + relative-time metadata, a roughened ScoreBadge for
-// progress/score, hover nudge right + title warming to teal-deep) and adds a
-// QUIET delete affordance: a small "..." overflow button that only appears /
-// firms up on row hover or focus, never a prominent red button. It opens a calm
-// confirmation DIALOG (styled MUI Dialog, design-system surfaces — NOT
-// window.confirm) that NAMES the journey before anything is removed. Deleting
-// runs the ownership-scoped server action and the list refreshes.
+// KnowledgeCore — a single journey row on the "all journeys" page. Renders the
+// SAME design-system journey row as the home dashboard, and adds a QUIET delete
+// affordance: a small "..." overflow button that only appears / firms up on row
+// hover or focus, never a prominent red button. It opens a calm confirmation
+// DIALOG (styled MUI Dialog, design-system surfaces — NOT window.confirm) that
+// NAMES the journey before anything is removed. Deleting runs the
+// ownership-scoped server action and the list refreshes.
 //
 // The row itself is a Link; the overflow control sits OUTSIDE that link (a
 // sibling, absolutely positioned) so clicking it never navigates.
@@ -102,8 +99,6 @@ export default function JourneyListRow({ data }: { data: JourneyListRowData }) {
         </Box>
       </Box>
 
-      {/* Quiet overflow — a "..." control revealed on row hover/focus. Sits over
-          the row's right edge as a sibling of the link so it never navigates. */}
       <IconButton
         className="kc-row-del"
         aria-label={`More actions for ${data.title}`}
@@ -121,7 +116,6 @@ export default function JourneyListRow({ data }: { data: JourneyListRowData }) {
           "&:focus-visible": { opacity: 1 },
         }}
       >
-        {/* Three-dot glyph — vertical ellipsis, calm ink, no icon library. */}
         <Box
           aria-hidden="true"
           sx={{

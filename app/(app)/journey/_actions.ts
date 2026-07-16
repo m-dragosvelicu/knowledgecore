@@ -573,7 +573,6 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
     where: { id: intentId },
     data: { status: "in_progress" },
   });
-  // Activate the first goalpost.
   const path = await prisma.learningPath.findUnique({
     where: { intentId },
     include: { goalposts: { orderBy: { order: "asc" } } },
@@ -819,13 +818,11 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     include: { goalpost: { include: { steps: { orderBy: { order: "asc" } } } } },
   });
 
-  // Find sibling information step content + this experience prompt for the evaluator.
   const informationStep = step.goalpost.steps.find((s) => s.type === StepType.information);
   const informationContent = lessonContentText(informationStep?.payload ?? null);
   const experiencePrompt =
     (step.payload as { prompt?: string } | null)?.prompt ?? "";
 
-  // Determine attempt count (existing evaluations + 1).
   const previousAttempts = await prisma.checkpointEvaluation.count({
     where: { goalpostId: step.goalpostId },
   });

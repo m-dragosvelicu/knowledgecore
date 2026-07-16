@@ -96,7 +96,7 @@ async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const client = new GeminiClient();
 
-  // 1. Fan out search across engines (sequential per engine to respect rate limits).
+  // Sequential per engine to respect rate limits.
   console.log("[1/5] Search fan-out...");
   const rawResults: EngineResult[] = [];
   const latencies: Record<EngineName, number[]> = { searxng: [], brave: [], exa: [], tavily: [] };
@@ -120,7 +120,7 @@ async function main() {
   }
   writeFileSync(join(OUT_DIR, "raw-search.json"), JSON.stringify(rawResults, null, 2));
 
-  // 2. Extract every unique URL once (shared across engines + the embedding eval).
+  // Shared across engines + the embedding eval.
   console.log("[2/5] Extraction...");
   const urls = [...new Set(rawResults.flatMap((r) => r.hits.map((h) => h.url)))];
   const extractions: Record<string, Extraction> = {};
@@ -139,7 +139,6 @@ async function main() {
   console.log(`  extraction success: ${exOk}/${urls.length}`);
   writeFileSync(join(OUT_DIR, "extractions.json"), JSON.stringify(extractions, null, 2));
 
-  // 3. Open PageRank for all domains (batched).
   console.log("[3/5] Open PageRank...");
   let pageRanks: PageRankMap = {};
   try {
@@ -149,7 +148,7 @@ async function main() {
     console.log(`  ! PageRank failed: ${(e as Error).message}`);
   }
 
-  // 4. Score each engine's top-5 per query (LLM judge + deterministic).
+  // Each engine's top-5 per query; LLM judge + deterministic groundability.
   console.log("[4/5] Scoring (LLM judge)...");
   const scored: ScoredResult[] = [];
   const byQueryId = new Map(QUERIES.map((q) => [q.query, q]));
@@ -215,7 +214,7 @@ async function main() {
   }
   console.log("");
 
-  // 5. Aggregate: per engine x topic useful%, bands, latency, vs Tavily.
+  // Per engine x topic: useful%, bands, latency, vs Tavily.
   console.log("[5/5] Aggregating...");
   const engineNames: EngineName[] = ["searxng", "brave", "exa", "tavily"];
 

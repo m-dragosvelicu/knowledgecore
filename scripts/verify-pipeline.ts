@@ -59,10 +59,6 @@ function check(name: string, cond: boolean, detail = "") {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Mocks.
-// ---------------------------------------------------------------------------
-
 const INPUT: LessonContentInput = {
   conceptKey: "gp1",
   subject: { canonicalName: "Test subject", scopeNote: "scope" },

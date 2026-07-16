@@ -60,7 +60,6 @@ export default async function OverviewPage({
         </Typography>
       </Stack>
 
-      {/* What we understood */}
       <Card variant="outlined">
         <CardContent sx={{ p: { xs: 3, md: 4 } }}>
           <Stack spacing={2}>
@@ -111,7 +110,6 @@ export default async function OverviewPage({
         </CardContent>
       </Card>
 
-      {/* What you'll do */}
       <Card variant="outlined">
         <CardContent sx={{ p: { xs: 3, md: 4 } }}>
           <Stack spacing={2}>

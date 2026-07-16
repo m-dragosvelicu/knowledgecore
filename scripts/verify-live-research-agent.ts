@@ -153,7 +153,6 @@ try {
     );
   }
 } finally {
-  // Cleanup.
   try {
     const b = await prisma.researchBundle.findUnique({
       where: { topicFingerprint },

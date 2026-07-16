@@ -157,7 +157,6 @@ async function main() {
     check("guest under-cap check skipped (window already full)", true, `baseline=${baseline}`);
   }
 
-  // Now push the log over the cap with tagged rows and assert refusal.
   const toAdd = 65;
   await prisma.llmCall.createMany({
     data: Array.from({ length: toAdd }, () => ({

@@ -31,7 +31,6 @@ function getSessionCookie(res: Response): string | null {
 async function main() {
   console.log(`[auth-smoke] target ${BASE}, email ${EMAIL}`);
 
-  // 1. Sign up
   const signUpRes = await fetch(`${BASE}/api/auth/sign-up/email`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -41,7 +40,6 @@ async function main() {
   const cookie = getSessionCookie(signUpRes);
   assert(!!cookie, "sign-up sets a session cookie");
 
-  // 2. DB rows written
   const user = await prisma.user.findUnique({
     where: { email: EMAIL },
     include: { accounts: true, sessions: true },
@@ -54,7 +52,6 @@ async function main() {
   );
   assert(user!.sessions.length >= 1, "session row written");
 
-  // 3. Authenticated get-session returns the same user id
   const sessionRes = await fetch(`${BASE}/api/auth/get-session`, {
     headers: { cookie: cookie! },
   });
@@ -64,7 +61,6 @@ async function main() {
     "get-session returns the signed-up user.id"
   );
 
-  // 4. Sign out clears the session
   const signOutRes = await fetch(`${BASE}/api/auth/sign-out`, {
     method: "POST",
     headers: { "Content-Type": "application/json", cookie: cookie! },
@@ -80,7 +76,6 @@ async function main() {
     "session is gone after sign-out"
   );
 
-  // 5. Sign in with correct password
   const signInRes = await fetch(`${BASE}/api/auth/sign-in/email`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88,7 +83,6 @@ async function main() {
   });
   assert(signInRes.status === 200, `sign-in (correct pw) returns 200 (got ${signInRes.status})`);
 
-  // 6. Sign in with wrong password is rejected
   const badRes = await fetch(`${BASE}/api/auth/sign-in/email`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -10,9 +10,8 @@ import AccountMenu from "@/components/AccountMenu";
 // burger or avatar (those are reserved for the warm/expressive surfaces); a
 // quiet hover lift + soft shadow on the burger, a 2px teal ring on the avatar.
 // The wordmark is LIVE TYPE (Fraunces 600, SOFT 30, letter-spacing -.015em), not
-// an image. The avatar is now the ONLY top-right affordance: clicking it opens a
-// calm dropdown card (AccountMenu) with "Profile" and "Sign out". The inline
-// Account (wobble) + Sign out (skip) actions were removed from the nav bar.
+// an image. The avatar is the ONLY top-right affordance: clicking it opens a
+// calm dropdown card (AccountMenu) with "Profile" and "Sign out".
 // Server component: it reads the session and owns the sign-out server action,
 // passing it into the client AccountMenu so callers do not thread handlers.
 //
@@ -26,7 +25,6 @@ export default async function AppHeader() {
   const hasRealAccount = !!session?.user?.id && !isAnonymousSession(session);
   const name = session?.user?.name?.trim() ?? "";
   const email = session?.user?.email ?? "";
-  // Avatar initial: first letter of the name, else the email, else a dot.
   const initial = (name || email || "·").slice(0, 1).toUpperCase();
 
   return (
