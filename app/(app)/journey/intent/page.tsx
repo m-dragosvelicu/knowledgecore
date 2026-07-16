@@ -40,7 +40,7 @@ export default async function IntentPage({
       params.note ??
       "That could mean a few different things. Does the reading below match what you had in mind?";
     return (
-      <Box sx={{ maxWidth: 720 }}>
+      <Box sx={{ maxWidth: 760 }}>
         <Box className="kc-fade" sx={{ animationDelay: ".04s" }}>
           <Eyebrow sx={{ mb: "16px" }}>Setting your direction</Eyebrow>
           <Box
@@ -121,9 +121,18 @@ export default async function IntentPage({
           </form>
         </Box>
 
+        {/* Subordinate to the confirm action above: one lighter separator (no
+            second Save & leave / divider row -- that action region is owned
+            solely by the confirm form). "Read it again" is this section's own
+            submit, scoped to its form so it carries the refined text. */}
         <Box
           className="kc-fade"
-          sx={{ mt: "30px", animationDelay: ".24s" }}
+          sx={{
+            mt: "30px",
+            pt: "26px",
+            borderTop: "1px solid var(--line)",
+            animationDelay: ".24s",
+          }}
         >
           <Eyebrow sx={{ mb: "10px" }}>Not quite?</Eyebrow>
           <Box
@@ -155,7 +164,7 @@ export default async function IntentPage({
                 }}
               />
             </Stack>
-            <SaveAndLeaveRow>
+            <Box sx={{ mt: "18px", display: "flex", justifyContent: "flex-end" }}>
               <SubmitButton
                 variant="outlined"
                 size="large"
@@ -163,7 +172,7 @@ export default async function IntentPage({
               >
                 Read it again
               </SubmitButton>
-            </SaveAndLeaveRow>
+            </Box>
           </form>
         </Box>
       </Box>
