@@ -10,7 +10,7 @@ import {
 } from "@/lib/journey/intent/resolution";
 import { nextWizardRoute } from "@/lib/journey/intent/routing";
 import { StepType } from "@prisma/client";
-import WarmUpRecap from "@/components/journey/WarmUpRecap";
+import WarmUpRecap from "@/app/(app)/journey/resume/_components/WarmUpRecap";
 
 // L0 §9.5 multi-session continuity — warm-up recap for a resumed (paused)
 // journey. Reached via nextWizardRoute (home) or the goalpost page redirect
