@@ -37,6 +37,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
   const intent = await getOrCreateActiveIntent(session.user.id);
   const activeStep = statusToStep(intent?.status);
+  // The "Learn" group (in_progress/paused/complete) is only ever reached via
+  // acceptPathAction, which sets path.acceptedAt in the same call -- so
+  // reaching that group IS the acceptance signal (path/page.tsx:80's
+  // `acceptedAt != null` gate), with no extra query. Once the active
+  // journey's path is accepted, the wizard funnel is done: the stepper drops
+  // off every learn-phase surface and every funnel route revisited for that
+  // journey (e.g. /journey/path shown again to review the trail). A fresh,
+  // not-yet-accepted journey is a different LearningIntent row, so it starts
+  // back at step 0 and shows the stepper again.
+  const showStepper = activeStep < STEPS.length - 1;
   const { mode } = getServices();
 
   return (
@@ -67,13 +77,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </Alert>
           )}
 
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {STEPS.map((step) => (
-              <Step key={step.label}>
-                <StepLabel>{step.label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
+          {showStepper && (
+            <Stepper activeStep={activeStep} alternativeLabel>
+              {STEPS.map((step) => (
+                <Step key={step.label}>
+                  <StepLabel>{step.label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          )}
 
           <Box>{children}</Box>
         </Stack>
