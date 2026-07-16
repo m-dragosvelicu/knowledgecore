@@ -149,8 +149,9 @@ function SourceRow({ source }: { source: JourneySource }) {
 }
 
 /**
- * Sources affordance (E01.S07). Fetch deferred to first open; empty response
- * hides the chip; fetch errors degrade gracefully without crashing the page.
+ * Sources affordance (E01.S07). Fetch deferred to first open. The dialog
+ * stays open across loading/empty/error/ok; nothing about the fetch result
+ * ever unmounts the chip or the already-open dialog.
  */
 export default function SourcesPanel({ journeyId }: Props) {
   const [open, setOpen] = useState(false);
@@ -195,9 +196,6 @@ export default function SourcesPanel({ journeyId }: Props) {
       chipRef.current?.focus();
     }
   }, [open]);
-
-  // Hide the chip once we know this journey has no sources.
-  if (state.status === "empty") return null;
 
   return (
     <>
@@ -294,6 +292,25 @@ export default function SourcesPanel({ journeyId }: Props) {
             >
               Loading sources...
             </Typography>
+          )}
+
+          {state.status === "empty" && (
+            <Box
+              sx={{
+                bgcolor: "var(--surface-2)",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--r-md)",
+                p: "14px 18px",
+                my: 1,
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ color: "var(--ink-2)", fontFamily: "var(--font-body)" }}
+              >
+                No sources are linked to this lesson yet.
+              </Typography>
+            </Box>
           )}
 
           {state.status === "error" && (
