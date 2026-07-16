@@ -19,6 +19,13 @@ import "highlight.js/styles/github.css";
  * then emit their own trusted markup after sanitization, which never sees it.
  * The schema below only widens far enough to let their wrapper nodes survive.
  */
+const remarkMathOptions = {
+  // remark-math defaults singleDollarTextMath to true, so any lone "$3 ... $15"
+  // in prose (currency, not math) opens/closes an inline math span and everything
+  // between gets swallowed into KaTeX. Currency is common in lesson prose; real
+  // inline/display math never needs a single dollar. Require "$$...$$" for math.
+  singleDollarTextMath: false,
+};
 const schema = {
   ...defaultSchema,
   attributes: {
@@ -122,7 +129,7 @@ export default function Markdown({ children }: MarkdownProps) {
   return (
     <Box sx={sx} className="kc-markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, [remarkMath, remarkMathOptions]]}
         rehypePlugins={[
           [rehypeSanitize, schema],
           rehypeKatex,
