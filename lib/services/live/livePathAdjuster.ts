@@ -21,29 +21,38 @@ const rubricFocusSchema = z.enum([
   "coverage",
 ]);
 
-// SKELETON ONLY (redesign §9): structural step (order + type); the two-phase pipeline
-// authors `content` on entry, so it is absent here.
-const insertedInformationStepSchema = z.object({
-  order: z.number().int(),
-  type: z.literal("information"),
-  sourceIds: z.array(z.string()).nullish(),
-});
-
-const insertedExperienceStepSchema = z.object({
-  order: z.number().int(),
-  type: z.enum([
-    "experience_socratic",
-    "experience_applied_problem",
-    "experience_mini_project",
-  ]),
-  prompt: z.string().min(1),
-  rubricFocus: z.array(rubricFocusSchema).nullish(),
-});
-
-const insertedStepSchema = z.union([
-  insertedInformationStepSchema,
-  insertedExperienceStepSchema,
+const insertedStepTypeSchema = z.enum([
+  "information",
+  "experience_socratic",
+  "experience_applied_problem",
+  "experience_mini_project",
 ]);
+
+// Flat object, not a union (Gemini's converter has no oneOf/anyOf — see
+// lib/llm/gemini.ts zodToGeminiSchema; mirrors the same flattening already used
+// by interviewStepSchema/authoredBlockSchema in live/schemas.ts). Discriminated
+// by `type`; fields belonging to the other variant are nullish. SKELETON ONLY
+// (redesign §9) for information steps: the two-phase pipeline authors `content`
+// on entry, so no content field exists here. superRefine below reinstates the
+// exact per-variant requiredness the two separate schemas used to enforce
+// (prompt required and non-empty for experience steps).
+const insertedStepSchema = z
+  .object({
+    order: z.number().int(),
+    type: insertedStepTypeSchema,
+    sourceIds: z.array(z.string()).nullish(),
+    prompt: z.string().nullish(),
+    rubricFocus: z.array(rubricFocusSchema).nullish(),
+  })
+  .superRefine((step, ctx) => {
+    if (step.type !== "information" && !step.prompt?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["prompt"],
+        message: "Experience steps require a non-empty prompt.",
+      });
+    }
+  });
 
 const insertedGoalpostSchema = z
   .object({
@@ -246,7 +255,10 @@ export class LivePathAdjuster implements PathAdjuster {
                 order: step.order,
                 type: step.type,
                 payload: {
-                  prompt: step.prompt,
+                  // superRefine on insertedStepSchema guarantees a non-empty
+                  // prompt for every non-"information" step; the ?? "" only
+                  // satisfies the flattened (nullish) TS type.
+                  prompt: step.prompt ?? "",
                   rubricFocus: step.rubricFocus ?? [],
                 },
               },
