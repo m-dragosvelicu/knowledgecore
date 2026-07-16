@@ -18,7 +18,7 @@ import {
   finalizeOutcomeAction,
 } from "@/app/(app)/journey/_actions";
 import MicButton from "@/components/journey/MicButton";
-import DialogueTurns from "@/components/journey/DialogueTurns";
+import DialogueTurns, { priorTurns } from "@/components/journey/DialogueTurns";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import { Eyebrow } from "@/components/ui";
 import SolidButton from "@/components/ui/SolidButton";
@@ -46,23 +46,22 @@ type Props = {
   // RESUME SUPPORT — the outcome sub-state persisted progressively to LearningGoal
   // (interviewTranscript / draftOutcome). When present, the flow re-hydrates to the
   // learner's position instead of restarting at the motivation question. The
-  // transcript is the running conversation INCLUDING the trailing active question
-  // (DialogueTurns drops it from the history; phase 2 shows it as the input heading).
+  // transcript is the running conversation INCLUDING the trailing active question,
+  // which phase 2 renders as the newest bubble in the thread.
   resumeTranscript: InterviewTurn[] | null;
   resumeDraftOutcome: Complete | null;
 };
 
-// Last assistant turn = the active question to re-display when resuming mid-interview.
-function lastAssistantQuestion(transcript: InterviewTurn[]): string {
-  for (let i = transcript.length - 1; i >= 0; i--) {
-    if (transcript[i].role === "assistant") return transcript[i].content;
-  }
-  return "";
+// The active question is always the last turn of the running transcript, so the
+// live question is derived from it rather than mirrored in its own state.
+function activeQuestion(transcript: InterviewTurn[]): string {
+  const last = transcript[transcript.length - 1];
+  return last?.role === "assistant" ? last.content : "";
 }
 
 // A heading set in Fraunces at the light/medium display weight — the voice that
 // asks the questions through this flow. Used for the motivation prompt, the
-// interview question, and the "what success looks like" header.
+// opening interview question, and the "what success looks like" header.
 function AskHeadline({ children }: { children: React.ReactNode }) {
   return (
     <Box
@@ -135,9 +134,6 @@ export default function OutcomeClient({
   const [transcript, setTranscript] = useState<InterviewTurn[]>(
     resumeTranscript ?? [],
   );
-  const [question, setQuestion] = useState<string>(
-    hasTranscript ? lastAssistantQuestion(resumeTranscript!) : "",
-  );
   const [draft, setDraft] = useState<string>("");
   const [complete, setComplete] = useState<Complete | null>(
     resumeDraftOutcome ?? null,
@@ -159,7 +155,6 @@ export default function OutcomeClient({
         setTranscript(nextTranscript);
         setPhase("complete");
       } else {
-        setQuestion(step.question);
         setTranscript([
           ...nextTranscript,
           { role: "assistant", content: step.question },
@@ -179,6 +174,14 @@ export default function OutcomeClient({
     if (trimmed.length === 0) return;
     setDraft("");
     runTurn([...transcript, { role: "user", content: trimmed }]);
+  }
+
+  // Dictation lands in the same editable box the learner types in (the mic's
+  // editable-field contract), appended to whatever is already drafted.
+  function appendDictation(text: string) {
+    setDraft((prev) =>
+      prev.trim().length > 0 ? `${prev.replace(/\s+$/, "")} ${text}` : text,
+    );
   }
 
   function finalize() {
@@ -298,13 +301,36 @@ export default function OutcomeClient({
   }
 
   // ---- Phase 2: the multi-turn goal interview (turn-taking dialogue) ----
-  // Earlier turns render above as a compact transcript. The ACTIVE question is
-  // emitted exactly once -- as the input-card heading below -- so DialogueTurns
-  // drops the trailing active question from the transcript (no double-render).
-  return (
-    <Stack spacing={3}>
-      <DialogueTurns transcript={transcript} />
+  // The active question is drawn EXACTLY ONCE, in one of two presentations:
+  //   opening question (nothing said yet) -> the hero ask card: there is no
+  //     conversation to show, so the question carries the screen on its own.
+  //   once the back-and-forth exists -> chat: DialogueTurns draws the whole
+  //     thread, active question included as the newest guide bubble, and the
+  //     composer stays a plain input so one voice keeps one scale.
+  const question = activeQuestion(transcript);
+  const isOpeningQuestion = priorTurns(transcript).length === 0;
 
+  const controls = (
+    <Stack
+      direction="row"
+      spacing={2}
+      justifyContent="space-between"
+      alignItems="center"
+    >
+      <MicButton onTranscript={appendDictation} disabled={isPending} />
+      <Button
+        variant="contained"
+        color="kcInk"
+        onClick={answer}
+        disabled={draft.trim().length === 0 || isPending}
+      >
+        {isPending ? "Thinking…" : "Continue"}
+      </Button>
+    </Stack>
+  );
+
+  if (isOpeningQuestion) {
+    return (
       <Surface>
         <Stack spacing={2}>
           <Eyebrow>Your guide</Eyebrow>
@@ -318,31 +344,40 @@ export default function OutcomeClient({
             onChange={(e) => setDraft(e.target.value)}
             disabled={isPending}
           />
-          <Stack
-            direction="row"
-            spacing={2}
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <MicButton
-              onTranscript={(t) =>
-                setDraft((prev) =>
-                  prev.trim().length > 0 ? `${prev.replace(/\s+$/, "")} ${t}` : t,
-                )
-              }
-              disabled={isPending}
-            />
-            <Button
-              variant="contained"
-              color="kcInk"
-              onClick={answer}
-              disabled={draft.trim().length === 0 || isPending}
-            >
-              {isPending ? "Thinking…" : "Continue"}
-            </Button>
-          </Stack>
+          {controls}
         </Stack>
       </Surface>
+    );
+  }
+
+  return (
+    <Stack spacing={3}>
+      <DialogueTurns transcript={transcript} />
+
+      {/* The composer reads as one field: the container carries the only border,
+          so the box inside is drawn without an outline of its own. */}
+      <Box
+        sx={{
+          bgcolor: "background.paper",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-lg)",
+          p: "10px 12px 12px",
+        }}
+      >
+        <TextField
+          multiline
+          minRows={2}
+          fullWidth
+          variant="standard"
+          placeholder="Type your answer…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          disabled={isPending}
+          slotProps={{ input: { disableUnderline: true } }}
+          sx={{ px: "10px", py: "6px", mb: "8px" }}
+        />
+        {controls}
+      </Box>
     </Stack>
   );
 }

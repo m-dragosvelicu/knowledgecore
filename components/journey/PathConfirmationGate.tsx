@@ -244,9 +244,9 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
       </Stack>
 
       {/* Earlier turns render above as a compact transcript. The ACTIVE question
-          is emitted exactly once -- as the input-card heading below -- so
-          DialogueTurns drops the trailing active question (no double-render). */}
-      <DialogueTurns transcript={transcript} />
+          is emitted exactly once -- as the input-card heading below -- so the
+          thread drops the trailing active question (no double-render). */}
+      <DialogueTurns transcript={transcript} dropActiveQuestion />
 
       {question ? (
         <Surface>
