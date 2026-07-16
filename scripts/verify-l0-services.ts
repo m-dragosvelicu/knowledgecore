@@ -1,17 +1,17 @@
 /**
- * Standalone verification that the live LLM-backed L0 services work against
- * real Gemini (gemini-3.5-flash). Requires GOOGLE_GENAI_API_KEY.
- * Run: bun run scripts/verify-live.ts
+ * Standalone verification that the LLM-backed L0 services work against real
+ * Gemini (gemini-3.5-flash). Requires GOOGLE_GENAI_API_KEY.
+ * Run: bun run scripts/verify-l0-services.ts
  *
  * Prints real outputs (scores, evidence quotes) and asserts each evidence
  * quote is a genuine verbatim substring of the artifact.
  */
 import { GeminiClient } from "@/lib/llm";
-import { LiveIntentParser } from "@/lib/services/live/liveIntentParser";
-import { LiveGoalInterviewer } from "@/lib/services/live/liveGoalInterviewer";
-import { LiveKnowledgeProbe } from "@/lib/services/live/liveKnowledgeProbe";
-import { LivePathOutliner } from "@/lib/services/live/livePathOutliner";
-import { LiveCheckpointEvaluator } from "@/lib/services/live/liveCheckpointEvaluator";
+import { GeminiIntentParser } from "@/lib/services/providers/intentParser";
+import { GeminiGoalInterviewer } from "@/lib/services/providers/goalInterviewer";
+import { GeminiKnowledgeProbe } from "@/lib/services/providers/knowledgeProbe";
+import { GeminiPathOutliner } from "@/lib/services/providers/pathOutliner";
+import { GeminiCheckpointEvaluator } from "@/lib/services/providers/checkpointEvaluator";
 import type {
   CanDoStatement,
   InterviewTurn,
@@ -32,14 +32,14 @@ async function main() {
   console.log("Model: gemini-3.5-flash | key present:", true);
 
   hr("1. IntentParser.parse");
-  const intentParser = new LiveIntentParser(llm);
+  const intentParser = new GeminiIntentParser(llm);
   const subject = await intentParser.parse(
     "i wanna get good at the math behind machine learning, especially linear algebra",
   );
   console.log(JSON.stringify(subject, null, 2));
 
   hr("2. GoalInterviewer.interview");
-  const goalInterviewer = new LiveGoalInterviewer(llm);
+  const goalInterviewer = new GeminiGoalInterviewer(llm);
   // Drive the multi-turn interview to completion with canned learner answers.
   const cannedAnswers = [
     "I'm a backend dev who keeps hitting linear algebra in ML papers.",
@@ -68,7 +68,7 @@ async function main() {
   console.log(JSON.stringify(canDoStatements, null, 2));
 
   hr("3. KnowledgeProbe.questions");
-  const probe = new LiveKnowledgeProbe(llm);
+  const probe = new GeminiKnowledgeProbe(llm);
   const questions = await probe.questions(subject, canDoStatements);
   console.log(JSON.stringify(questions, null, 2));
 
@@ -86,7 +86,7 @@ async function main() {
   console.log(JSON.stringify({ competencies, transcript }, null, 2));
 
   hr("4. PathOutliner.outline");
-  const outliner = new LivePathOutliner(llm);
+  const outliner = new GeminiPathOutliner(llm);
   const goalposts = await outliner.outline({
     subject,
     motivation: "work",
@@ -121,7 +121,7 @@ async function main() {
     "This matters because the dot product grows when vectors align, so it works as a similarity score.",
   ].join(" ");
 
-  const evaluator = new LiveCheckpointEvaluator(llm);
+  const evaluator = new GeminiCheckpointEvaluator(llm);
   const evaluation = await evaluator.evaluate({
     goalpostTitle: "Vectors and dot products",
     goalpostObjective:
@@ -164,7 +164,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("\nVERIFY-LIVE FAILED:");
+  console.error("\nVERIFY-L0-SERVICES FAILED:");
   console.error(err);
   process.exit(1);
 });

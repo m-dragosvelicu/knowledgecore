@@ -1,14 +1,14 @@
 /**
- * Verifies live wiring THROUGH the service registry (`getServices()`) — the
- * exact path the app uses. (A prior false positive came from bypassing
- * getServices() and constructing Live* classes directly; this deliberately
- * does not do that.)
+ * Verifies wiring THROUGH the service registry (`getServices()`) — the exact
+ * path the app uses. (A prior false positive came from bypassing
+ * getServices() and constructing provider classes directly; this
+ * deliberately does not do that.)
  *
- * Live-only: with GOOGLE_GENAI_API_KEY set every service is a Live* instance
- * and mode === "live"; without the key getServices() fails fast.
+ * With GOOGLE_GENAI_API_KEY set every service is a Gemini* provider instance;
+ * without the key getServices() fails fast.
  *
  * Run: `bun run scripts/verify-registry.ts`. Asserts fail-fast without the
- * key, mode/impl wiring, and one real end-to-end intent-parse call.
+ * key, provider wiring, and one real end-to-end intent-parse call.
  */
 import { getServices } from "@/lib/services";
 
@@ -45,19 +45,15 @@ async function main() {
   console.log("GOOGLE_GENAI_API_KEY present: true");
 
   const services = getServices();
-  console.log("\nRegistry aggregate mode:", services.mode);
   console.log("Per-service constructor names:", JSON.stringify(names(services), null, 2));
 
-  // ---- (b)+(c) live-wiring assertions ------------------------------------------
-  if (services.mode !== "live") {
-    throw new Error(`ASSERTION FAILED: expected mode="live", got "${services.mode}"`);
-  }
+  // ---- (b)+(c) provider-wiring assertions ---------------------------------------
   const expected: Record<string, string> = {
-    intentParser: "LiveIntentParser",
-    goalInterviewer: "LiveGoalInterviewer",
-    knowledgeProbe: "LiveKnowledgeProbe",
-    pathOutliner: "LivePathOutliner",
-    checkpointEvaluator: "LiveCheckpointEvaluator",
+    intentParser: "GeminiIntentParser",
+    goalInterviewer: "GeminiGoalInterviewer",
+    knowledgeProbe: "GeminiKnowledgeProbe",
+    pathOutliner: "GeminiPathOutliner",
+    checkpointEvaluator: "GeminiCheckpointEvaluator",
   };
   const actual = names(services);
   for (const [k, v] of Object.entries(expected)) {
@@ -65,7 +61,7 @@ async function main() {
       throw new Error(`ASSERTION FAILED: ${k} expected ${v}, got ${(actual as Record<string, string>)[k]}`);
     }
   }
-  console.log("\nLIVE-WIRING PASS: mode=live and all five impls are Live* instances.");
+  console.log("\nWIRING PASS: all five services are Gemini* provider instances.");
 
   // ---- (d) real end-to-end call through a registry-obtained service ------------
   console.log("\nMaking ONE real intent-parse call through getServices().intentParser ...");
