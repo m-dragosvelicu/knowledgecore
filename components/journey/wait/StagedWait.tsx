@@ -104,30 +104,6 @@ export default function StagedWait({
       <Stack spacing={3} alignItems="flex-start" aria-live="polite">
         <Eyebrow>{eyebrow}</Eyebrow>
 
-        {/* One-time draw-in flourish; the live cues below carry the in-progress signal. */}
-        <Box
-          component="svg"
-          viewBox="0 0 200 24"
-          aria-hidden="true"
-          sx={{
-            width: 200,
-            height: 24,
-            overflow: "visible",
-            filter: "url(#rough)",
-          }}
-        >
-          <path
-            className="kc-draw"
-            pathLength={1}
-            d="M4 14 C 40 6, 70 20, 104 12 S 168 6, 196 13"
-            fill="none"
-            stroke="var(--teal)"
-            strokeWidth={2.4}
-            strokeLinecap="round"
-            style={{ animationDuration: "1.6s" }}
-          />
-        </Box>
-
         <HeadlineUnderline>
           <Box
             component="span"
