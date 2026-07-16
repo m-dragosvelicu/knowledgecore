@@ -20,9 +20,24 @@ type Props = {
   // The resolved journey id (from ?j), threaded so scoring writes to and
   // advances the journey the learner actually opened, not the most-recent one.
   intentId: string;
+  // Resume support (backend slice): answers already persisted for this probe,
+  // keyed by question id, plus the incremental per-answer save action. Not
+  // wired into local state/index yet — the frontend engineer owns seeding the
+  // resume position and calling saveAnswerAction as each question is finished.
+  initialAnswers?: Record<string, string>;
+  saveAnswerAction?: (
+    intentId: string | null | undefined,
+    questionIndex: number,
+    answer: string,
+  ) => Promise<void>;
 };
 
-export default function ProbeClient({ questions, intentId }: Props) {
+export default function ProbeClient({
+  questions,
+  intentId,
+  initialAnswers,
+  saveAnswerAction,
+}: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
