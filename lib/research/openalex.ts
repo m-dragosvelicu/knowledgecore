@@ -1,3 +1,5 @@
+import { clampQuery } from "./queryBuilder";
+
 const BASE_URL = "https://api.openalex.org";
 
 export interface OpenAlexAuthor {
@@ -117,7 +119,7 @@ export async function searchWorks(
   if (opts.year !== undefined) filters.push(`publication_year:${opts.year}`);
   if (opts.openAccessOnly) filters.push("open_access.is_oa:true");
   const params: Record<string, string> = {
-    search: query,
+    search: clampQuery(query, "openalex"),
     per_page: String(opts.perPage ?? 25),
   };
   if (filters.length) params.filter = filters.join(",");
