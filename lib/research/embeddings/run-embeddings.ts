@@ -133,7 +133,6 @@ async function main() {
     const dim = chunkVecs[0]?.length ?? 0;
     const vecById = new Map<string, number[]>(allChunks.map((c, i) => [c.id, chunkVecs[i]]));
 
-    // Embed each query, measure per-query latency.
     const queryLatencies: number[] = [];
     const perQuery: { queryId: string; recall5: number; mrr: number; ndcg10: number; relevant: number }[] = [];
 

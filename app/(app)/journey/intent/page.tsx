@@ -78,7 +78,6 @@ export default async function IntentPage({
           </Box>
         </Box>
 
-        {/* Our reading of the intent, as a quiet surface card with an eyebrow. */}
         <Box
           className="kc-fade"
           sx={{
@@ -112,7 +111,6 @@ export default async function IntentPage({
         </Box>
 
         <Box className="kc-fade" sx={{ mt: "22px", animationDelay: ".18s" }}>
-          {/* Accept the interpretation as-is and proceed. */}
           <form action={confirmIntentAction}>
             {intent && <input type="hidden" name="j" value={intent.id} />}
             <SaveAndLeaveRow>

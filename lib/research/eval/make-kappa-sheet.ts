@@ -89,7 +89,6 @@ function main() {
     snippet: s.snippet,
   }));
 
-  // Answer key (hidden from the sheet).
   const answerKey = sample.map((s, i) => ({
     itemId: `k${i + 1}`,
     queryId: s.queryId,
@@ -99,7 +98,6 @@ function main() {
   }));
   writeFileSync(join(OUT_DIR, "kappa-judge-scores.json"), JSON.stringify({ rubric: "0-2 relevance + 0-2 credibility", items: answerKey }, null, 2));
 
-  // Blank rating sheet.
   const rows = items
     .map(
       (it) => `

@@ -65,7 +65,6 @@ export interface LearnerSearchResult {
  * Run a learner search against the journey's provenance scope.
  *
  * @param journeyId   the LearningIntent id (ownership is enforced by the caller)
- * @param query       the learner's free-text query
  * @param opts.limit  max passages to return (default LEARNER_SEARCH_LIMIT)
  * @param opts.sourceKind  optional facet filter ("academic" | "web")
  */

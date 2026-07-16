@@ -27,7 +27,6 @@ export interface RoutingDecision {
   reason: string;
 }
 
-// Keywords that strongly indicate research/academic intent.
 const ACADEMIC_SIGNALS: RegExp[] = [
   /\b(empirical|systematic review|meta.?analysis|peer.?review|randomized|rct|cohort)\b/i,
   /\b(citation|cite|bibliography|reference|doi|journal|conference paper)\b/i,
@@ -37,7 +36,6 @@ const ACADEMIC_SIGNALS: RegExp[] = [
   /\b(theorem|proof|formal(ly)?|mathematical)\b/i,
 ];
 
-// Keywords that strongly indicate intro/intermediate intent.
 const INTRO_SIGNALS: RegExp[] = [
   /\b(introduction|intro|overview|beginner|basics|101|primer|getting started)\b/i,
   /\b(explain|what is|what are|define|definition|understand|simple)\b/i,

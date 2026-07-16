@@ -196,7 +196,6 @@ export function serializeProfileForGeneration(
     }
   }
 
-  // Signal vector.
   const s = profile?.signals;
   if (s) {
     const effort =
@@ -209,7 +208,6 @@ export function serializeProfileForGeneration(
     );
   }
 
-  // Derived band, if inferred.
   const band = profile?.derivedSignals?.expertiseBand;
   if (band) lines.push(`- Inferred expertise band: ${band}.`);
 

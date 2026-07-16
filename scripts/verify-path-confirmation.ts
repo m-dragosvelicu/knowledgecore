@@ -128,7 +128,6 @@ async function runDialogue(
       return { concern: step.concern, questionsAsked };
     }
     questionsAsked++;
-    // Append assistant question + the next canned learner answer.
     const answer = learnerAnswers[questionsAsked - 1] ?? "It is too advanced.";
     transcript = [
       ...transcript,
@@ -294,7 +293,6 @@ async function main() {
       JSON.stringify(Array.from({ length: finalGps.length }, (_, i) => i + 1)),
   );
 
-  // cleanup
   await prisma.user.delete({ where: { id: user.id } });
 
   console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILED"}`);

@@ -27,7 +27,6 @@ const PRICE_TABLE: ReadonlyArray<readonly [string, Rate]> = [
   ["gemini-3.1-flash-lite", { inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 }],
   ["gemini-2.5-flash-lite", { inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 }],
   ["flash-lite", { inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 }],
-  // gemini-3.5-flash list price (paid tier): $0.30 in / $2.50 out per 1M tokens.
   ["gemini-3.5-flash", { inputPerMillionUsd: 0.3, outputPerMillionUsd: 2.5 }],
   // Older Flash family kept for any fallback dispatch.
   ["gemini-2.5-flash", { inputPerMillionUsd: 0.3, outputPerMillionUsd: 2.5 }],

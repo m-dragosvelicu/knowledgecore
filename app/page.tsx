@@ -251,9 +251,7 @@ export default async function HomePage() {
                 Pick up where you left off
               </Box>
 
-              {/* Start a new journey — moved UP to a prominent, easy-to-find slot
-                  in the top section (was a buried skip-tier link at the bottom).
-                  Workbench (wobble) tier with a resting outline so it reads as a
+              {/* Workbench (wobble) tier with a resting outline so it reads as a
                   real, obvious affordance. The form runs startNewJourneyAction,
                   which sets aside the journey in progress. */}
               <Box

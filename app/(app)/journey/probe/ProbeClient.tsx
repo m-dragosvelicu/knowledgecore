@@ -140,7 +140,6 @@ export default function ProbeClient({
         }}
       >
         <Stack spacing={3}>
-          {/* The prompt is the voice of this step — set in Fraunces. */}
           <Box
             component="h2"
             sx={{

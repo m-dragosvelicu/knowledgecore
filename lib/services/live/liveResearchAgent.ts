@@ -44,11 +44,8 @@ import type { RoutingDecision } from "@/lib/research/intentRouter";
 
 // Approximate character budget per chunk (~512 tokens at ~4 chars/token).
 const CHUNK_CHAR_BUDGET = 2_048;
-// Maximum number of web hits to attempt extraction on.
 const MAX_WEB_HITS = 8;
-// Maximum academic works to process.
 const MAX_ACADEMIC_WORKS = 5;
-// Minimum text length for a source to be considered usable.
 const MIN_TEXT_LENGTH = 200;
 
 function sha256(input: string): string {
@@ -77,7 +74,6 @@ function chunkText(ref: string, text: string): Chunk[] {
 
   for (const para of paragraphs) {
     if (para.length > CHUNK_CHAR_BUDGET) {
-      // Long paragraph: flush any accumulated text, then split the paragraph.
       if (current) flush(current);
       for (let i = 0; i < para.length; i += CHUNK_CHAR_BUDGET) {
         flush(para.slice(i, i + CHUNK_CHAR_BUDGET));
@@ -146,13 +142,11 @@ async function sourceFromOpenAlexWork(
 
   let rawText: string | null = null;
 
-  // Try full-text extraction from open-access URL.
   if (work.openAccessUrl) {
     const ext = await extract(work.openAccessUrl);
     if (ext.ok && ext.text.length >= MIN_TEXT_LENGTH) rawText = ext.text;
   }
 
-  // Fall back to abstract if we have it and no full text.
   if (!rawText && work.abstract && work.abstract.length >= MIN_TEXT_LENGTH) {
     rawText = work.abstract;
   }
@@ -179,7 +173,6 @@ async function sourceFromOpenAlexWork(
   };
 }
 
-/** Assemble a Source from a Semantic Scholar paper. */
 async function sourceFromSemanticPaper(
   paper: {
     paperId: string;
@@ -244,7 +237,7 @@ async function safeEmit(
   try {
     await onProgress(event);
   } catch {
-    // Progress is advisory; never let a sink failure abort research.
+    // never let a sink failure abort research
   }
 }
 

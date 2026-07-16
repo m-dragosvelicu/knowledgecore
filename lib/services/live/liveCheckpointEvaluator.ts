@@ -96,10 +96,6 @@ typos, or add words. Copy an exact span of their text. If the artifact is empty 
 a dimension has no supporting text, use the exact string "(no evidence in
 artifact)".`;
 
-// ---------------------------------------------------------------------
-// Verbatim-quote guard
-// ---------------------------------------------------------------------
-
 const NO_EVIDENCE = "(no evidence in artifact)";
 
 /**

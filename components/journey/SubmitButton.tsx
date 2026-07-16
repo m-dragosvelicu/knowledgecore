@@ -42,8 +42,6 @@ export default function SubmitButton({
   ...rest
 }: SubmitButtonProps) {
   const status = useFormStatus();
-  // `pending` prop wins when provided (onClick / transition flows); otherwise
-  // fall back to the enclosing form's submission status.
   const isPending = pending ?? status.pending;
 
   return (

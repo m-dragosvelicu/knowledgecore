@@ -2,11 +2,10 @@
 
 // KnowledgeCore — account menu (the profile-icon dropdown).
 //
-// Replaces the inline "Account" (wobble) + "Sign out" (skip) actions that used
-// to sit in the nav bar. The avatar is now the only affordance up top: clicking
-// it opens a calm dropdown CARD anchored to the avatar with exactly two items —
-// "Profile" (-> /account) and "Sign out" (the existing Better Auth sign-out
-// server action, threaded in from the server AppHeader as a hidden <form>).
+// The avatar is the only affordance up top: clicking it opens a calm dropdown
+// CARD anchored to the avatar with exactly two items — "Profile" (-> /account)
+// and "Sign out" (the existing Better Auth sign-out server action, threaded in
+// from the server AppHeader as a hidden <form>).
 //
 // Styled to the design system: --surface paper card, 1px --line hairline border,
 // the soft warm directional shadow (var(--shadow)), --r-md rounding, calm ink
@@ -53,7 +52,7 @@ export default function AccountMenu({
 
   return (
     <>
-      {/* Avatar — the only top-right affordance now; opens the dropdown. */}
+      {/* Avatar — the only top-right affordance; opens the dropdown. */}
       <Box
         component="button"
         type="button"

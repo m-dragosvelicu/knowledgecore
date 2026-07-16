@@ -315,14 +315,12 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
   };
 
   while ((m = tagRe.exec(cleaned)) !== null) {
-    // text before this tag
     emitText(cleaned.slice(lastIndex, m.index));
     lastIndex = tagRe.lastIndex;
 
     const tag = m[0];
     const isClose = tag.startsWith("</");
     const selfClose = /\/>\s*$/.test(tag);
-    // element name
     const nameMatch = /^<\/?\s*([a-zA-Z][\w:.-]*)/.exec(tag);
     const rawName = nameMatch ? nameMatch[1] : "";
     const lname = rawName.toLowerCase();
@@ -373,7 +371,6 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
     const attrStr = safeAttrs.length ? " " + safeAttrs.join(" ") : "";
     out.push(selfClose ? `<${lname}${attrStr}/>` : `<${lname}${attrStr}>`);
   }
-  // trailing text
   emitText(cleaned.slice(lastIndex));
 
   let svg = out.join("");
@@ -384,7 +381,6 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
     return { svg: "", ok: false, removed: [...removed, "FAILSAFE_TRIGGERED"] };
   }
 
-  // The result is only usable if it actually contains an <svg> root.
   const ok = /<svg[\s>]/i.test(svg) && /<\/svg>/i.test(svg);
   if (!ok) svg = "";
 
