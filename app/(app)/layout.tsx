@@ -2,14 +2,12 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth";
 import { getOrCreateActiveIntent } from "@/lib/journey/state";
-import { getServices } from "@/lib/services";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Stepper from "@mui/material/Stepper";
 import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
-import Alert from "@mui/material/Alert";
 import type { JourneyStatus } from "@prisma/client";
 import AppHeader from "@/components/AppHeader";
 
@@ -47,7 +45,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // not-yet-accepted journey is a different LearningIntent row, so it starts
   // back at step 0 and shows the stepper again.
   const showStepper = activeStep < STEPS.length - 1;
-  const { mode } = getServices();
 
   return (
     // Transparent + raised so the fixed bone/grain/dot-grid backdrop shows
@@ -57,26 +54,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Stack spacing={4}>
-          {mode === "mock" && (
-            // Restyled onto the one-teal palette (no info-blue): a quiet teal-soft
-            // note carried by copy, not a traffic-light color.
-            <Alert
-              icon={false}
-              severity="info"
-              sx={{
-                bgcolor: "var(--teal-soft)",
-                color: "var(--teal-deep)",
-                border: "1px solid var(--line)",
-                borderRadius: "var(--r-md)",
-                "& .MuiAlert-message": { fontSize: 14 },
-              }}
-            >
-              Running in mock mode. Responses are placeholder content, not live
-              LLM generation. Mock mode can be on because no GOOGLE_GENAI_API_KEY
-              is set, or because a service has been opted out via a LIVE_* flag.
-            </Alert>
-          )}
-
           {showStepper && (
             <Stepper activeStep={activeStep} alternativeLabel>
               {STEPS.map((step) => (

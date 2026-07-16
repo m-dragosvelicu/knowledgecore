@@ -197,7 +197,7 @@ export interface PathAdjuster {
 }
 
 // =====================================================================
-// Service registry — selects mock vs live based on env
+// Service registry — the typed contract bundle getServices() builds
 // =====================================================================
 
 export type Services = {
@@ -207,5 +207,4 @@ export type Services = {
   pathOutliner: PathOutliner;
   checkpointEvaluator: CheckpointEvaluator;
   pathAdjuster: PathAdjuster;
-  mode: "mock" | "live";
 };

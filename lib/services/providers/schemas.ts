@@ -23,7 +23,7 @@ export const rubricLevelSchema = z.union([
 
 // Gemini emits the ambiguity fields even when unambiguous (false/null), so accept
 // nullish. NO top-level .transform: a transformed schema passed to completeStructured<T>
-// unifies T to the pre-transform input type; liveIntentParser normalizes nullish after.
+// unifies T to the pre-transform input type; intentParser.ts normalizes nullish after.
 export const parsedSubjectSchema = z.object({
   canonicalName: z.string().min(1),
   scopeNote: z.string().min(1),
@@ -41,7 +41,7 @@ export const goalInterviewResultSchema = z.object({
 });
 
 // Flat object (not a discriminated union): the Gemini converter has no oneOf/anyOf,
-// so the optional fields are normalized in liveGoalInterviewer by `kind`.
+// so the optional fields are normalized in goalInterviewer.ts by `kind`.
 export const interviewStepSchema = z.object({
   kind: z.enum(["question", "complete"]),
   question: z.string().nullish(),

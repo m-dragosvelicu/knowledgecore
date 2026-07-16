@@ -6,7 +6,7 @@ import type {
 } from "@/lib/services/visualMedia";
 
 /**
- * Live license-clean image source (Openverse — openverse.org, WordPress.org).
+ * License-clean image source (Openverse — openverse.org, WordPress.org).
  * Requests only CC/public-domain works (`license_type`), keeps safe-search on
  * explicitly, and maps attribution straight from the API response — nothing
  * is fabricated; a missing field stays missing rather than being invented.
@@ -45,7 +45,7 @@ function licenseName(license: string | null | undefined, version: string | null 
   return version ? `CC ${up} ${version}` : `CC ${up}`;
 }
 
-export class LiveOpenverseImageSource implements ImageSource {
+export class OpenverseImageSource implements ImageSource {
   readonly sourceName = "Openverse";
 
   // Allow injecting fetch for testing; defaults to global fetch.
