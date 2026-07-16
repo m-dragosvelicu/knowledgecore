@@ -6,20 +6,18 @@
  * rather than swallowed, so the client shows an error instead of looping.
  */
 
-import { StepType } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { getLessonOrchestratorPorts } from "@/lib/services";
-import { readOrCreateProfile } from "./profileStore";
-import { resolveJourneySourceIds, scrubSourceIds } from "./researchBundle";
-import type { Competency } from "@/lib/services/types";
-import { runLessonPipeline } from "./lessonOrchestration";
-import type { LessonDoc } from "@/lib/services/lessonDoc";
-import { isLessonDoc, isProseBlock } from "@/lib/services/lessonDoc";
-import {
-  makeGenerationState,
-  type LessonGenerationState,
-} from "./lessonGenerationState";
+import { prisma } from '@/lib/db';
+import { getLessonOrchestratorPorts } from '@/lib/services';
+import { isLessonDoc, isProseBlock } from '@/lib/services/lessonDoc';
+import { StepType } from '@prisma/client';
 
+import { LessonGenerationState, makeGenerationState } from './lessonGenerationState';
+import { runLessonPipeline } from './lessonOrchestration';
+import { readOrCreateProfile } from './profileStore';
+import { resolveJourneySourceIds, scrubSourceIds } from './researchBundle';
+
+import type { Competency } from "@/lib/services/types";
+import type { LessonDoc } from "@/lib/services/lessonDoc";
 /** The information step's JSON payload: a LessonDoc plus the polled progress record. */
 type InfoPayload = Partial<LessonDoc> & {
   sourceIds?: string[];
@@ -163,19 +161,9 @@ export async function ensureLessonContent(
       { ...ports, onProgress },
     );
 
-    // L2 Phase 0 — PROVENANCE: thread REAL sourceIds (was always []). Phase 0
-    // grounds the information step in the WHOLE bound bundle (per-claim citation
-    // extraction is a later phase): resolve every Source reachable from a ready
-    // bundle the journey is bound to, then scrub against that same set so only
-    // valid, journey-reachable ids are ever written (R-4 integrity invariant). A
-    // journey bound to no ready bundle (older journeys) resolves to [] — exactly
-    // as today, so nothing breaks. Best-effort: a resolution failure returns [].
     const boundSourceIds = await resolveJourneySourceIds(intentId);
     const sourceIds = await scrubSourceIds(intentId, boundSourceIds);
 
-    // Write the COMPLETE LessonDoc + a `ready` state in one update. The reveal
-    // invariant holds: the page only ever sees a complete doc (contentGeneratedAt
-    // set) or the progress/error screen, never a partial doc.
     const nextPayload: InfoPayload = {
       ...payload,
       sections: doc.sections,
@@ -189,9 +177,7 @@ export async function ensureLessonContent(
     });
     return true;
   } catch (err) {
-    // No silent swallow: record a terminal failure (contentGeneratedAt stays
-    // unset, so the goalpost is still "not ready" and a retry re-enters cleanly).
-    // eslint-disable-next-line no-console
+
     console.warn(
       `[lesson-generation] pipeline failed for goalpost "${goalpost.title}": ` +
         `${(err as Error).message}`,

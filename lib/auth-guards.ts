@@ -1,11 +1,6 @@
-import { redirect } from "next/navigation";
-import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { redirect } from 'next/navigation';
 
-// Ownership guards (landing-flow plan, section 3a — defence in depth). A guest
-// has a real Better Auth session (anonymous plugin), so the optimistic
-// middleware cookie check passes for them too; the authoritative gate lives
-// here. requireOwnerId() accepts guest + real (pre-journey surfaces);
-// requireRealUserId() rejects guest (learning surfaces onward).
+import { getCurrentSession, isAnonymousSession } from '@/lib/auth';
 
 /** A signal the create-account gate / sign-in is needed for the current user. */
 export const GATE_REDIRECT = "/journey/begin";

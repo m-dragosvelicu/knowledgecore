@@ -1,6 +1,5 @@
 /**
- * L2 Phase 0 — the BundleStore: read-through cache + persistence + journey
- * bind (backend-engineer.md §2.3/§4). Turns a topic fingerprint into a bound
+ * Turns a topic fingerprint into a bound
  * `ResearchBundle`: HIT (ready bundle exists) just binds the journey; MISS
  * creates the bundle (status researching), runs the Research Agent to fill
  * Sources/SourceChunks/BundleSourceLink, marks it ready, then binds via
@@ -13,19 +12,20 @@
  * `ensureLessonContent`); the journey just stays ungrounded (sourceIds []).
  */
 
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { ingestBundle } from "@/lib/research/embeddings/bundleIngest";
-import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
-import { getResearchAgent } from "@/lib/services";
-import type { Bundle } from "@/lib/services/research";
+import { prisma } from '@/lib/db';
+import { ingestBundle } from '@/lib/research/embeddings/bundleIngest';
+import { fingerprint, OutcomeShape } from '@/lib/research/fingerprint';
+import { getResearchAgent } from '@/lib/services';
+import { Prisma } from '@prisma/client';
+
 import {
   isResearchProgressState,
   makeResearchProgressState,
+  ResearchProgressState,
   stateForResearchEvent,
-  type ResearchProgressState,
-} from "./researchProgressState";
+} from './researchProgressState';
 
+import type { Bundle } from "@/lib/services/research";
 /** Prisma's unique-constraint violation code. */
 const UNIQUE_VIOLATION = "P2002";
 

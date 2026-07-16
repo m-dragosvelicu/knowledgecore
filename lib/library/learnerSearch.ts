@@ -1,21 +1,18 @@
 /**
- * E01.S06 — Library learner search (query side / pattern (b) of the ratified
- * storage+search composition, decisions/2026-06-15-l2-library-storage-search-
- * composition.html). A learner query: embeds once with the ingest-time
+ * A learner query: embeds once with the ingest-time
  * Gemini model (gemini-embedding-001, dim 3072) via embedPassages, runs the
  * ratified payload-filtered cosine top-k (searchPassages) scoped to sources
  * reachable from the journey's bound READY bundles (resolveJourneySourceIds),
  * with a minimum-score floor, then joins hits back to Postgres by sourceId
  * for citable metadata — Qdrant stays a derived index, never truth.
  *
- * Ranking is cosine similarity with a deterministic tie-break. Credibility
- * re-rank is deferred per ADR 9, not built here.
+ * Ranking is cosine similarity with a deterministic tie-break.
  */
-import { prisma } from "@/lib/db";
-import { resolveJourneySourceIds } from "@/lib/journey/researchBundle";
-import { buildAttribution } from "@/lib/journey/sourceAttribution";
-import { embedPassages } from "@/lib/research/embeddings/embed";
-import { searchPassages, type PassageHit } from "@/lib/vector/kcPassages";
+import { prisma } from '@/lib/db';
+import { resolveJourneySourceIds } from '@/lib/journey/researchBundle';
+import { buildAttribution } from '@/lib/journey/sourceAttribution';
+import { embedPassages } from '@/lib/research/embeddings/embed';
+import { PassageHit, searchPassages } from '@/lib/vector/kcPassages';
 
 /** Default number of passages returned to the learner. */
 export const LEARNER_SEARCH_LIMIT = 8;

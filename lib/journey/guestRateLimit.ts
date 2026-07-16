@@ -1,18 +1,7 @@
-import { prisma } from "@/lib/db";
+import { prisma } from '@/lib/db';
+
 import type { LlmCallPurpose } from "@prisma/client";
 
-// D2 — anonymous LLM rate limit. Guests get LIVE LLM responses (try-before-
-// signup is the point), capped by counting the existing LlmCall log in a
-// rolling window; real (signed-in) accounts are never rate-limited here.
-// Counted GLOBALLY rather than per-guest, since a guest can mint new guest
-// ids by clearing cookies — a window-scoped global cap on the cost-bearing
-// purposes is the honest abuse brake. Per-guest tightening could be layered
-// later by joining LlmCall to the owning intent's userId.
-
-// The cost-bearing LLM purposes a guest can drive from the pre-journey flow.
-// stt_transcribe is included because the MicButton (outcome/probe steps) is
-// guest-reachable and each press is a real Gemini-audio call, so it must
-// count against the same D2 budget; /api/transcribe enforces the cap.
 const GUEST_PURPOSES: LlmCallPurpose[] = [
   "intent_parse",
   "goal_interview",

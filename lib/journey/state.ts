@@ -1,17 +1,10 @@
 import type { Goalpost, LearningIntent, Step } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma } from '@/lib/db';
 
 export { prisma };
 
-// L0 §6 multi-session continuity, implemented WITHOUT a cron/background job.
-// Inactivity transitions are evaluated lazily on access (every read of the
-// active intent) using the row's `updatedAt` timestamp as the last-activity
-// signal. The state machine is: in_progress -> paused (after 7d idle) ->
-// abandoned (after 30d idle). We only ever touch in_progress/paused; complete
-// and the pre-execution wizard statuses are left alone.
 export const PAUSE_AFTER_DAYS = 7;
 export const ABANDON_AFTER_DAYS = 30;
-// §9.5 / B.6: a long gap offers an OPT-IN refresher on resume (never automatic).
 export const REFRESHER_OFFER_AFTER_DAYS = 21;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -21,7 +14,7 @@ export function daysSince(when: Date, now: Date = new Date()): number {
 }
 
 /**
- * Lazily apply the §6 inactivity state machine to a single intent, based on
+ * Lazily apply the inactivity state machine to a single intent, based on
  * `updatedAt`. Only acts on `in_progress`/`paused` journeys. `> 30d` idle ->
  * `abandoned` (returns null); `> 7d` idle and `in_progress` -> `paused`.
  * Returns the (possibly updated) intent, or null when abandoned. `now`

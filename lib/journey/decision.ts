@@ -1,18 +1,6 @@
 import type { Decision } from "@prisma/client";
 import type { RubricScores } from "@/lib/services/types";
 
-// Authoritative checkpoint decision (L0.md §8). The CheckpointEvaluator
-// (LLM-as-judge) returns rubric scores; its own `decision` field is
-// ADVISORY only — the branch below is derived deterministically from the
-// scores so the threshold rule isn't left to model behaviour.
-//
-// §8, verbatim: "advance if no dimension < 2 and at least four dimensions
-// >= 3; repeat if any dimension < 2; adjust_plan if Coverage Mismatch
-// fires (user demonstrates a gap the goalpost did not target)."
-
-// §9.6 (2 repeats then mandatory adjustment): initial submission is attempt
-// 1; a still-failing checkpoint on attempt 3 escalates to adjust_plan
-// instead of offering a third repeat.
 export const MAX_ATTEMPTS_BEFORE_ADJUST = 3;
 
 const ADVANCE_MIN_LEVEL = 2; // no dimension may sit below "proficient"
