@@ -39,8 +39,6 @@ type Props = {
 
 type Mode = "gate" | "dialogue";
 
-// The shared paper-surface panel the dialogue draws its turns and the answer box
-// on (mirrors the OutcomeClient / Goal Interview surface from Slice 3).
 function Surface({ children }: { children: React.ReactNode }) {
   return (
     <Box
@@ -57,7 +55,6 @@ function Surface({ children }: { children: React.ReactNode }) {
   );
 }
 
-// A heading set in Fraunces at the UI display weight -- the voice that asks.
 function AskHeadline({ children }: { children: React.ReactNode }) {
   return (
     <Box
@@ -79,19 +76,11 @@ function AskHeadline({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * L1 Slice 2 — the Path Confirmation gate + opt-in clarifying dialogue.
- *
- * Platform rule: there is ALWAYS a place to say "hold on" before committing to
- * the path. "Looks good, start" proceeds into goalpost 1 (triggering lazy Call
- * B). "Not quite right" opens the clarifying dialogue, which REUSES the shared
- * turn-taking primitive (the same transcript-driven loop the Goal Interview
- * uses): the client holds the running transcript and re-sends it each turn; the
- * server step is stateless. On completion the concern is handed to the EXISTING
- * Path Adjuster to revise the overview, then the page re-presents it here.
- *
- * Slice 4 restyle: the commit is a SOLID button, "Not quite right" is a WORKBENCH
- * (wobble) button, and the clarifying dialogue is the styled turn-taking cards.
- * Logic is unchanged.
+ * L1 Slice 2 -- Path Confirmation gate + opt-in clarifying dialogue.
+ * Platform rule: always a way to say "hold on" before committing to the path.
+ * The clarifying dialogue reuses the shared transcript-driven turn-taking
+ * primitive (client resends the whole transcript each turn; server is
+ * stateless), then hands the concern to the existing Path Adjuster.
  */
 export default function PathConfirmationGate({ revisionCount, intentId }: Props) {
   const [mode, setMode] = useState<Mode>("gate");
@@ -120,8 +109,6 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
     startTransition(async () => {
       const step = await advancePathConfirmationAction(nextTranscript, intentId);
       if (step.kind === "complete") {
-        // Hand the concern to the existing Path Adjuster; the action revises the
-        // path and redirects back here to re-present the revised overview.
         await revisePathFromConfirmationAction(step.concern, intentId);
       } else {
         setQuestion(step.question);
@@ -148,7 +135,7 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
     runTurn([...transcript, { role: "user", content: trimmed }]);
   }
 
-  // ---- The always-present gate ----
+  // The always-present gate
   if (mode === "gate") {
     const gate = (
       <Stack spacing={2.5}>
@@ -231,7 +218,7 @@ export default function PathConfirmationGate({ revisionCount, intentId }: Props)
     return <ResearchFillWait intentId={intentId}>{gate}</ResearchFillWait>;
   }
 
-  // ---- The opt-in clarifying dialogue (reused turn-taking primitive) ----
+  // The opt-in clarifying dialogue (reused turn-taking primitive)
   return (
     <Stack spacing={3}>
       <Divider />
