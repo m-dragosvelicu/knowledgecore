@@ -4,12 +4,10 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
-import {
-  getCurrentGoalpost,
-  getOrCreateActiveIntent,
-  prisma,
-} from "@/lib/journey/state";
-import { getPresenter, applyPace } from "@/lib/journey/presenter";
+import { prisma } from "@/lib/db";
+import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { getPresenter, applyPace } from "@/lib/journey/profile/presenter";
 import {
   adjustPlanAction,
   advanceGoalpostAction,
@@ -23,7 +21,7 @@ import {
   // (founder-ordered temporary removal of the skip affordance, 2026-07-17).
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
-import { isLessonContentReady } from "@/lib/journey/lessonGeneration";
+import { isLessonContentReady } from "@/lib/journey/lesson/generation";
 import { estimateReadMinutes } from "@/lib/journey/readTime";
 import { isLessonDoc } from "@/lib/services/lessonDoc";
 import type { LessonDoc } from "@/lib/services/lessonDoc";

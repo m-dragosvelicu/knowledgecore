@@ -8,7 +8,8 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import { getCurrentSession } from "@/lib/auth";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import type { CanDoStatement } from "@/lib/services/types";
 

@@ -9,7 +9,7 @@
  */
 
 import type { StepType } from "@prisma/client";
-import type { LearnerProfileState } from "./learnerProfile";
+import type { LearnerProfileState } from "./model";
 
 /**
  * The minimal slice of a goalpost step the presenter needs. Decoupled from the
@@ -24,7 +24,7 @@ export interface PresenterStep {
 
 /**
  * The learner profile the seam consumes: the real persisted
- * `LearnerProfileState` (lib/journey/learnerProfile.ts), imported as a plain
+ * `LearnerProfileState` (lib/journey/profile/model.ts), imported as a plain
  * domain type so the seam stays decoupled from the Prisma client model.
  *
  * Every strategy must tolerate a null/undefined profile and an empty mastery

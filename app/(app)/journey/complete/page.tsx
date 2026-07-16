@@ -7,7 +7,7 @@ import Divider from "@mui/material/Divider";
 import SubmitButton from "@/components/journey/SubmitButton";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
-import { prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import type {

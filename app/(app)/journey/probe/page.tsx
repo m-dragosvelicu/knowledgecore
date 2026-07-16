@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getCurrentSession } from "@/lib/auth";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import { Eyebrow } from "@/components/ui";
 import ProbeClient from "./ProbeClient";
 import ProbeWait from "@/components/journey/wait/ProbeWait";

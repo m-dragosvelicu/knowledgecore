@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { usePolledStage } from "@/components/journey/wait/usePolledStage";
 import StagedWait from "@/components/journey/wait/StagedWait";
-import type { ProbeResumeState } from "@/lib/journey/probeState";
+import type { ProbeResumeState } from "@/lib/journey/probe/state";
 
 type Props = {
   intentId: string;

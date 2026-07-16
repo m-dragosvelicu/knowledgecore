@@ -15,8 +15,8 @@
  * Prisma/LLM/DB — unit-tested via scripts/verify-adaptation.ts.
  */
 
-import type { ConceptMastery, LearnerProfileState } from "./learnerProfile";
-import { INITIAL_MASTERY } from "./learnerProfile";
+import type { ConceptMastery, LearnerProfileState } from "./model";
+import { INITIAL_MASTERY } from "./model";
 
 /** Support level surfaced to generation. Mirrors the presenter seam's naming. */
 export type SupportLevel = "minimal" | "standard" | "extended";
