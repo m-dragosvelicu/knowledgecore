@@ -206,10 +206,9 @@ export class LiveLessonAuthor implements Author {
     return this.toDraftLessonDoc(result, input.conceptKey);
   }
 
-  // Split the flat-by-`type` authored blocks into the typed DraftLessonDoc, assigning
-  // deterministic concept-scoped ids. Visual blocks are stamped "pending" (a worker
-  // resolves them later). Malformed blocks (empty prose md, visual missing kind/spec)
-  // and emptied sections are dropped defensively before they reach the renderer.
+  // Splits the flat authored blocks into the typed DraftLessonDoc, assigning
+  // deterministic concept-scoped ids; visual blocks start "pending" for a
+  // worker to resolve. Malformed blocks and emptied sections are dropped.
   private toDraftLessonDoc(
     authored: AuthoredLesson,
     conceptKey: string,

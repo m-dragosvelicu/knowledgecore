@@ -1,35 +1,18 @@
 /**
- * L1 Slice 1 — the GENERATION-FIRST adaptation layer (pure).
+ * L1 Slice 1 — the generation-first adaptation layer (pure). Two functions
+ * sit between the persisted `LearnerProfileState` and the content-generation
+ * prompt (Call B): `deriveSupportPlan` maps per-concept mastery (plus a
+ * thin-signal guard) onto a worked-example count + supportLevel, computed
+ * deterministically (not read off a model opinion); `serializeProfileForGeneration`
+ * renders the profile + derived plan into the plain-text block Call B's
+ * prompt appends to its existing typed-field block.
  *
- * WHAT THIS IS
- * ------------
- * Two pure functions that sit between the persisted `LearnerProfileState`
- * (lib/journey/learnerProfile.ts) and the content-generation prompt (Call B):
- *
- *   1. `deriveSupportPlan(profile, conceptKey)` — the ONE VISIBLE ADAPTATION.
- *      It maps the learner's per-concept mastery (plus a thin-signal guard) onto
- *      a concrete generation directive: how many worked examples to author and a
- *      `supportLevel` (minimal | standard | extended). Low mastery yields MORE
- *      worked examples and a higher support level; high mastery yields fewer and
- *      a lower one. This is the substance knob, computed deterministically in
- *      code (NOT read off a model opinion), then injected into the prompt.
- *
- *   2. `serializeProfileForGeneration(profile, conceptKey)` — renders the profile
- *      (mastery numbers + signal vector + derived band + the derived support plan)
- *      into a PLAIN-TEXT block, in the same style the Path Outliner already uses
- *      for motivation/competencies. No new infra, no new vendor: it is text the
- *      Call B prompt appends to its existing typed-field block.
- *
- * DESIGN PRINCIPLES (from CEO/L1-plan.html)
- * -----------------------------------------
- * - supportLevel naming (NOT "scaffolding").
- * - Productive struggle is the DEFAULT. Support is ADDED on poor performance,
- *   never removed on a learner's request. There is no learner-facing override.
- * - CONSERVATIVE EARLY: with thin evidence (few observations) the plan stays near
- *   standard and does not over-react to a single data point; it ramps as evidence
- *   accumulates. Performance (mastery) wins over self-report.
- * - This module is pure (no Prisma / LLM / DB), so it is trivially unit-testable
- *   (scripts/verify-adaptation.ts).
+ * Design (CEO/L1-plan.html): supportLevel naming, not "scaffolding".
+ * Productive struggle is the default — support is added on poor performance,
+ * never removed on request; no learner-facing override. Conservative early:
+ * thin evidence keeps the plan near standard rather than over-reacting to one
+ * data point; performance (mastery) wins over self-report. Pure, no
+ * Prisma/LLM/DB — unit-tested via scripts/verify-adaptation.ts.
  */
 
 import type { ConceptMastery, LearnerProfileState } from "./learnerProfile";
@@ -58,10 +41,7 @@ export interface SupportPlan {
   reason: string;
 }
 
-// ---------------------------------------------------------------------------
-// Tuning constants (fixed, documented — like the BKT params, these are CHOSEN
-// rules, not fitted values).
-// ---------------------------------------------------------------------------
+// Tuning constants — fixed and documented, like the BKT params, not fitted.
 
 /**
  * Below this much evidence the plan is in its CONSERVATIVE-EARLY regime: it
@@ -94,18 +74,14 @@ function masteryFor(
 }
 
 /**
- * THE ONE VISIBLE ADAPTATION (CEO/L1-checklist Slice 1).
+ * The one visible adaptation (CEO/L1-checklist Slice 1): maps a concept's
+ * mastery onto a worked-example count + supportLevel — low mastery ->
+ * extended support/most examples, high -> minimal/fewest, mid -> standard.
  *
- * Map a concept's mastery onto a worked-example count + supportLevel:
- *   - LOW mastery (<= LOW_MASTERY_MAX)  -> extended support, MOST worked examples
- *   - HIGH mastery (>= HIGH_MASTERY_MIN) -> minimal support, FEWEST worked examples
- *   - MID                                -> standard support, middle count
- *
- * CONSERVATIVE-EARLY guard: while the signal is thin (observations <
- * THIN_SIGNAL_OBSERVATIONS) we never award the leanest (high-mastery) plan — a
- * not-yet-earned "you clearly know this" would be the costly mistake. We default
- * to at least standard support so productive struggle is preserved but the
- * learner is not under-supported on a single data point.
+ * Conservative-early guard: while observations < THIN_SIGNAL_OBSERVATIONS,
+ * never award the leanest (high-mastery) plan — floor to at least standard
+ * so a not-yet-earned "you clearly know this" can't strip support on one
+ * data point.
  */
 export function deriveSupportPlan(
   profile: LearnerProfileState | null | undefined,
@@ -155,14 +131,12 @@ export function deriveSupportPlan(
 }
 
 /**
- * Render the profile into a PLAIN-TEXT block for the Call B generation prompt,
- * mirroring how livePathOutliner formats motivation/competencies. This is the
- * core of L1: the profile is injected into CONTENT GENERATION, not just render.
- *
- * The block names the derived support plan explicitly so the generator has an
- * unambiguous instruction (number of worked examples + support level), with the
- * mastery numbers and signal vector as the supporting context. An absent/empty
- * profile degrades to the conservative cold-start text.
+ * Render the profile into a plain-text block for the Call B generation
+ * prompt (mirrors livePathOutliner's motivation/competencies formatting) —
+ * the core of L1: the profile is injected into content generation, not just
+ * render. Names the derived support plan explicitly as the instruction
+ * (worked-example count + support level); mastery numbers and signal vector
+ * are supporting context. An absent/empty profile degrades to cold-start text.
  */
 export function serializeProfileForGeneration(
   profile: LearnerProfileState | null | undefined,

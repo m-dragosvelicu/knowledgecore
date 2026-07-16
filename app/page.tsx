@@ -144,11 +144,9 @@ export default async function HomePage() {
   const session = await getCurrentSession();
   const hasRealAccount = !!session?.user?.id && !isAnonymousSession(session);
 
-  // PUBLIC LANDING (landing-flow plan, section 1c). A visitor with no real
-  // account — whether they have no session at all, or an anonymous guest session
-  // — sees the start-a-journey hero as the page hero, a thin "how it works"
-  // strip, and a quiet sign-in link. The hero submit lazily bootstraps a guest
-  // session (HomeHero) and carries the in-progress journey through the wizard.
+  // Public landing (landing-flow plan 1c): a visitor with no real account
+  // (no session, or an anonymous guest session) sees the start-a-journey
+  // hero. HomeHero lazily bootstraps a guest session on submit.
   if (!hasRealAccount) {
     return (
       <Box sx={{ minHeight: "100vh", bgcolor: "transparent", position: "relative", zIndex: 2 }}>

@@ -7,25 +7,11 @@ import Tooltip from "@mui/material/Tooltip";
 import CircularProgress from "@mui/material/CircularProgress";
 
 /**
- * L1 Slice 3 — the ONE shared mic component, placed on every text box in the
- * product (experience answer, intent, knowledge probe, the goal-interview and
- * path-confirmation dialogue drafts, the contestability override). Build once,
- * reuse everywhere.
- *
- * Contract — the EDITABLE-FIELD contract: this button does NOT own a text box and
- * is NOT a black-box voice mode. It records audio, sends it to /api/transcribe,
- * and hands the returned transcript back to the PARENT via `onTranscript`. The
- * parent drops that text into the SAME editable field the learner types in, so
- * the learner can read and FIX any transcription error before submitting — which
- * protects graded answers from garbled speech-to-text.
- *
- * How the parent uses the transcript is the parent's choice (append to a controlled
- * value, set an uncontrolled field via ref, etc.); see MicTextField for the
- * uncontrolled/server-form case.
- *
- * Accessibility: a real <button> (MUI IconButton) with an aria-label that reflects
- * the current state, aria-pressed for the recording toggle, and aria-live status
- * text. Fully keyboard operable (Space/Enter toggles).
+ * Shared mic button used across the product. Records audio, posts to
+ * /api/transcribe, and hands the transcript back via `onTranscript` — it does
+ * not own a text field. The parent must drop the transcript into the same
+ * editable field the learner types in, so the learner can fix transcription
+ * errors before a graded answer submits.
  */
 
 type RecordingState = "idle" | "recording" | "transcribing";

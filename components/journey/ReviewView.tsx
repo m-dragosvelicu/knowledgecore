@@ -7,13 +7,8 @@ import Divider from "@mui/material/Divider";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import type { ReactNode } from "react";
 
-// B.6 §5.1: completed goalposts are tappable for read-only review of their
-// information and the learner's own artifact (retrieval-practice friendly).
-// This is purely a recap surface -- no actions advance the journey from here.
-//
-// Slice 4 restyle: the reading recap on warm paper in the calm reading voice,
-// the build recap on the recessed Experience surface, and the checkpoint note in
-// the one-teal vocabulary. Back to your trail is a workbench-tier action.
+// B.6 §5.1: read-only recap surface — no actions advance the journey from
+// here.
 
 type Props = {
   order: number;

@@ -1,11 +1,10 @@
 /**
- * L2 ingestion bench — embedding-model eval (D4, CEO plan §5).
- *
- * Reuses the extracted clean text from run-search.ts. For each topic it chunks
- * the topic's extracted sources, has the judge label which chunks answer each
- * query (ground truth), then for each candidate embedding model: embeds chunks +
- * queries, retrieves top-k by cosine, and computes Recall@5 / MRR / nDCG@10.
- * Also ingests each model's chunk vectors into Qdrant (Phase-2 path).
+ * L2 ingestion bench — embedding-model eval (D4, CEO plan §5). Reuses the
+ * extracted clean text from run-search.ts; per topic, chunks the extracted
+ * sources, has the judge label ground-truth relevant chunks per query, then
+ * for each candidate model: embeds chunks + queries, retrieves top-k by
+ * cosine, computes Recall@5/MRR/nDCG@10, and ingests chunk vectors into Qdrant
+ * (Phase-2 path).
  *
  * Prereq: run-search.ts has written out/extractions.json + out/raw-search.json.
  * Run: bun run lib/research/embeddings/run-embeddings.ts

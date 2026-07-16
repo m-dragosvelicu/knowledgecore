@@ -1,10 +1,7 @@
 "use client";
 
-// Dev-only gallery of the Slice 1 design-system components. Not wired into any
-// real screen — purely a place to see each piece in rest + hover and confirm
-// the wobble re-rolls, the skip loop draws without hatch, the solid arrow
-// slides, inputs show the teal focus ring, chips read teal-soft/ghost, and the
-// score badge is a rough ellipse.
+// Dev-only gallery of the Slice 1 design-system components. Not wired into
+// any real screen.
 
 import { useState } from "react";
 import Box from "@mui/material/Box";

@@ -10,16 +10,14 @@ export const TERMINAL_GOALPOST_STATUSES = [
 
 /**
  * Apply a minimal-edit PathAdjustment (L0.md §7 adjust_plan) inside a
- * transaction. Extracted from the server action so the exact same code is
- * exercised by scripts/verify-loop.ts.
+ * transaction; same code path as scripts/verify-loop.ts.
  *
- * Semantics: adjust_plan acknowledges the PLAN was wrong, not the learner — the
- * current goalpost is completed and the learner is moved into the inserted
- * remediation. Removed goalposts are marked `skipped` (history preserved);
- * modifications are applied in place; inserted goalposts land right after the
- * current order. The @@unique([pathId, order]) constraint is respected by
- * vacating the range (large offset bump), inserting contiguously, then
- * renumbering the bumped goalposts to follow. Records a PathRevision and bumps
+ * adjust_plan means the plan was wrong, not the learner: current goalpost is
+ * completed, removed goalposts are marked `skipped` (history preserved),
+ * modifications applied in place, inserts land right after the current
+ * order. The @@unique([pathId, order]) constraint is respected by bumping
+ * later goalposts out of the way (large offset), inserting contiguously,
+ * then renumbering the bumped ones to follow. Records a PathRevision, bumps
  * revisionCount.
  */
 export async function applyPathAdjustment(
@@ -119,26 +117,15 @@ export async function applyPathAdjustment(
 }
 
 /**
- * Apply a PathAdjustment to a DRAFT path during the L1 Slice 2 Path Confirmation
- * gate — BEFORE the learner has accepted the path or started any goalpost.
- *
- * This reuses the exact same `PathAdjustment` shape (and the same Path Adjuster
- * that produces it); only the APPLICATION semantics differ from the mid-journey
- * `applyPathAdjustment`:
- *   - There is no "current goalpost" to complete (nothing is in progress yet),
- *     so we do NOT mark anything `complete`. The whole draft is still editable.
- *   - Inserted goalposts land at their requested `order` within the full path
- *     (default: before goalpost 1 / wherever the adjuster placed them), then the
- *     entire path is renumbered contiguously from 1 so the @@unique([pathId,
- *     order]) constraint always holds and the trail reads cleanly.
- *   - `removedOrders` are marked `skipped` (history preserved, never served).
- *   - `modifiedGoalposts` are applied in place.
- *   - Records a PathRevision (triggerEvalId = null — the trigger was a learner
- *     confirmation conversation, not a checkpoint evaluation) and bumps
- *     revisionCount.
- *
- * The renumber excludes `skipped` rows from the contiguous 1..N sequence so a
- * dropped goalpost does not leave a gap or collide.
+ * Apply a PathAdjustment to a DRAFT path during the L1 Slice 2 Path
+ * Confirmation gate, before the learner has accepted the path or started any
+ * goalpost. Reuses the same `PathAdjustment` shape as `applyPathAdjustment`,
+ * but application semantics differ: there is no "current goalpost" to
+ * complete, so nothing is marked `complete`. Inserts land at their requested
+ * order, then the whole path is renumbered contiguously from 1 (skipped rows
+ * excluded, pushed to the end) so @@unique([pathId, order]) always holds.
+ * Records a PathRevision with triggerEvalId = null (trigger was a
+ * confirmation conversation, not a checkpoint evaluation).
  */
 export async function applyPreAcceptancePathAdjustment(
   tx: Prisma.TransactionClient,

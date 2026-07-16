@@ -21,14 +21,11 @@ type TelemetrySnapshot = {
 };
 
 /**
- * L1 Slice 3 — the live (Gemini-audio) speech-to-text transcriber.
- *
- * Sends the recorded audio to Gemini via the new TranscriptionClient.transcribe
- * method and returns the transcript. The audio bytes are only held for the call;
- * NOTHING about the audio is persisted — the only durable trace is the LlmCall
- * telemetry row (purpose=stt_transcribe) and the transcript handed back to the
- * caller. Telemetry is best-effort and never breaks the transcription path,
- * mirroring LiveLessonContentGenerator / LiveCheckpointEvaluator.
+ * Live (Gemini-audio) speech-to-text transcriber. Sends audio to Gemini via
+ * TranscriptionClient.transcribe; audio bytes are held only for the call —
+ * nothing about the audio is persisted, only the LlmCall telemetry row
+ * (purpose=stt_transcribe) and the returned transcript. Telemetry is
+ * best-effort and never breaks transcription.
  */
 export class LiveTranscriber implements Transcriber {
   constructor(private readonly client: TranscriptionClient) {}

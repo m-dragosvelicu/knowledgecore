@@ -12,9 +12,6 @@ import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 
 // L0.md §7 Q7: a must-acknowledge "we've adjusted your path" notice. No
 // auto-redirect -- the learner reads the rationale and explicitly continues.
-//
-// Slice 4 restyle: warm surface, eyebrow + headline underline, the rationale as
-// a teal-edged pull-quote, on the one-teal vocabulary (no info-blue accent).
 export default async function AdjustedPage({
   searchParams,
 }: {

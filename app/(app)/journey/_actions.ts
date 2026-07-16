@@ -59,12 +59,10 @@ async function ownerContext(): Promise<{ userId: string; isAnonymous: boolean }>
   return { userId: session.user.id, isAnonymous: isAnonymousSession(session) };
 }
 
-// Resolve the journey the action must operate on. When the caller threads the
-// `?j=<id>` journey id (read from its form data / passed as an argument), load
-// THAT journey (ownership enforced inside getOrCreateActiveIntent); otherwise
-// fall back to the most-recently-updated non-terminal journey. Pinning the id
-// end to end is what stops an in-flight wizard from silently drifting onto the
-// most-recent journey when more than one is non-terminal.
+// Resolves the journey the action must operate on: uses the `?j=<id>` id when
+// present (ownership enforced in getOrCreateActiveIntent), else falls back to
+// the most-recently-updated non-terminal journey. Pinning `j` end to end stops
+// an in-flight wizard from drifting onto a different journey.
 async function requireActiveIntentId(
   userId: string,
   intentId?: string | null,
@@ -84,14 +82,10 @@ function readJourneyId(formData: FormData): string | undefined {
   return typeof j === "string" && j.length > 0 ? j : undefined;
 }
 
-// Recency touch (resume-card fix): the home "pick up where you left off" card and
-// getOrCreateActiveIntent both order non-terminal journeys by `updatedAt desc`.
-// During the long-lived `in_progress` phase, per-goalpost actions write Step /
-// Goalpost / CheckpointEvaluation rows but NOT the LearningIntent row, so
-// `updatedAt` froze at path-acceptance and stopped tracking real activity — the
-// resume target went stale when more than one journey reached in_progress. This
-// bumps the intent's `@updatedAt` so it reflects the genuinely most-recently
-// worked / left journey. Best-effort: a recency touch must never break the flow.
+// Resume-card fix: per-goalpost actions update Step/Goalpost/CheckpointEvaluation
+// rows but not LearningIntent, so `updatedAt` froze at path-acceptance and the
+// "pick up where you left off" ordering (by `updatedAt desc`) went stale. This
+// bumps it to reflect real activity. Best-effort: must never break the flow.
 async function touchIntentRecency(intentId: string): Promise<void> {
   try {
     await prisma.learningIntent.update({
@@ -133,11 +127,9 @@ async function appendRecalibrationFlag(intentId: string, flag: string): Promise<
 
 export async function startNewJourneyAction(): Promise<void> {
   const userId = await requireRealUserId();
-  // Journeys coexist: starting a new one must NOT touch any other journey. The
-  // new intent simply becomes the resume target because it has the newest
-  // `updatedAt` (getOrCreateActiveIntent orders non-terminal journeys by it).
-  // Carry the freshly created journey's id from step one so the wizard never
-  // drifts onto a different (most-recent) journey once intake begins.
+  // Journeys coexist: starting a new one must not touch any other. It becomes
+  // the resume target via its newest `updatedAt`; carrying its id from step one
+  // stops the wizard drifting onto a different journey once intake begins.
   const created = await prisma.learningIntent.create({
     data: {
       userId,
@@ -148,10 +140,9 @@ export async function startNewJourneyAction(): Promise<void> {
   redirect(`/journey/intent?j=${created.id}`);
 }
 
-// Start a new journey carrying the intent typed in the home hero pill. Mirrors
-// startNewJourneyAction (open a fresh journey alongside any others) but seeds the
-// rawText and runs the same intent-parsing path as submitIntentAction so the
-// learner lands straight in the flow instead of an empty intent box.
+// Starts a journey from the home hero pill's typed intent. Mirrors
+// startNewJourneyAction (opens a fresh journey alongside others) but seeds
+// rawText and runs submitIntentAction's parsing path.
 const heroIntentSchema = z.object({
   rawText: z.string().min(3, "Please describe what you want to learn."),
 });
@@ -229,11 +220,9 @@ export async function submitIntentAction(formData: FormData): Promise<void> {
     },
   });
 
-  // L0.md §3 Stage 2: do NOT silently narrow an ambiguous intent. When the
-  // parser flagged the input as too vague / too broad / two-intents-in-one, send
-  // the learner back to the intent page in a confirm/refine sub-view (the
-  // clarification is transient, so it rides along on the query string). A clear,
-  // singular intent flows straight through to the outcome interview as before.
+  // L0.md §3 Stage 2: never silently narrow an ambiguous intent. If the parser
+  // flags it (too vague/broad/two-in-one), send the learner back to a
+  // confirm/refine sub-view (clarification rides on the query string, transient).
   if (subject.ambiguous) {
     const params = new URLSearchParams({ confirm: "1", j: intent.id });
     if (subject.clarification) params.set("note", subject.clarification);
@@ -258,12 +247,10 @@ export async function confirmIntentAction(formData: FormData): Promise<void> {
 // Stages 3+4 — submit goal + outcome
 // ---------------------------------------------------------------------------
 
-// --- Multi-turn goal interview (L0.md §3 Stage 3+4, §5 Goal Interview Agent) ---
-//
-// The interview is a turn loop driven by the client, which holds the running
-// transcript and re-sends it each turn (mirrors ProbeClient's stateless shape).
-// `advanceInterviewAction` returns the next InterviewStep; `finalizeOutcomeAction`
-// persists the synthesized outcome and moves the journey forward.
+// Multi-turn goal interview (L0.md §3 Stage 3+4, §5 Goal Interview Agent). Turn
+// loop driven by the client, which holds the transcript and re-sends it each
+// turn (mirrors ProbeClient's stateless shape). advanceInterviewAction returns
+// the next step; finalizeOutcomeAction persists the synthesized outcome.
 
 const interviewTurnSchema = z.object({
   role: z.enum(["assistant", "user"]),
@@ -322,12 +309,10 @@ export async function advanceInterviewAction(
     transcript: parsed.transcript,
   });
 
-  // RESUME SUPPORT — persist the outcome sub-state as it is produced so a learner
-  // who saves & leaves mid-outcome returns to their position (not the motivation
-  // question). The transcript we store is the conversation INCLUDING the question
-  // this turn just produced, so on re-hydration the outcome page can render the
-  // dialogue exactly where it left off. On completion we also stash the
-  // synthesized (not-yet-confirmed) outcome so resume lands on the confirm screen.
+  // Resume support: persists the outcome sub-state as produced, so a learner who
+  // leaves mid-outcome returns to their position, not the motivation question.
+  // Stored transcript includes the question this turn just produced (for
+  // re-hydration); on completion the draft outcome is stashed too, for resume.
   const nextTranscript: InterviewTurn[] =
     step.kind === "complete"
       ? parsed.transcript
@@ -553,15 +538,10 @@ export async function generatePathAction(intentId?: string | null): Promise<void
 }
 
 export async function acceptPathAction(j?: string | null): Promise<void> {
-  // THE ACCOUNT GATE (landing-flow plan, section 3a — primary, server-side).
-  // "Looks good, start" is the one transition from the public path overview into
-  // goalpost 1. requireRealUserId rejects an anonymous guest and redirects them
-  // to the create-account step (/journey/begin); only a real account proceeds
-  // into goalpost 1. After the guest creates an account / signs in there, the
-  // onLinkAccount claim re-owns the journey and /journey/begin re-invokes this
-  // action — which now sees a real user and proceeds.
-  // `j` pins the journey end to end so accept operates on (and lands the learner
-  // in) the journey they actually confirmed, not whichever is most-recent.
+  // Account gate: requireRealUserId redirects anonymous guests to
+  // /journey/begin; after sign-in, onLinkAccount re-owns the journey and
+  // /journey/begin re-invokes this action. `j` pins the journey so accept
+  // lands on the one the learner confirmed, not the most recent.
   const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId, j);
 
@@ -585,13 +565,10 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
     });
   }
 
-  // L2 — bind this journey to its research bundle at path-confirm (the founder's
-  // "after the learner confirms the path" trigger). Compute the topic
-  // fingerprint from the canonical subject + outcome shape and read-through the
-  // Library cache (HIT binds; MISS creates + fills via the live Research Agent,
-  // then embeds the chunks for Library search). Best-effort by contract: a
-  // failure leaves the journey ungrounded (downstream sourceIds stay []) but
-  // never breaks the spine.
+  // L2: bind this journey to its research bundle at path-confirm. Computes the
+  // topic fingerprint and reads through the Library cache (HIT binds; MISS
+  // creates + fills via the Research Agent, then embeds for Library search).
+  // Best-effort: failure leaves the journey ungrounded (sourceIds stay []).
   try {
     const [subject, outcome] = await Promise.all([
       prisma.subject.findUnique({ where: { intentId } }),
@@ -621,20 +598,13 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
 
 // ---------------------------------------------------------------------------
 // L1 Slice 2 — Path Confirmation gate + clarifying dialogue
-//
-// After the structure-only path overview (Call A) and BEFORE goalpost 1, the
-// learner always has a lightweight choice: "Looks good, start" (-> acceptPathAction
-// above, which proceeds into goalpost 1 and triggers lazy Call B) or "Not quite
-// right", which opens an OPT-IN clarifying dialogue.
-//
-// The dialogue REUSES the shared turn-taking primitive (the same InterviewTurn /
-// step shape the Goal Interview uses): the client holds the running transcript
-// and re-sends it each turn; `advancePathConfirmationAction` is stateless and
-// returns the next step. On completion the synthesized concern is fed to the
-// EXISTING Path Adjuster (`adjust_plan`) to revise the overview, which is then
-// re-presented for confirmation. A soft cap on correction ROUNDS is enforced in
-// the client (then it surfaces "you can adjust as you go").
 // ---------------------------------------------------------------------------
+// Before goalpost 1, the learner can accept the path overview or open an
+// opt-in clarifying dialogue. It reuses the InterviewTurn turn-taking shape
+// (client holds the transcript; advancePathConfirmationAction is stateless).
+// On completion the concern feeds the existing Path Adjuster (`adjust_plan`)
+// to revise the overview for re-confirmation. The client enforces a soft cap
+// on correction rounds.
 
 const confirmationTranscriptSchema = z.array(interviewTurnSchema);
 
@@ -699,11 +669,9 @@ const NEUTRAL_SCORES: RubricScores = {
 };
 
 /**
- * Revise the draft path from the clarifying dialogue's concern. REUSES the
- * existing Path Adjuster (`adjust_plan`) to produce a minimal-edit PathAdjustment,
- * then applies it with the pre-acceptance applier (no goalpost is completed; the
- * whole draft is revised and renumbered). The learner is bounced back to the path
- * page to re-confirm the revised overview.
+ * Revises the draft path from the clarifying dialogue's concern. Reuses the
+ * Path Adjuster (`adjust_plan`) for a minimal-edit PathAdjustment, applied via
+ * the pre-acceptance applier (no goalpost completes; the draft is renumbered).
  */
 export async function revisePathFromConfirmationAction(
   concern: string,
@@ -854,12 +822,10 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     },
   });
 
-  // L1 SIGNAL CAPTURE: fold this checkpoint into the journey learner profile via
-  // the pure BKT rule + an append-only snapshot. The goalpost id is the stable
-  // concept key. Time-on-task ≈ (experience submitted) − (information completed),
-  // a coarse but honest per-goalpost proxy. Best-effort: a profile write must
-  // never break the learner's flow, so it is wrapped — the evaluation is already
-  // persisted above regardless.
+  // Folds this checkpoint into the learner profile (BKT rule + append-only
+  // snapshot); goalpost id is the concept key. Time-on-task ≈ submit time minus
+  // information-step completion. Best-effort: wrapped so a failure here never
+  // blocks the flow (evaluation is already persisted above).
   try {
     const infoCompletedAt = informationStep?.completedAt ?? null;
     const timeOnTaskMs = infoCompletedAt
@@ -919,11 +885,9 @@ async function doAdvance(
       where: { id: next.id },
       data: { status: GoalpostStatus.in_progress },
     });
-    // L1 LAZY GENERATION: PRE-GENERATE the next goalpost's lesson content now,
-    // against the FRESHEST profile (the just-completed checkpoint already folded
-    // its evidence), so the learner does not wait on entry. Best-effort and
-    // idempotent — if it fails or is skipped, the goalpost page generates on
-    // entry (with the "getting things ready" screen) as the fallback.
+    // Pre-generates the next goalpost's lesson content against the freshest
+    // profile, so the learner doesn't wait on entry. Best-effort and idempotent
+    // — on failure/skip, the goalpost page generates on entry as fallback.
     try {
       await ensureLessonContent(intentId, userId, next.id);
     } catch (err) {
@@ -944,11 +908,9 @@ async function doAdvance(
   return `/journey/complete?j=${intentId}`;
 }
 
-// --- skip-with-confirm (L0.md §9.2; CEO override: allow skip with confirmation,
-// "you'll be assessed on prerequisites later"). Marks the current goalpost
-// `skipped` (NOT `complete`, unlike doAdvance) and then runs doAdvance's
-// "activate next or finish" tail. getCurrentGoalpost already excludes skipped
-// goalposts, so the next non-terminal goalpost becomes the active one.
+// Skip-with-confirm (L0.md §9.2): marks the goalpost `skipped` (not
+// `complete`), then runs doAdvance's "activate next or finish" tail.
+// getCurrentGoalpost already excludes skipped goalposts.
 export async function skipGoalpostAction(formData: FormData): Promise<void> {
   const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId, readJourneyId(formData));
@@ -1244,10 +1206,9 @@ export async function overrideDecisionAction(formData: FormData): Promise<void> 
 }
 
 // ---------------------------------------------------------------------------
-// L1 LAZY GENERATION — prepare a goalpost's lesson content (Call B) on entry.
-// Called by the "getting things ready" client screen the moment a goalpost with
-// un-generated content is opened. Idempotent (ensureLessonContent no-ops if the
-// content is already marked generated, e.g. it was pre-generated on advance).
+// Prepares a goalpost's lesson content (Call B) on entry. Called by the
+// "getting things ready" screen when un-generated content is opened.
+// Idempotent: no-ops if content is already marked generated.
 // ---------------------------------------------------------------------------
 
 export async function prepareGoalpostContentAction(
@@ -1264,15 +1225,11 @@ export async function prepareGoalpostContentAction(
 }
 
 // ---------------------------------------------------------------------------
-// L1 — Two-Phase Visual Lesson Pipeline (§8 progress channel).
-//
-// The GettingReady screen (Slice 4) POLLS this (~1s) while a goalpost generates.
-// It returns the orchestrator's current generation-state record (stage / label /
-// done / total / status). A server action cannot stream, so the orchestrator
-// writes the record onto the information step and this action reads it back.
-// `status: "ready"` -> the client refreshes into the lesson; `status: "failed"`
-// -> the client shows a real error + Try again instead of looping forever.
-// Ownership is enforced (only the journey's owner can poll its goalpost).
+// L1 Two-Phase Visual Lesson Pipeline (§8 progress channel). The GettingReady
+// screen polls this (~1s) while a goalpost generates; since a server action
+// can't stream, the orchestrator writes progress onto the information step and
+// this reads it back. `status: "ready"` -> refresh into the lesson;
+// `status: "failed"` -> real error + retry, not an infinite loop.
 // ---------------------------------------------------------------------------
 
 export async function readGoalpostGenerationStateAction(
@@ -1292,15 +1249,11 @@ export async function readGoalpostGenerationStateAction(
 }
 
 // ---------------------------------------------------------------------------
-// E04.S03 — research-fill progress channel (T3 ladder).
-//
-// The ResearchFillWait screen POLLS this (~1s) while acceptPathAction fills the
-// journey's research bundle on a cache MISS. Keyed by the journey id — the only
-// handle the client has (the bundle is created inside acceptPathAction) — and
-// resolved server-side by recomputing the topic fingerprint, the same key
-// ensureBundle uses. Same auth/ownership pattern as
-// readGoalpostGenerationStateAction: requireRealUserId + the resolved journey
-// must belong to the caller (enforced inside requireActiveIntentId).
+// E04.S03 research-fill progress channel (T3 ladder). ResearchFillWait polls
+// this (~1s) while acceptPathAction fills the research bundle on a cache MISS.
+// Keyed by journey id; resolved server-side by recomputing the topic
+// fingerprint (same key ensureBundle uses). Same auth/ownership pattern as
+// readGoalpostGenerationStateAction.
 // ---------------------------------------------------------------------------
 
 export async function readBundleProgressAction(
@@ -1312,13 +1265,11 @@ export async function readBundleProgressAction(
 }
 
 // ---------------------------------------------------------------------------
-// Knowledge-probe resume — mirrors the goalpost lazy-generation pair above.
-// The probe wait screen fires prepareProbeQuestionsAction on mount (idempotent
-// — a no-op if questions are already ready or a generation is already in
-// flight) and polls readProbeGenerationStateAction until `status: "ready"`
-// (then the page re-renders with the persisted questions + saved answers) or
-// `status: "failed"` (a real error, not a loop). saveProbeAnswerAction
-// persists one answer at a time so a refresh or resume never loses progress.
+// Knowledge-probe resume, mirrors the goalpost lazy-generation pair above.
+// prepareProbeQuestionsAction fires on mount (idempotent no-op if ready or
+// already generating); readProbeGenerationStateAction is polled until
+// `status: "ready"` or `"failed"`. saveProbeAnswerAction persists one answer
+// at a time so a refresh/resume never loses progress.
 // ---------------------------------------------------------------------------
 
 export async function prepareProbeQuestionsAction(
@@ -1355,14 +1306,10 @@ export async function saveProbeAnswerAction(
 }
 
 // ---------------------------------------------------------------------------
-// L1 Slice 4 — "not helpful" feedback on a visual.
-//
-// The lightweight feedback control on a VisualMedia calls this. It increments the
-// journey profile's `visualNotHelpfulCount` signal and writes an append-only
-// snapshot. Best-effort: feedback must never break the learner's flow, so a
-// failure is swallowed. It is a content+feedback modality signal, NOT a learner
-// "type". (The parked image-search escape hatch that rides on this signal is
-// explicitly deferred — out of L1.)
+// L1 Slice 4 "not helpful" feedback on a visual. Increments the profile's
+// `visualNotHelpfulCount` and writes an append-only snapshot; best-effort, a
+// failure is swallowed. A content/feedback signal, not a learner "type". (The
+// parked image-search escape hatch on this signal is deferred, out of L1.)
 // ---------------------------------------------------------------------------
 
 const visualFeedbackSchema = z.object({ visualId: z.string().min(1) });

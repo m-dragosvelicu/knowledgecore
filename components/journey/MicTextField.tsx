@@ -10,15 +10,10 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import MicButton from "@/components/journey/MicButton";
 
 /**
- * L1 Slice 3 — a self-contained MUI TextField with the shared MicButton attached,
- * for SERVER-FORM / uncontrolled call sites (the intent page, the contestability
- * override) where the field submits by `name` inside a <form action={...}> and the
- * parent is a server component that can't hold React state.
- *
- * It becomes a controlled field internally so the dictated transcript lands in the
- * SAME editable box the learner types in (the editable-field contract): the mic
- * APPENDS its transcript to the current text, and the learner can edit it before
- * the form submits. The `name` prop keeps the value in the submitted FormData.
+ * Self-contained TextField + shared MicButton, for uncontrolled/server-form
+ * call sites (submits by `name` inside a <form action>). Internally
+ * controlled so dictation appends to the current text via the same editable
+ * field (editable-field contract) before the form submits.
  */
 
 type Props = Omit<TextFieldProps, "value" | "onChange"> & {
@@ -30,18 +25,12 @@ type Props = Omit<TextFieldProps, "value" | "onChange"> & {
   micDisabled?: boolean;
   languageHint?: string;
   /**
-   * Render a clean, standalone label ABOVE the field (its own line, with
-   * breathing room) instead of MUI's notched/floating label. This keeps the
-   * label out of the teal focus ring + rounded border, where the floating
-   * variant collided with the glow and became hard to read (bugs: intent-label
-   * collides-with-focus-glow). When set, do NOT also pass the floating `label`.
+   * Standalone label above the field instead of MUI's floating label — the
+   * floating variant collided with the focus glow (bug: intent-label-collides-
+   * with-focus-glow). Do not also pass the floating `label` prop when set.
    */
   aboveLabel?: string;
-  /**
-   * Per-call-site styling for the wrapper Stack (e.g. a max-width so the intent
-   * field reads as a generous centerpiece). Kept opt-in so other call sites
-   * (the contestability override) are not restyled.
-   */
+  /** Per-call-site Stack styling; opt-in so other call sites keep default. */
   containerSx?: SxProps<Theme>;
 };
 

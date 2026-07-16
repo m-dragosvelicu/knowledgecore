@@ -12,12 +12,9 @@ import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import type { CanDoStatement } from "@/lib/services/types";
 
-// B.6 §1.0 (net-new): the Journey Overview -- the journey-level threshold shown
-// conceptually after path acceptance, before the first goalpost. It recouples
-// intent with plan: what we understood, what you'll do, the total time. The
-// "that's not quite right" correction is, per the design, a conversation rather
-// than hand-editing -- in L0 we keep it minimal: a link back to revisit the
-// intent/path with a one-line note. No path hand-editing is implemented.
+// B.6 §1.0: Journey Overview, shown after path acceptance, before goalpost 1.
+// The "not quite right" correction is a link back to revisit intent/path, not
+// hand-editing -- no path hand-editing is implemented in L0.
 export default async function OverviewPage({
   searchParams,
 }: {

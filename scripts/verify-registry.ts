@@ -1,20 +1,14 @@
 /**
- * Verifies the LIVE wiring THROUGH the service registry (`getServices()`) — i.e. the exact
- * code path the web app uses. The prior false positive came from bypassing `getServices()`
- * and constructing Live* classes directly; this script deliberately does NOT do that.
+ * Verifies live wiring THROUGH the service registry (`getServices()`) — the
+ * exact path the app uses. (A prior false positive came from bypassing
+ * getServices() and constructing Live* classes directly; this deliberately
+ * does not do that.)
  *
- * Live-only: the registry has no mock fallback. With GOOGLE_GENAI_API_KEY set, every
- * service is a Live* instance and `mode === "live"`; without the key the registry
- * fails fast (asserted separately at the top).
+ * Live-only: with GOOGLE_GENAI_API_KEY set every service is a Live* instance
+ * and mode === "live"; without the key getServices() fails fast.
  *
- * Run with:
- *   bun run scripts/verify-registry.ts
- *
- * Asserts:
- *   (a) getServices() throws a clear error when GOOGLE_GENAI_API_KEY is absent
- *   (b) services.mode === "live"
- *   (c) each impl is the Live* class instance (constructor.name), NOT the Mock* one
- *   (d) a real end-to-end intent parse through a registry-obtained service reaches Gemini
+ * Run: `bun run scripts/verify-registry.ts`. Asserts fail-fast without the
+ * key, mode/impl wiring, and one real end-to-end intent-parse call.
  */
 import { getServices } from "@/lib/services";
 

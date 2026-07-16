@@ -1,12 +1,10 @@
 /**
- * Standalone verification that the live LLM-backed L0 services actually work
- * against real Gemini (gemini-3.5-flash). Run with:
- *   bun run scripts/verify-live.ts
+ * Standalone verification that the live LLM-backed L0 services work against
+ * real Gemini (gemini-3.5-flash). Requires GOOGLE_GENAI_API_KEY.
+ * Run: bun run scripts/verify-live.ts
  *
- * Loads .env, builds the LIVE services directly, and exercises every service end
- * to end: intent -> goal -> probe (questions + score) -> path -> checkpoint eval.
- * Prints real outputs including the per-dimension scores and the verbatim
- * evidence quotes, and asserts the quotes are genuine substrings of the artifact.
+ * Prints real outputs (scores, evidence quotes) and asserts each evidence
+ * quote is a genuine verbatim substring of the artifact.
  */
 import { GeminiClient } from "@/lib/llm";
 import { LiveIntentParser } from "@/lib/services/live/liveIntentParser";

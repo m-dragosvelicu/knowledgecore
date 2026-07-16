@@ -1,14 +1,12 @@
 /**
- * CEO kappa rating sheet generator (CEO plan step 5, KPI C.1 mirror).
+ * CEO kappa rating sheet generator (CEO plan step 5, KPI C.1 mirror). Samples
+ * ~28 scored (query, result) items and writes kappa-judge-scores.json (the
+ * judge's hidden answer key) plus kappa-rating-sheet.html (a blank form for the
+ * founder to rate the same items on the same 0-2 rubric, judge's scores
+ * hidden, with a "copy results as JSON" button).
  *
- * Samples ~28 scored (query, result) items, writes:
- *   - kappa-judge-scores.json — the JUDGE's hidden answer key (relevance+credibility).
- *   - kappa-rating-sheet.html — a blank standalone form for the founder to rate
- *     the SAME items on the SAME 0-2 rubric, with the judge's scores hidden, plus
- *     a "copy results as JSON" button.
- *
- * Run AFTER run-search.ts. Do NOT compute kappa here (no self-rated data) — the
- * founder rates, then scripts/compute-kappa.ts compares.
+ * Run after run-search.ts. Does not compute kappa here (no self-rated data
+ * yet) — scripts/compute-kappa.ts compares once the founder has rated.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

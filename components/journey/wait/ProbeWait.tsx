@@ -13,18 +13,14 @@ type Props = {
 
 const POLL_INTERVAL_MS = 1000;
 
-// The probe-questions call has no sub-stages to poll (a single blocking
-// structured call, unlike the lesson pipeline's multi-phase ladder), so this
-// renders a single active step rather than inventing stages that do not map
-// to real progress. Same wiring shape as GettingReady.tsx: usePolledStage
-// owns the kickoff+poll state machine, StagedWait renders it.
+// Single blocking call, no sub-stages to poll — renders one active step
+// rather than inventing stages that don't map to real progress. Same wiring
+// shape as GettingReady.tsx.
 export default function ProbeWait({ intentId, action, pollAction }: Props) {
   const router = useRouter();
 
-  // The raw `error` field on a failed poll is an internal exception message
-  // (e.g. from the LLM client), not user-facing copy — GettingReady shows a
-  // curated message on failure rather than that raw string, so this mirrors
-  // that and does not read `state` at all.
+  // `error` on a failed poll is an internal exception message, not
+  // user-facing copy, so it's intentionally not read here.
   const { failed, retry } = usePolledStage<ProbeResumeState>(
     () => action(intentId),
     () => pollAction(intentId),

@@ -1,15 +1,10 @@
 /**
- * L1 Slice 3 — the Transcriber contract (speech-to-text).
- *
- * Mirrors the other L1 additive services (lessonContent.ts, pathConfirmation.ts):
- * it lives ALONGSIDE the LOCKED `lib/services/types.ts` boundary, never inside it,
- * and is wired through the registry with a default-to-live + `LIVE_STT=false`
- * opt-out, exactly like getPathConfirmationInterviewer.
- *
- * Contract: recorded audio in -> clean transcript out. The audio is NOT persisted
- * anywhere; the live implementation transcribes and discards it (only the
- * transcript + a telemetry row survive). English-first; `languageHint` is wired so
- * multilingual is roughly free later (a parameter, not an architecture change).
+ * The Transcriber contract (speech-to-text): recorded audio in, clean
+ * transcript out. Additive — lives alongside the locked `lib/services/types.ts`
+ * boundary, wired through the registry like the other L1 services. Audio is
+ * NOT persisted anywhere; only the transcript and a telemetry row survive.
+ * English-first; `languageHint` is wired so multilingual is a parameter change
+ * later, not a new integration.
  */
 
 export type TranscribeInput = {

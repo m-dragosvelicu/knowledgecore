@@ -1,20 +1,12 @@
 /**
- * Intent/depth router for the L2 Research Agent (ADR 9).
- *
- * Classifies a set of goalpost queries into a source tier:
- *   - introductory / intermediate -> web tier (Tavily)
- *   - advanced / research-grade   -> academic tier (OpenAlex, Semantic Scholar)
- *
- * The classifier is heuristic-first and keyword-driven, with no LLM call.
- * It inspects the combined text of all queries for signals that indicate
- * research-grade intent (citations, methodology, empirical, peer-reviewed, etc.)
- * versus signals that indicate introductory/intermediate intent (overview,
- * introduction, explain, beginners, etc.). When signals are ambiguous the
- * router defaults to the web tier, consistent with ADR 9's B2C bias.
- *
- * The tier drives which search client(s) the LiveResearchAgent calls first.
- * Web tier is ALWAYS tried; academic tier supplements (or replaces for
- * research-grade) when depth warrants it.
+ * Intent/depth router for the L2 Research Agent (ADR 9). Classifies goalpost
+ * queries into a source tier: introductory/intermediate -> web (Tavily);
+ * advanced/research-grade -> academic (OpenAlex, Semantic Scholar). Heuristic +
+ * keyword-driven, no LLM call — inspects combined query text for research-grade
+ * signals (citations, methodology, peer-review, etc.) vs intro signals
+ * (overview, explain, beginners, etc.); ambiguous signals default to web tier
+ * (ADR 9's B2C bias). Web tier is always tried; academic tier supplements (or
+ * replaces, for research-grade) when depth warrants it.
  */
 
 export type SourceTier = "web" | "academic" | "both";
