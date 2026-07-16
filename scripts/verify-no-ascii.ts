@@ -1,19 +1,13 @@
 /**
- * QA — Slice 5: verify-no-ascii (redesign §11, the headline SCALE test).
+ * QA — Slice 5: verify-no-ascii (redesign §11, the headline scale test).
  *
- * THE EMPIRICAL PROOF that the two-phase redesign eliminated ASCII art. We run N
- * varied ASCII-TRAP concepts through the REAL Phase-1 Author
- * (getLessonOrchestratorPorts().author.author(...)) and assert ZERO ASCII-art code
- * fences in ANY prose `md` block across all N lessons. The concepts are chosen to be
- * the exact cases that used to bait a single-call generator into drawing with
- * characters: a binary search tree, a flowchart/process, a bar chart, a sorting
- * algorithm, an org structure, and a network/graph.
+ * Runs N ASCII-trap concepts (BST, flowchart, bar chart, sort, org chart,
+ * graph) through the real Phase-1 Author and asserts zero ASCII-art code
+ * fences in any prose block. Live-only: requires GOOGLE_GENAI_API_KEY, fails
+ * fast if absent.
  *
- * Live-only: the real Gemini Phase-1 Author runs against GOOGLE_GENAI_API_KEY. The
- * run fails fast if the key is absent (the app itself runs live-only).
- *
- * Run: `bun run scripts/verify-no-ascii.ts`. Exits non-zero if any prose block in any
- * lesson contains an ASCII-art fence, or on an Author error.
+ * Run: `bun run scripts/verify-no-ascii.ts`. Exits non-zero on any ASCII-art
+ * finding or Author error.
  */
 
 import { getLessonOrchestratorPorts } from "../lib/services";
@@ -89,14 +83,10 @@ function inputFor(c: Concept): LessonContentInput {
   };
 }
 
-// ---------------------------------------------------------------------------
-// ASCII-art detection. We scan the FENCED code blocks of every prose `md` block.
-// A fence is ASCII art when it is NOT plain prose/real code/literal output but a
-// drawn shape: a high density of box-drawing / connector glyphs, or many lines
-// made predominantly of slashes/pipes/dashes/plus/underscores forming a figure.
-// Real code (let/return/=>, etc.) and a value sequence (e.g. "5 1 4 2 8") are NOT
-// flagged. This deliberately mirrors what a human reviewer would call "ASCII art".
-// ---------------------------------------------------------------------------
+// ASCII-art detection: scan fenced code blocks in every prose block. A fence
+// counts as ASCII art when it's a drawn shape (dense box-drawing/connector
+// glyphs) rather than prose, real code, or a literal value sequence — mirrors
+// what a human reviewer would call "ASCII art".
 const FENCE_RE = /```[^\n]*\n([\s\S]*?)```/g;
 
 /** Unicode box-drawing / arrow glyphs that are unambiguous diagram characters. */

@@ -61,14 +61,9 @@ export const auth = betterAuth({
 /**
  * Re-own every journey row keyed to an anonymous guest userId, moving it to the
  * target (real) account. Atomic: either the target owns the whole journey or
- * nothing moved. Used by the onLinkAccount hook (covers both the new-account
- * signup case and the existing-account merge case, D3 — for an existing account
- * the target simply gains another intent; the home dashboard already lists
- * multiple intents and surfaces the freshest active one, so "keep both, freshest
- * active" needs no extra write).
- *
- * Exported so the deterministic verify script can exercise the exact same code
- * path the hook runs.
+ * nothing moved. Used by onLinkAccount (new-account signup and existing-account
+ * merge, D3 — an existing account just gains another intent, no extra write
+ * needed). Exported so the deterministic verify script can exercise it too.
  */
 export async function claimAnonymousJourney(
   anonymousUserId: string,

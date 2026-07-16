@@ -1,18 +1,7 @@
 "use client";
 
-// KnowledgeCore — a single journey row on the "all journeys" page.
-//
-// Renders the SAME design-system journey row as the home dashboard (Fraunces
-// title, middot status + relative-time metadata, a roughened ScoreBadge for
-// progress/score, hover nudge right + title warming to teal-deep) and adds a
-// QUIET delete affordance: a small "..." overflow button that only appears /
-// firms up on row hover or focus, never a prominent red button. It opens a calm
-// confirmation DIALOG (styled MUI Dialog, design-system surfaces — NOT
-// window.confirm) that NAMES the journey before anything is removed. Deleting
-// runs the ownership-scoped server action and the list refreshes.
-//
-// The row itself is a Link; the overflow control sits OUTSIDE that link (a
-// sibling, absolutely positioned) so clicking it never navigates.
+// Delete affordance is a sibling of the Link (not nested), absolutely
+// positioned, so clicking it never triggers navigation.
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -33,10 +22,8 @@ export type JourneyListRowData = {
   badgeBig: string;
   badgeSub: string;
   /**
-   * Whether the badge value is a genuine SCORE (wrap in the roughened ellipse)
-   * vs. plain goalpost PROGRESS (render un-circled). The journey lists only ever
-   * surface goalpost progress, so this is false there; the ellipse is reserved
-   * for real score contexts (trail, complete page).
+   * True for a genuine SCORE (ellipse ring); false for plain goalpost
+   * PROGRESS (un-circled). Journey lists only show progress, so always false here.
    */
   scored?: boolean;
   /** Resolved route for the row link (nextWizardRoute on the server). */
@@ -102,8 +89,6 @@ export default function JourneyListRow({ data }: { data: JourneyListRowData }) {
         </Box>
       </Box>
 
-      {/* Quiet overflow — a "..." control revealed on row hover/focus. Sits over
-          the row's right edge as a sibling of the link so it never navigates. */}
       <IconButton
         className="kc-row-del"
         aria-label={`More actions for ${data.title}`}
@@ -121,7 +106,6 @@ export default function JourneyListRow({ data }: { data: JourneyListRowData }) {
           "&:focus-visible": { opacity: 1 },
         }}
       >
-        {/* Three-dot glyph — vertical ellipsis, calm ink, no icon library. */}
         <Box
           aria-hidden="true"
           sx={{

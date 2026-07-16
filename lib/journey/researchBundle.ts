@@ -1,22 +1,16 @@
 /**
- * L2 Phase 0 — the BundleStore: read-through cache + persistence + journey bind.
+ * L2 Phase 0 — the BundleStore: read-through cache + persistence + journey
+ * bind (backend-engineer.md §2.3/§4). Turns a topic fingerprint into a bound
+ * `ResearchBundle`: HIT (ready bundle exists) just binds the journey; MISS
+ * creates the bundle (status researching), runs the Research Agent to fill
+ * Sources/SourceChunks/BundleSourceLink, marks it ready, then binds via
+ * JourneyBundleLink. Create is idempotent against the `topicFingerprint`
+ * unique constraint — a losing concurrent create catches the violation and
+ * re-reads the winner's bundle.
  *
- * This is the persistence half of the Library (backend-engineer.md §2.3 / §4). It
- * turns a topic fingerprint into a bound `ResearchBundle`:
- *
- *   - HIT  (a ready bundle for the fingerprint exists) -> just bind the journey.
- *   - MISS -> create the bundle (status researching), run the live Research
- *             Agent to fill its Sources / SourceChunks / BundleSourceLink rows, mark
- *             it ready, then bind the journey via JourneyBundleLink.
- *
- * The create is made IDEMPOTENT against the `topicFingerprint` UNIQUE constraint:
- * a concurrent create that loses the race catches the unique violation and
- * re-reads the winner's bundle (DB-enforced convergence, not application luck).
- *
- * Every path here is BEST-EFFORT / non-fatal by contract: a research/persistence
- * failure must never break the journey spine. Callers (acceptPathAction) swallow
- * and keep, exactly like `ensureLessonContent`. On any failure the journey simply
- * stays ungrounded (sourceIds [] downstream), as it is today.
+ * Every path here is best-effort/non-fatal: a research/persistence failure
+ * must never break the journey spine (callers swallow and keep, like
+ * `ensureLessonContent`); the journey just stays ungrounded (sourceIds []).
  */
 
 import { Prisma } from "@prisma/client";
@@ -57,21 +51,15 @@ async function writeBundleProgress(
 
 /**
  * The progress record the research-fill ladder polls, keyed by the journey
- * (the client never has the bundle id — the bundle is created inside
- * acceptPathAction). Resolves the bundle exactly the way ensureBundle is keyed:
- * recompute the topic fingerprint from the journey's subject + outcome shape
- * and look it up. Returns:
+ * (the client never has the bundle id). Resolves the bundle the same way
+ * ensureBundle is keyed: recompute the topic fingerprint and look it up.
+ * Returns null if the journey can never have a fill (no subject) or the read
+ * failed; `searching` if no bundle row yet or a fill is running with no
+ * sub-stage write; otherwise the live sub-stage or terminal ready/failed.
  *
- *   - null       -> this journey can never have a fill (no subject) or the
- *                   read itself failed; the client keeps its fallback UI.
- *   - searching  -> no bundle row yet (accept is between confirming and
- *                   creating it) or a fill is running with no sub-stage write.
- *   - the record -> the live sub-stage, or a terminal ready/failed.
- *
- * `status` (the enum) stays authoritative for terminals, with one deliberate
- * exception: a bundle whose status is "failed" but whose progress record is
- * RUNNING is a re-fill in flight (fillBundle rewrites progress from its first
- * step, but only flips status at the end), so the live record wins.
+ * `status` stays authoritative for terminals, except: a "failed" status with
+ * a RUNNING progress record means a re-fill is in flight (fillBundle
+ * rewrites progress before flipping status), so the live record wins.
  */
 export async function readBundleProgressForIntent(
   intentId: string,

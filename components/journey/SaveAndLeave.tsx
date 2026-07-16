@@ -4,21 +4,10 @@ import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
-// B.6 Q8 save-and-leave: a low-contrast exit affordance that sits on the SAME
-// row as the step's primary forward action (Continue / Submit / "Looks good,
-// start" / advance). The journey auto-resumes via getOrCreateActiveIntent, so
-// leaving is lossless and we simply link home.
-//
-// Founder's final spec (replaces the old shared bottom-footer placement): the
-// primary commit is the loud action on the RIGHT; "Save & leave" is the calm
-// secondary text link on the LEFT of that same row, with a 1px separator line
-// above the row (mirroring the old footer's mt 28 / pt 18 divider). NEVER
-// stacked above/below the primary.
-//
-// Usage — wrap the step's primary action; it becomes the right-hand element:
-//   <SaveAndLeaveRow>
-//     <SubmitButton ...>Continue</SubmitButton>
-//   </SaveAndLeaveRow>
+// Save & leave sits on the SAME row as the step's primary action (never
+// stacked): calm secondary link on the left, primary action (children) on
+// the right, with a 1px divider above the row. Journey auto-resumes via
+// getOrCreateActiveIntent, so leaving is lossless.
 
 /** The quiet door-glyph "Save & leave" link itself (calm secondary). */
 export function SaveAndLeaveLink() {
@@ -65,12 +54,7 @@ export function SaveAndLeaveLink() {
   );
 }
 
-/**
- * The primary forward-progress action row: a 1px separator above, then a flex
- * row with the calm "Save & leave" link on the LEFT and the step's primary
- * action (passed as children) on the RIGHT. Place this on each step's primary
- * Continue / Submit / advance action only.
- */
+/** Wraps a step's primary action with the Save & leave row. Use once per step. */
 export default function SaveAndLeaveRow({ children }: { children: ReactNode }) {
   return (
     <Box

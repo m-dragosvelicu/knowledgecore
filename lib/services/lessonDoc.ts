@@ -1,11 +1,10 @@
 /**
  * The information-step payload contract: a code-owned, ordered LessonDoc. The
- * Author (Phase 1) fills prose `md` and visual `spec`; the Phase-2 workers fill
+ * Author (Phase 1) fills prose `md` and visual `spec`; Phase-2 workers fill
  * each visual block's `payload`; the orchestrator owns the arrays and `status`.
- *
- * A visual block carries a `spec` and `kind` but NO field that can emit a drawn
- * figure, so ASCII art is structurally impossible at the Author stage. Persisted
- * as JSON in Step.payload, so there is no Prisma migration for this shape.
+ * A visual block has no field that can emit a drawn figure, so ASCII art is
+ * structurally impossible at the Author stage. Persisted as JSON in
+ * Step.payload — no Prisma migration for this shape.
  */
 
 import type { ResolvedVisual, VisualKind } from "@/lib/services/visualMedia";

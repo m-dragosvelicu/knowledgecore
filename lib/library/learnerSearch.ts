@@ -1,21 +1,15 @@
 /**
  * E01.S06 — Library learner search (query side / pattern (b) of the ratified
  * storage+search composition, decisions/2026-06-15-l2-library-storage-search-
- * composition.html).
+ * composition.html). A learner query: embeds once with the ingest-time
+ * Gemini model (gemini-embedding-001, dim 3072) via embedPassages, runs the
+ * ratified payload-filtered cosine top-k (searchPassages) scoped to sources
+ * reachable from the journey's bound READY bundles (resolveJourneySourceIds),
+ * with a minimum-score floor, then joins hits back to Postgres by sourceId
+ * for citable metadata — Qdrant stays a derived index, never truth.
  *
- * A learner inside a goalpost types a query; this service:
- *   1. embeds the query ONCE with the same Gemini model + framing used at ingest
- *      (gemini-embedding-001, dim 3072) via embedPassages — no second model,
- *   2. runs the single ratified payload-filtered cosine top-k primitive
- *      (searchPassages) against the shared kc_passages collection, scoped to the
- *      source ids reachable from the journey's bound READY bundles (the
- *      provenance scope = resolveJourneySourceIds), with a minimum-score floor,
- *   3. joins each hit back to Postgres by sourceId for citable metadata
- *      (title, attribution, link), so Qdrant stays a derived index, never truth.
- *
- * Ranking is pure cosine similarity (from Qdrant) with a deterministic tie-break
- * so identical scores order stably. Credibility re-rank is DEFERRED per ADR 9 and
- * is intentionally NOT built here (it slots in later as a post-retrieval step).
+ * Ranking is cosine similarity with a deterministic tie-break. Credibility
+ * re-rank is deferred per ADR 9, not built here.
  */
 import { prisma } from "@/lib/db";
 import { resolveJourneySourceIds } from "@/lib/journey/researchBundle";
@@ -27,10 +21,9 @@ import { searchPassages, type PassageHit } from "@/lib/vector/kcPassages";
 export const LEARNER_SEARCH_LIMIT = 8;
 
 /**
- * Minimum cosine similarity a hit must clear to be shown. Below this a passage is
- * not relevant enough to cite, so it is dropped rather than padding the result.
- * Cosine over Gemini embeddings: below ~0.5 hits are off-topic in practice; 0.55
- * is a conservative floor that keeps genuine matches and removes filler.
+ * Minimum cosine similarity a hit must clear to be shown (dropped rather than
+ * padding the result). Below ~0.5 hits are off-topic in practice for Gemini
+ * embeddings; 0.55 is a conservative floor.
  */
 export const LEARNER_SEARCH_SCORE_FLOOR = 0.55;
 
@@ -65,7 +58,6 @@ export interface LearnerSearchResult {
  * Run a learner search against the journey's provenance scope.
  *
  * @param journeyId   the LearningIntent id (ownership is enforced by the caller)
- * @param query       the learner's free-text query
  * @param opts.limit  max passages to return (default LEARNER_SEARCH_LIMIT)
  * @param opts.sourceKind  optional facet filter ("academic" | "web")
  */

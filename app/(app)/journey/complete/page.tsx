@@ -113,7 +113,6 @@ export default async function CompletePage() {
         </Stack>
       </Stack>
 
-      {/* What you set out to do, and the evidence you earned for it. */}
       {canDoStatements.length > 0 && (
         <Box>
           <Eyebrow sx={{ mb: 2 }}>What you set out to be able to do</Eyebrow>

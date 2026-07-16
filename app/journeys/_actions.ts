@@ -10,22 +10,14 @@ const deleteJourneySchema = z.object({
 });
 
 /**
- * Delete one of the signed-in user's journeys (a LearningIntent) and ALL of its
- * dependent data.
- *
- * Data model / cascade: every child of LearningIntent declares onDelete: Cascade
- * in prisma/schema.prisma — Subject, LearningGoal, ExpectedOutcome,
- * KnowledgeAssessment, LearnerProfile (-> LearnerProfileSnapshot), and
- * LearningPath (-> Goalpost -> Step + CheckpointEvaluation, and PathRevision).
- * The two telemetry/audit FKs that point INTO this graph from outside are
- * onDelete: SetNull (LlmCall.evaluationId and PathRevision.triggerEvalId), so
- * deleting the intent cannot orphan rows or raise a FK violation. A single
- * delete therefore removes the whole journey cleanly.
- *
- * Authorization: ownership is enforced server-side at the database boundary via
- * deleteMany with BOTH id and userId in the where clause. A non-owner (or a bad
- * id) deletes zero rows — no row leak, no cross-user delete, no need to fetch the
- * row first. We never trust the client about ownership.
+ * Deletes one of the signed-in user's journeys (a LearningIntent) and all
+ * dependent data. Every LearningIntent child cascades (onDelete: Cascade):
+ * Subject, LearningGoal, ExpectedOutcome, KnowledgeAssessment, LearnerProfile
+ * (-> Snapshot), LearningPath (-> Goalpost -> Step + CheckpointEvaluation,
+ * PathRevision). The two FKs pointing in from outside (LlmCall.evaluationId,
+ * PathRevision.triggerEvalId) are onDelete: SetNull, so nothing orphans.
+ * Ownership is enforced via deleteMany with both id and userId in the where
+ * clause — a non-owner deletes zero rows, no fetch-first needed.
  */
 export async function deleteJourneyAction(formData: FormData): Promise<void> {
   const userId = await requireRealUserId();

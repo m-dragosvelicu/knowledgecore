@@ -5,16 +5,12 @@ import type {
 } from "@/lib/services/visualMedia";
 
 /**
- * L1 Slice 4 — the LIVE reference-video source (YouTube).
- *
- * SCOPE NOTE: video is a REFERENCE suggestion for motion/process concepts and is
- * labelled "unevaluated" in the UI — we do not vouch for third-party content. The
- * generator supplies a `query`; in L1 that query is expected to be a concrete
- * YouTube watch URL or video id the content step proposes (full search-ranking is
- * out of scope). This source validates + normalizes it into a privacy-friendly
- * `youtube-nocookie` embed URL, optionally confirming the id resolves via the
- * keyless oEmbed endpoint. A non-resolvable id returns null so the gate degrades
- * to a `none` result rather than embedding a dead/arbitrary video.
+ * Live reference-video source (YouTube). Video is a reference suggestion for
+ * motion/process concepts, labelled "unevaluated" in the UI. The generator
+ * supplies a `query` expected to be a YouTube watch URL or video id (no
+ * search-ranking); this validates + normalizes it into a `youtube-nocookie`
+ * embed URL, confirming resolution via the keyless oEmbed endpoint. A
+ * non-resolvable id returns null so the gate degrades to `none`.
  */
 
 const YT_ID = /^[a-zA-Z0-9_-]{11}$/;

@@ -1,17 +1,11 @@
 /**
  * Orphaned-guest cleanup (landing-flow plan, section 5 + slice 4).
  *
- * Deletes anonymous (guest) User rows that were never linked to a real account
- * and have been idle past the retention window. The User -> LearningIntent ->
- * (Subject / Goal / Outcome / Assessment / Path / Goalpost / Step /
- * CheckpointEvaluation) and User -> ... -> LearnerProfile (-> snapshots) graph is
- * all onDelete: Cascade, so deleting the guest user removes its whole journey
- * cleanly; the two telemetry FKs that point INTO the graph (LlmCall.evaluationId,
- * PathRevision.triggerEvalId) are onDelete: SetNull, so nothing is orphaned.
- *
- * Conservative + idempotent: it ONLY touches isAnonymous=true users older than
- * the window. A real account (isAnonymous=false) or a fresh guest is never
- * touched. Safe to run repeatedly (e.g. a Vercel cron / scheduled job).
+ * Deletes anonymous (isAnonymous=true) User rows idle past the retention
+ * window. The whole journey graph cascades from User (onDelete: Cascade); the
+ * two FKs pointing INTO it (LlmCall.evaluationId, PathRevision.triggerEvalId)
+ * are onDelete: SetNull, so nothing is orphaned. Idempotent — safe to run
+ * repeatedly (e.g. a cron job).
  *
  * Run: `bun run scripts/cleanup-guests.ts` (add `--dry` to only report counts).
  */

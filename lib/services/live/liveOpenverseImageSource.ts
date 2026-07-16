@@ -6,24 +6,14 @@ import type {
 } from "@/lib/services/visualMedia";
 
 /**
- * L1 Slice 4 — the LIVE license-clean image source (Openverse).
- *
- * Openverse (https://openverse.org, run by WordPress.org) indexes ONLY openly
- * licensed and public-domain media. We use its public search API and:
- *   - request only Creative-Commons / public-domain works (the only thing the
- *     index contains, reinforced explicitly via `license_type`);
- *   - keep SAFE-SEARCH on: mature content is excluded by default, and we set the
- *     filters explicitly so the intent is auditable;
- *   - map the REAL attribution fields straight from the API response. NOTHING is
- *     fabricated — if the API does not report a creator/license, the displayed
- *     attribution reflects that rather than inventing one.
- *
- * We deliberately DO NOT pull arbitrary web images: the only host we ever read is
- * the Openverse API. A miss (no result, or a result missing a usable URL) returns
- * null so the gate degrades to a `none` result instead of guessing.
- *
- * No API key is required for basic anonymous search (rate-limited). The base URL
- * is overridable via OPENVERSE_API_BASE for testing.
+ * Live license-clean image source (Openverse — openverse.org, WordPress.org).
+ * Requests only CC/public-domain works (`license_type`), keeps safe-search on
+ * explicitly, and maps attribution straight from the API response — nothing
+ * is fabricated; a missing field stays missing rather than being invented.
+ * Never pulls arbitrary web images: the only host read is the Openverse API.
+ * A miss (no result, or no usable URL) returns null so the gate degrades to
+ * `none`. No API key required (rate-limited); base URL overridable via
+ * OPENVERSE_API_BASE for testing.
  */
 
 const OPENVERSE_BASE =

@@ -38,11 +38,8 @@ function ladderIndex(stage: GenerationStage): number {
 
 const POLL_INTERVAL_MS = 1000;
 
-// Staged-progress screen for the lazy-generation wait: a thin consumer of the
-// shared T3 primitives (usePolledStage drives the start+poll state machine,
-// StagedWait renders the ladder/sweep/failure). On mount it kicks off
-// generation and polls live state; reveals on "ready", shows error + Try again
-// on "failed". Polling stops on any terminal state and on unmount.
+// Thin consumer of the shared T3 wait primitives: usePolledStage drives the
+// start+poll state machine, StagedWait renders the ladder/sweep/failure UI.
 export default function GettingReady({
   goalpostId,
   intentId,

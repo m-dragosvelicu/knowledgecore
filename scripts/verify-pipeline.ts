@@ -1,22 +1,13 @@
 /**
  * QA — Slice 5: the §11 automated test suite for the Two-Phase Visual Lesson
- * Pipeline (committed, re-runnable; replaces the ephemeral mock-port harness from
- * the Slice 1 sign-off). NO DB and NO LLM key needed — every dependency is a pure
- * mock injected through the orchestrator's ports.
+ * Pipeline. No DB, no LLM key — every dependency is a pure mock injected
+ * through the orchestrator's ports.
  *
  * Run: `bun run scripts/verify-pipeline.ts`. Exits non-zero on any failure.
  *
- * Covers redesign §11 items 1-4:
- *   1. Orchestrator units (mock Author + mock workers): fan-out, parallel resolve,
- *      retry-then-drop, assemble, persist (progress sink), Author-throw terminal.
- *   2. Author-contract: authoredBlockSchema has NO draw field (svg/draw/image-data)
- *      -> ASCII structurally impossible.
- *   3. SVG worker: sanitization strips script/handlers/foreignObject/external-refs;
- *      junk/empty -> retry -> drop (none). (sanitizeSvg + judgeSanitizedSvg.)
- *   4. Renderer block-walk invariant: assemble drops every non-ready slot so the
- *      persisted doc the renderer walks carries ONLY ready+payload visual blocks
- *      and prose, in order, with no dangling ref. (The renderer's guard is also
- *      asserted structurally against the same invariant.)
+ * Covers §11.1-4: orchestrator fan-out/retry-drop/assemble/persist, the
+ * no-draw Author-contract (ASCII structurally impossible), SVG worker
+ * sanitize+retry-then-drop, and the renderer block-walk invariant.
  */
 
 import {
@@ -58,10 +49,6 @@ function check(name: string, cond: boolean, detail = "") {
     console.log(`FAIL | ${name}${detail ? ` | ${detail}` : ""}`);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Mocks.
-// ---------------------------------------------------------------------------
 
 const INPUT: LessonContentInput = {
   conceptKey: "gp1",

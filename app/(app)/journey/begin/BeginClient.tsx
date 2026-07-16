@@ -1,29 +1,14 @@
 "use client";
 
-// THE ACCOUNT GATE — create-account / sign-in form (landing-flow plan 3b).
+// Account gate: create-account / sign-in form (landing-flow plan 3b). Email +
+// password only (no social/OAuth, per project rule; D5 keeps email
+// verification off).
 //
-// Email + password only (no social / OAuth, per project rule; D5 keeps email
-// verification off so the account is usable immediately). Two verbs in one
-// place: "create account & begin" (primary) and a quieter "I already have an
-// account" sign-in (secondary), because a returning visitor might run the public
-// flow before realising they are already a customer.
-//
-// Flow on success: the auth call's response carries the new real session AND
-// fires the server-side onLinkAccount hook, which atomically re-owns the
-// anonymous journey (lib/auth.ts -> claimAnonymousJourney). We then resume the
-// exact pending action by mounting ResearchFillWait, which fires
-// acceptPathAction() — now seeing a real account, it stamps accept, activates
-// goalpost 1, fills the research bundle on a cache MISS, and redirects to
-// /journey/goalpost. The UI hands off honestly (E04.S03, PRD 3e): the button's
-// "Creating your account…" pending state covers the quick account step, then
-// the shared T3 research ladder takes over the moment a poll reports a running
-// fill — the account label never persists across the whole fill. On failure
-// (e.g. email taken) we stay here with the error; the journey is untouched
-// (still anonymous), so the learner can retry or switch to sign-in.
-//
-// Design system: Fraunces is owned by the page heading; here we use the themed
-// pill inputs (teal focus ring) + the solid commit button, on the one-teal
-// vocabulary. No native browser dialogs.
+// On success, onLinkAccount re-owns the anonymous journey server-side; we then
+// mount ResearchFillWait, which fires acceptPathAction() to accept, activate
+// goalpost 1, fill the research bundle on a cache MISS, and redirect. The
+// shared T3 ladder (E04.S03) takes over once a poll reports a running fill.
+// On failure the journey stays untouched (still anonymous).
 
 import { useState } from "react";
 import Box from "@mui/material/Box";
@@ -49,10 +34,7 @@ export default function BeginClient({ intentId }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // After auth succeeds (and the claim hook has re-owned the journey), this
-  // mounts ResearchFillWait, which resumes the pending begin by firing
-  // acceptPathAction and polling the research fill. acceptPathAction redirects
-  // on success, so control does not return here in the happy path.
+  // True once auth succeeds; mounts ResearchFillWait to resume the begin flow.
   const [resuming, setResuming] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {

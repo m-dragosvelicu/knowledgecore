@@ -20,21 +20,17 @@ export default async function IntentPage({
   searchParams?: SearchParams;
 }) {
   const params = (await searchParams) ?? {};
-  // Public pre-journey route: a guest (anonymous) session is a first-class owner
-  // here. A visitor with NO session at all is sent to the landing hero rather
-  // than /signin — the hero is where the guest session is minted on submit (we
-  // deliberately do not mint a guest just for a bare GET, to avoid bot bloat).
+  // Public route: an anonymous guest session is a first-class owner here. A
+  // visitor with no session goes to the landing hero (not /signin) — the hero
+  // mints the guest session on submit, not on a bare GET, to avoid bot bloat.
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/");
   const intent = await getOrCreateActiveIntent(session.user.id, params.j);
 
-  // -----------------------------------------------------------------------
-  // Confirm / refine sub-view (L0.md §3 Stage 2 ambiguity surfacing). Shown
-  // only when submitIntentAction parsed an ambiguous intent and bounced back
-  // here with ?confirm=1. The parser's best interpretation was already saved as
-  // the Subject; the learner either accepts it or refines their wording. We do
-  // NOT silently narrow on their behalf.
-  // -----------------------------------------------------------------------
+  // Confirm/refine sub-view (L0.md §3 Stage 2 ambiguity surfacing). Shown only
+  // when submitIntentAction bounced back here with ?confirm=1 after parsing an
+  // ambiguous intent; the learner accepts the saved Subject or refines it — we
+  // never silently narrow on their behalf.
   const subject = intent
     ? await prisma.subject.findUnique({ where: { intentId: intent.id } })
     : null;
@@ -78,7 +74,6 @@ export default async function IntentPage({
           </Box>
         </Box>
 
-        {/* Our reading of the intent, as a quiet surface card with an eyebrow. */}
         <Box
           className="kc-fade"
           sx={{
@@ -112,7 +107,6 @@ export default async function IntentPage({
         </Box>
 
         <Box className="kc-fade" sx={{ mt: "22px", animationDelay: ".18s" }}>
-          {/* Accept the interpretation as-is and proceed. */}
           <form action={confirmIntentAction}>
             {intent && <input type="hidden" name="j" value={intent.id} />}
             <SaveAndLeaveRow>

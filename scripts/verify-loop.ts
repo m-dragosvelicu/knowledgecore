@@ -140,7 +140,6 @@ async function main() {
     }),
   );
 
-  // ---- assertions ----
   const after = await prisma.goalpost.findMany({
     where: { pathId: path.id },
     orderBy: { order: "asc" },
@@ -190,7 +189,6 @@ async function main() {
   }
   check("journey walks to no-remaining-goalpost (completable)", cur === null && guard < 10);
 
-  // cleanup
   await prisma.user.delete({ where: { id: user.id } });
 
   console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILED"}`);

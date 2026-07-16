@@ -1,21 +1,16 @@
 /**
- * Passage-level ingestion of a ResearchBundle's chunks into kc_passages.
- *
- * For one bundle: load every SourceChunk reachable via BundleSourceLink, embed
- * each chunk's text (gemini-embedding-001, dim 3072), and upsert one point per
- * chunk into the shared production collection. Point id = UUIDv5(contentHash)
- * so re-ingesting the same content is a no-op upsert (idempotent), never a
- * duplicate. On success, SourceChunk.embeddedAt is stamped and the bundle's
- * embeddingModel / embeddingDim are recorded.
+ * Passage-level ingestion of a ResearchBundle's chunks into kc_passages. Loads
+ * every SourceChunk reachable via BundleSourceLink, embeds each chunk's text
+ * (gemini-embedding-001, dim 3072), and upserts one point per chunk. Point id =
+ * UUIDv5(contentHash), so re-ingesting the same content is a no-op upsert
+ * (idempotent), never a duplicate.
  *
  * bundleIds in the payload is the FULL set of bundles each chunk grounds (a
- * globally-deduped chunk can belong to many bundles), so the agent-grounding and
- * learner-search filters see every bundle a passage belongs to, not just the one
- * being ingested now.
+ * globally-deduped chunk can belong to many), so grounding/search filters see
+ * every bundle a passage belongs to, not just the one being ingested now.
  *
- * Best-effort by contract, like the rest of the Library spine: an embed/upsert
- * failure must not break the journey. Errors are surfaced in the result, not
- * thrown past the caller's tolerance.
+ * Best-effort like the rest of the Library spine: an embed/upsert failure must
+ * not break the journey; errors are surfaced in the result, not thrown.
  */
 import { prisma } from "@/lib/db";
 import { qdrant } from "@/lib/vector/qdrant";

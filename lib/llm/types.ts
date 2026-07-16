@@ -25,14 +25,11 @@ export type CompletionOptions = {
   system?: string;
   onUsage?: UsageCallback;
   /**
-   * L1 — prompt-caching hint. A stable identifier for the INVARIANT prefix of
-   * this call (typically the system instruction). When set, the client may reuse
-   * a cached prefix across calls that share the same key, so only the per-call
-   * (per-learner) tail is billed/processed at full cost. Callers MUST keep the
-   * keyed prefix constant for a given key. Optional and additive: clients that do
-   * not implement caching ignore it with no behaviour change. See the Gemini
-   * client for the as-built caching strategy (implicit prefix caching today;
-   * explicit context-cache resources are a tracked TODO).
+   * Prompt-caching hint: stable id for this call's invariant prefix (typically
+   * the system instruction). Callers MUST keep the keyed prefix constant for a
+   * given key; clients may then reuse a cached prefix so only the per-call tail
+   * is billed at full cost. Optional/additive -- ignored by clients that don't
+   * implement caching. See the Gemini client for the as-built strategy.
    */
   cacheKey?: string;
 };
@@ -54,27 +51,16 @@ export interface LLMClient {
   completeStructured<T>(opts: StructuredOptions<T>): Promise<T>;
 }
 
-// =====================================================================
-// L1 Slice 3 — AUDIO / multimodal transcription (speech-to-text).
+// L1 Slice 3 — AUDIO/multimodal transcription. Bytes-in/text-out is a genuinely
+// different shape from the text-only client above, so it gets its own
+// interface; a provider implements both LLMClient and TranscriptionClient if it
+// can transcribe (only Gemini today).
 //
-// The client above is TEXT-ONLY (Message.content is a string). Transcription is
-// a genuinely different shape — bytes in, text out — so it lives in its OWN
-// interface rather than overloading Message. A provider that can transcribe
-// (the Gemini client) implements BOTH LLMClient and TranscriptionClient; a
-// text-only provider implements only LLMClient. This keeps the text contract
-// clean while making the audio capability explicitly discoverable + testable.
-//
-// DECIDED APPROACH: Gemini audio input (see CEO/stt-approach-2026.html). The
-// audio is sent inline to Gemini, transcribed, and DISCARDED — only the returned
-// transcript is kept. English-first; `languageHint` is wired now (a parameter,
-// not an architecture change) so multilingual is roughly free later.
-//
-// FALLBACK (documented, NOT built now): if real production audio shows a garbling
-// problem Gemini can't clear, a dedicated Cloud STT API — Deepgram Nova-3 or
-// OpenAI gpt-4o-transcribe — is a localized swap behind the same server route
-// with no learner-facing change. Multilingual would also route through the same
-// seam. See the reading-room note for the comparison.
-// =====================================================================
+// Decided approach (see CEO/stt-approach-2026.html): send audio inline to
+// Gemini, transcribe, discard the audio, keep only the transcript. English-
+// first, but `languageHint` is wired now so multilingual is cheap later.
+// Fallback if Gemini can't clear a garbling issue: swap a dedicated Cloud STT
+// API (Deepgram Nova-3 / gpt-4o-transcribe) behind the same route.
 
 export type TranscriptionOptions = {
   /** Raw recorded audio bytes (e.g. from a browser MediaRecorder Blob). */

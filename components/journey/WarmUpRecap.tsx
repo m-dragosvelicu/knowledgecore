@@ -6,18 +6,10 @@ import Divider from "@mui/material/Divider";
 import SubmitButton from "@/components/journey/SubmitButton";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 
-// L0 §9.5 multi-session continuity: the "welcome back" warm-up recap shown when
-// a learner resumes a paused journey, BEFORE dropping them back into the
-// goalpost. It re-grounds them in where they left off (goalpost title +
-// objective + the last evaluation rationale if any). When the inactivity gap
-// was long (> 21 days), it ALSO offers an OPT-IN quick refresher per the B.6
-// ratified decision: offered, never automatic. Both paths flip the journey
-// back to in_progress server-side; the refresher additionally re-opens the
-// information phase. No gamification, no emojis.
-//
-// Slice 4 restyle: warm surface cards, eyebrow meta, the title with its
-// self-drawing underline, a solid continue and a skip-tier refresher. The
-// refresher card drops the info-blue accent for the one-teal vocabulary.
+// L0 §9.5: warm-up recap on resume. Refresher offered (never automatic) when
+// idle gap > 21 days (B.6). Both continue/refresher paths flip the journey to
+// in_progress server-side; refresher additionally re-opens the information
+// phase.
 
 type Props = {
   // Continue / refresher are server actions defined inline in the resume page.

@@ -1,11 +1,8 @@
 /**
- * Chunking for the embedding eval / Phase-2 ingestion.
- *
- * Scheme (recorded in results): paragraph-packed, ~512-token target windows with
- * a ~64-token overlap. Token count is approximated as words / 0.75 (≈ the common
- * 1 token ≈ 0.75 words English heuristic); no tokenizer dependency is pulled in
- * for a directional bench. Paragraphs are kept whole when they fit; an oversized
- * paragraph is split on sentence boundaries.
+ * Chunking for the embedding eval / Phase-2 ingestion. Paragraph-packed,
+ * ~512-token target windows with ~64-token overlap; tokens approximated as
+ * words / 0.75 (no tokenizer dep, directional bench only). Paragraphs are kept
+ * whole when they fit; an oversized one is split on sentence boundaries.
  */
 export const CHUNK_SCHEME = {
   targetTokens: 512,

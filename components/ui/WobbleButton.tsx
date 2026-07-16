@@ -1,27 +1,11 @@
 "use client";
 
-// KnowledgeCore — Workbench (wobble) button (Slice 1).
-//
-// The exploratory / "I'm just looking" action tier (See the full path, View all
-// journeys). Quiet at rest. On hover a teal hand-drawn pill outline DRAWS itself
-// around the label (stroke-dashoffset 1 -> 0), then hatches in behind the text
-// via a glyph-hugging knockout mask. A fresh feTurbulence seed is RE-ROLLED on
-// every mouseenter so the wobble never repeats.
-//
-// kcBuildWB() is ported verbatim from design-system/ui_kits/web-app/Controls.jsx
-// (which itself mirrors preview/comp-buttons.html buildWB()). It measures the
-// rendered button, then injects an <svg class="kc-art"> as the first child with:
-//   - a per-button #f<id> filter (feTurbulence -> feDisplacementMap) = the wobble
-//   - the pill outline path (drawn on via .kc-ink-stroke, opacity:0 at rest)
-//   - a clipped + masked hatch group; the mask paints the label glyphs in black
-//     (dilated + blurred) so the diagonal hatch knocks out behind the text.
-// The CSS that makes the strokes invisible-at-rest and draw on hover lives in
+// kcBuildWB() ported verbatim from design-system/ui_kits/web-app/Controls.jsx
+// (buildWB()). CSS for the invisible-at-rest / draw-on-hover strokes lives in
 // app/globals.css (.kc-wb / .kc-ink-stroke / .kc-wb-base).
 //
-// Why imperative DOM injection rather than declarative JSX: the mark geometry is
-// a function of the button's measured pixel width/height (pill radius, hatch line
-// count, mask glyph position), which we only know after layout. This matches the
-// kit's mechanism exactly and keeps the marks pixel-faithful at any label width.
+// Imperative DOM injection (not declarative JSX) because mark geometry depends
+// on the button's measured pixel width/height, only known after layout.
 
 import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";

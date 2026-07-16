@@ -1,21 +1,13 @@
 /**
  * L1 — Two-Phase Visual Lesson Pipeline migration (redesign §10).
  *
- * One-shot, idempotent regeneration trigger. The lesson payload is JSON, so there
- * is NO Prisma migration; instead this script CLEARS `contentGeneratedAt` (and any
- * stale `generationState`) on every information step that was previously generated
- * by the OLD single-call path. Clearing that marker makes ensureLessonContent
- * treat the goalpost as "not generated", so the next entry / pre-generation
- * re-authors it through the new two-phase pipeline. No backfill: the new content
- * is produced lazily on demand, exactly like a fresh goalpost.
+ * One-shot, idempotent: clears contentGeneratedAt/generationState on
+ * information steps still using the LEGACY single-call shape (has `content`,
+ * no `sections`), so ensureLessonContent re-authors them through the new
+ * pipeline on next entry. Steps already on the new LessonDoc shape are
+ * skipped (safe to re-run).
  *
- * SCOPE: only information steps whose payload still has `contentGeneratedAt` AND
- * carries the LEGACY single-call shape (a `content` string, no `sections` array).
- * A step already on the new LessonDoc shape is skipped, so re-running is a no-op.
- *
- * SAFETY: local dev DB only (Postgres :5440). It mutates JSON payloads in place;
- * it never deletes rows. Add `--dry` to report counts without writing.
- *
+ * Local dev DB only; mutates payloads in place, never deletes rows.
  * Run: `bun run scripts/regenerate-lessons.ts` (or `--dry`).
  */
 import { StepType } from "@prisma/client";

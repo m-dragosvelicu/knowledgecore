@@ -149,11 +149,8 @@ function SourceRow({ source }: { source: JourneySource }) {
 }
 
 /**
- * Sources affordance for the goalpost view (E01.S07 T02+T03).
- *
- * Renders a "Sources" chip that opens a Dialog listing the sources bound to this
- * journey. Fetch is deferred to first open. Empty response hides the chip
- * entirely; fetch errors degrade gracefully without crashing the goalpost.
+ * Sources affordance (E01.S07). Fetch deferred to first open; empty response
+ * hides the chip; fetch errors degrade gracefully without crashing the page.
  */
 export default function SourcesPanel({ journeyId }: Props) {
   const [open, setOpen] = useState(false);

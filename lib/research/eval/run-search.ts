@@ -1,12 +1,10 @@
 /**
- * L2 ingestion bench — search-engine eval (CEO plan steps 2-5, §4).
- *
- * Fan out each query to all 4 engines -> extract every unique URL via
- * Trafilatura/Jina -> enrich with Open PageRank -> score relevance+credibility
- * (LLM judge) + groundability (deterministic) -> compute per-engine bands.
- *
- * Run: bun run lib/research/eval/run-search.ts
- * Writes: search-results.json, raw-search.json, extractions.json (out/).
+ * L2 ingestion bench — search-engine eval (CEO plan steps 2-5, §4). Fan out
+ * each query to all 4 engines -> extract every unique URL via Trafilatura/Jina
+ * -> enrich with Open PageRank -> score relevance+credibility (LLM judge) +
+ * groundability (deterministic) -> compute per-engine bands.
+ * Run: bun run lib/research/eval/run-search.ts. Writes: search-results.json,
+ * raw-search.json, extractions.json (out/).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -96,7 +94,7 @@ async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const client = new GeminiClient();
 
-  // 1. Fan out search across engines (sequential per engine to respect rate limits).
+  // Sequential per engine to respect rate limits.
   console.log("[1/5] Search fan-out...");
   const rawResults: EngineResult[] = [];
   const latencies: Record<EngineName, number[]> = { searxng: [], brave: [], exa: [], tavily: [] };
@@ -120,7 +118,7 @@ async function main() {
   }
   writeFileSync(join(OUT_DIR, "raw-search.json"), JSON.stringify(rawResults, null, 2));
 
-  // 2. Extract every unique URL once (shared across engines + the embedding eval).
+  // Shared across engines + the embedding eval.
   console.log("[2/5] Extraction...");
   const urls = [...new Set(rawResults.flatMap((r) => r.hits.map((h) => h.url)))];
   const extractions: Record<string, Extraction> = {};
@@ -139,7 +137,6 @@ async function main() {
   console.log(`  extraction success: ${exOk}/${urls.length}`);
   writeFileSync(join(OUT_DIR, "extractions.json"), JSON.stringify(extractions, null, 2));
 
-  // 3. Open PageRank for all domains (batched).
   console.log("[3/5] Open PageRank...");
   let pageRanks: PageRankMap = {};
   try {
@@ -149,7 +146,7 @@ async function main() {
     console.log(`  ! PageRank failed: ${(e as Error).message}`);
   }
 
-  // 4. Score each engine's top-5 per query (LLM judge + deterministic).
+  // Each engine's top-5 per query; LLM judge + deterministic groundability.
   console.log("[4/5] Scoring (LLM judge)...");
   const scored: ScoredResult[] = [];
   const byQueryId = new Map(QUERIES.map((q) => [q.query, q]));
@@ -181,11 +178,8 @@ async function main() {
         continue;
       }
       const credibility = adjustCredibility(judge.credibility, pr);
-      // "useful + credible + groundable": all three axes at 1+, with relevance==2
-      // OR (relevance>=1 and credibility==2) treated as genuinely useful. We use
-      // the conservative rule: all three axes >= the plan's "ok+" bar AND not poor
-      // on relevance -> relevance>=1, credibility>=1, groundability>=1, and the
-      // result is "best" on at least relevance OR credibility.
+      // "useful": relevance>=1, credibility>=1, groundability>=1, and best
+      // (==2) on at least one of relevance/credibility. Conservative combined bar.
       const useful = judge.relevance >= 1 && credibility >= 1 && ground >= 1 && (judge.relevance === 2 || credibility === 2);
       scored.push({
         engine: r.engine,
@@ -215,7 +209,7 @@ async function main() {
   }
   console.log("");
 
-  // 5. Aggregate: per engine x topic useful%, bands, latency, vs Tavily.
+  // Per engine x topic: useful%, bands, latency, vs Tavily.
   console.log("[5/5] Aggregating...");
   const engineNames: EngineName[] = ["searxng", "brave", "exa", "tavily"];
 

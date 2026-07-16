@@ -2,21 +2,10 @@
  * Deterministic check of the try-before-signup landing flow (no LLM, no HTTP).
  * Run: `bun run scripts/verify-landing-flow.ts`. Exits non-zero on any failure.
  *
- * It exercises the load-bearing seams directly against the LOCAL dev DB:
- *   (1) the anonymity guard: isAnonymousSession() recognises a guest session and
- *       a real session; this is what requireOwnerId/requireRealUserId branch on.
- *   (2) claim-on-signup: claimAnonymousJourney re-owns the WHOLE journey
- *       atomically (intent + its cascade + denormalised profile.userId), for
- *       BOTH the new-account case and the existing-account merge (D3, keep both).
- *   (3) the gate semantics: an anonymous owner can build a path but the begin
- *       transition belongs to a real account (modelled via the same guard the
- *       server action uses).
- *   (4) the D2 guest rate limit refuses once the window budget is spent, and
- *       never refuses a real account.
- *   (5) orphaned-guest cleanup deletes only stale guests + cascades their
- *       journeys, never a real account or a fresh guest.
- *
- * All rows it creates are namespaced and torn down at the end (and on failure).
+ * Exercises against the LOCAL dev DB: the anonymity guard, claim-on-signup
+ * (new account + existing-account merge, D3 keep-both), the begin-gate
+ * (anonymous vs real), the D2 guest LLM/STT rate limit, and orphaned-guest
+ * cleanup. All rows created are namespaced and torn down on success or failure.
  */
 import { prisma } from "@/lib/db";
 import { claimAnonymousJourney, isAnonymousSession } from "@/lib/auth";
@@ -157,7 +146,6 @@ async function main() {
     check("guest under-cap check skipped (window already full)", true, `baseline=${baseline}`);
   }
 
-  // Now push the log over the cap with tagged rows and assert refusal.
   const toAdd = 65;
   await prisma.llmCall.createMany({
     data: Array.from({ length: toAdd }, () => ({

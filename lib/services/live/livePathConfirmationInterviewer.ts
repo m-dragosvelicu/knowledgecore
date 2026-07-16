@@ -12,11 +12,10 @@ import type {
 // telemetry when a failure short-circuits the call before usage fires.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
-// Hard cap on assistant clarifying questions. This dialogue is meant to be SHORT
-// (it sits in front of goalpost 1); once we have asked this many questions we
-// MUST synthesize a concern from whatever we have rather than ask again. The
-// user-facing soft cap on correction ROUNDS lives in the UI; this is the
-// per-round cap on QUESTIONS, mirroring LiveGoalInterviewer.MAX_QUESTIONS.
+// Hard cap on assistant clarifying questions: this dialogue sits in front of
+// goalpost 1 and must synthesize a concern rather than ask again once hit.
+// The user-facing soft cap on correction rounds lives in the UI; this is the
+// per-round cap on questions, mirroring LiveGoalInterviewer.MAX_QUESTIONS.
 const MAX_QUESTIONS = 2;
 
 const SYSTEM = `You are the PATH CONFIRMATION interviewer of an AI learning
@@ -74,11 +73,9 @@ export class LivePathConfirmationInterviewer
   constructor(private readonly llm: LLMClient) {}
 
   /**
-   * Best-effort per-turn telemetry. Mirrors LiveGoalInterviewer: never let a
-   * logging failure break the dialogue. Logged under `goal_interview` — this is
-   * the SAME dialogue engine in a new context, and no dedicated purpose enum
-   * exists (the L1 checklist's enum debt covers path_adjust / visual_generate,
-   * not a confirmation-dialogue purpose).
+   * Best-effort per-turn telemetry, mirroring LiveGoalInterviewer. Logged
+   * under `goal_interview` — same dialogue engine in a new context; no
+   * dedicated purpose enum exists yet for confirmation dialogues.
    */
   private async recordLlmCall(snapshot: TelemetrySnapshot): Promise<void> {
     try {

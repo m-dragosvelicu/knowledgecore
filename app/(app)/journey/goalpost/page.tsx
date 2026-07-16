@@ -199,7 +199,6 @@ export default async function GoalpostPage({
     </Stack>
   );
 
-  // Information sub-view
   if (phase === "information" && informationStep) {
     // Lazy generation: the lesson (Call B) is authored against the freshest
     // profile when the learner enters the goalpost. If not generated yet, the
@@ -250,7 +249,6 @@ export default async function GoalpostPage({
     );
   }
 
-  // Experience sub-view
   if (phase === "experience" && experienceStep) {
     const prompt = (experienceStep.payload as { prompt?: string } | null)?.prompt ?? "";
     return (

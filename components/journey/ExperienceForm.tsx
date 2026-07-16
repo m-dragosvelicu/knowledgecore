@@ -106,13 +106,9 @@ type Props = {
 };
 
 /**
- * The Experience surface — the "do" half of a goalpost (B.6 Q5).
- *
- * Slice 4 restyle: styled per the kit checkpoint build step. Eyebrow "Build ·
- * the experience half", the prompt in the reading voice, an answer field + the
- * shared mic, a solid "Lock it in" commit, and a quiet saved-hint. While the
- * slow live evaluator runs it replaces the editor with a warm narrated wait that
- * echoes the learner's own submission and disables the submit (no-feedback bug).
+ * Experience surface — the "do" half of a goalpost.
+ * Submit disabled while the live evaluator runs; editor swaps for a narrated
+ * wait so the in-flight artifact stays visible (avoids the no-feedback bug).
  */
 export default function ExperienceForm({ stepId, intentId, action, prompt }: Props) {
   const [artifact, setArtifact] = useState("");

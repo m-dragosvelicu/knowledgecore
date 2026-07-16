@@ -1,21 +1,11 @@
 "use client";
 
-// KnowledgeCore — home hero (the kit's signature question), shown on the empty
-// state and as the entry to starting a journey when there is no active journey.
-//
-// "What do you want to actually know?" set in Fraunces, with the italic teal
-// accent on the expressive words ("actually know") and the self-drawing
-// underline beneath them, plus the pill input with the teal focus ring. The
-// section fades up on load (staggered via .kc-fade + a delay).
-//
-// The SearchPill is a self-contained <form> (its design contract; it is reused
-// standalone). The hero must NOT wrap it in a second <form> — that nests
-// <form> inside <form>, which React rejects with a hydration error and then
-// regenerates the tree, dropping the submit wiring (so "Begin" did nothing).
-// Instead we drive submission from SearchPill's onSubmit: lazily mint a guest,
-// then call the startJourneyWithIntentAction server action programmatically with
-// a constructed FormData (the same client-invokes-server-action pattern as
-// BeginClient). Mirrors design-system/ui_kits/web-app/Home.jsx (the hero section).
+// SearchPill is a self-contained <form>; do NOT wrap it in a second <form> here —
+// nested forms trigger a React hydration error that regenerates the tree and
+// drops the submit wiring. Submission is driven via SearchPill's onSubmit:
+// mint a guest session if needed, then call startJourneyWithIntentAction
+// programmatically with a constructed FormData (client-invokes-server-action,
+// same pattern as BeginClient).
 
 import { useState } from "react";
 import Box from "@mui/material/Box";
@@ -27,13 +17,10 @@ export default function HomeHero() {
   const [intent, setIntent] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // First-visit bootstrap (landing-flow plan, section 2a): a visitor with no
-  // session gets a guest (anonymous) session the moment they actually submit the
-  // hero — NOT on page render, so bots/crawlers that only load the page never
-  // mint a guest user. With a session already present (guest or real) the
-  // anonymous call is skipped. We only call the server action once an owner
-  // exists, so startJourneyWithIntentAction's ownerContext resolves a userId
-  // instead of bouncing to /signin.
+  // Guest bootstrap happens on submit, not page render, so crawlers never mint a
+  // guest user. If a session already exists (guest or real) this is skipped.
+  // startJourneyWithIntentAction needs an owner to resolve ownerContext to a
+  // userId (else it bounces to /signin), so this must run first.
   async function ensureSessionThenSubmit(text: string) {
     const rawText = text.trim();
     if (rawText.length < 3 || busy) return;

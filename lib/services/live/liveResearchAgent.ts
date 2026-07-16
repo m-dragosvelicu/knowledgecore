@@ -1,29 +1,12 @@
 /**
- * L2 — LiveResearchAgent: the live implementation of the ResearchAgent interface.
- *
- * Routing (ADR 9):
- *   introductory / intermediate -> web tier only (Tavily)
- *   advanced                    -> web tier first, then academic tier (OpenAlex)
- *   research-grade              -> academic tier (OpenAlex + Semantic Scholar)
- *
- * Retrieval pipeline per source:
- *   1. Tavily webSearch (web tier) OR OpenAlex/SemanticScholar (academic tier)
- *   2. For each hit, extract full text via Trafilatura sidecar; fall back to Jina.
- *   3. Chunk the extracted text into ~512-token paragraphs (character-budget approx).
- *   4. Assemble Source + Chunk objects conforming to lib/services/research.ts contracts.
- *
- * Graceful degradation (T04):
- *   - If a URL fails extraction, skip it (do not error the whole bundle).
- *   - If zero sources yield usable text, return an EMPTY bundle (sources: []).
- *     The BundleStore (researchBundle.ts) already handles empty bundles gracefully:
- *     it will mark the bundle ready with zero sources and the journey stays
- *     ungrounded (sourceIds: []), which is distinct from a key-missing failure.
- *   - A missing TAVILY_API_KEY is NOT degraded: it throws immediately (fail-fast),
- *     consistent with the live-only philosophy and T05.
- *
- * Closed-book semantics are PRESERVED: the agent assembles source material BEFORE
- * generation starts. The generator receives sourceIds from the persisted bundle and
- * cites them; it never opens the live web mid-lesson.
+ * LiveResearchAgent: live ResearchAgent implementation. Routing (ADR 9):
+ * introductory/intermediate -> web only (Tavily); advanced -> web then
+ * academic (OpenAlex); research-grade -> academic (OpenAlex + Semantic
+ * Scholar). Pipeline: search -> extract text (Trafilatura, falls back to
+ * Jina) -> chunk into ~512-token paragraphs -> assemble Source/Chunk
+ * (research.ts contracts). Degrades gracefully (T04): failed extraction or
+ * zero usable sources yields an empty, ungrounded bundle rather than an
+ * error; a missing TAVILY_API_KEY still throws immediately (fail-fast, T05).
  */
 
 import { createHash } from "node:crypto";
@@ -44,11 +27,8 @@ import type { RoutingDecision } from "@/lib/research/intentRouter";
 
 // Approximate character budget per chunk (~512 tokens at ~4 chars/token).
 const CHUNK_CHAR_BUDGET = 2_048;
-// Maximum number of web hits to attempt extraction on.
 const MAX_WEB_HITS = 8;
-// Maximum academic works to process.
 const MAX_ACADEMIC_WORKS = 5;
-// Minimum text length for a source to be considered usable.
 const MIN_TEXT_LENGTH = 200;
 
 function sha256(input: string): string {
@@ -77,7 +57,6 @@ function chunkText(ref: string, text: string): Chunk[] {
 
   for (const para of paragraphs) {
     if (para.length > CHUNK_CHAR_BUDGET) {
-      // Long paragraph: flush any accumulated text, then split the paragraph.
       if (current) flush(current);
       for (let i = 0; i < para.length; i += CHUNK_CHAR_BUDGET) {
         flush(para.slice(i, i + CHUNK_CHAR_BUDGET));
@@ -146,13 +125,11 @@ async function sourceFromOpenAlexWork(
 
   let rawText: string | null = null;
 
-  // Try full-text extraction from open-access URL.
   if (work.openAccessUrl) {
     const ext = await extract(work.openAccessUrl);
     if (ext.ok && ext.text.length >= MIN_TEXT_LENGTH) rawText = ext.text;
   }
 
-  // Fall back to abstract if we have it and no full text.
   if (!rawText && work.abstract && work.abstract.length >= MIN_TEXT_LENGTH) {
     rawText = work.abstract;
   }
@@ -179,7 +156,6 @@ async function sourceFromOpenAlexWork(
   };
 }
 
-/** Assemble a Source from a Semantic Scholar paper. */
 async function sourceFromSemanticPaper(
   paper: {
     paperId: string;
@@ -244,7 +220,7 @@ async function safeEmit(
   try {
     await onProgress(event);
   } catch {
-    // Progress is advisory; never let a sink failure abort research.
+    // never let a sink failure abort research
   }
 }
 
