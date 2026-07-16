@@ -1,21 +1,11 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 
-// ---------------------------------------------------------------------------
-// Ownership guards (landing-flow plan, section 3a — defence in depth).
-//
-// A guest has a real Better Auth session (anonymous plugin), so the optimistic
-// middleware cookie check passes for them. The authoritative gate therefore
-// lives here, in the server components / actions:
-//
-//   requireOwnerId()    accepts anonymous + real — the PRE-JOURNEY surfaces
-//                       (intent -> outcome -> probe -> path overview). A guest
-//                       must be able to do the whole try-before-signup flow.
-//
-//   requireRealUserId() rejects anonymous (treats a guest like no session) —
-//                       the LEARNING surfaces (goalpost onward) + acceptPath.
-//                       Beginning to learn requires a real account.
-// ---------------------------------------------------------------------------
+// Ownership guards (landing-flow plan, section 3a — defence in depth). A guest
+// has a real Better Auth session (anonymous plugin), so the optimistic
+// middleware cookie check passes for them too; the authoritative gate lives
+// here. requireOwnerId() accepts guest + real (pre-journey surfaces);
+// requireRealUserId() rejects guest (learning surfaces onward).
 
 /** A signal the create-account gate / sign-in is needed for the current user. */
 export const GATE_REDIRECT = "/journey/begin";

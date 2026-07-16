@@ -1,29 +1,18 @@
 import { prisma } from "@/lib/db";
 import type { LlmCallPurpose } from "@prisma/client";
 
-// ---------------------------------------------------------------------------
-// D2 — anonymous LLM rate limit.
-//
-// Try-before-signup gives guests LIVE LLM responses (the real experience is the
-// whole point), but caps abuse by reading the existing LlmCall purpose/cost log.
-// We count the pre-journey-relevant LLM calls written in a rolling window and
-// refuse further guest progress once the cap is hit. Real (signed-in) accounts
-// are never rate-limited here.
-//
-// The cap is deliberately generous enough for one honest run-through (each
-// pre-journey stage is a small number of calls) but low enough that a bot
-// hammering the wizard is stopped quickly. We count GLOBAL guest-attributable
-// pre-journey calls in the window rather than per-guest, because a guest can
-// freely mint new guest ids by clearing cookies; a window-scoped global cap on
-// the *cost-bearing* purposes is the honest abuse brake. Per-guest tightening
-// could be layered later by joining LlmCall to the owning intent's userId.
-// ---------------------------------------------------------------------------
+// D2 — anonymous LLM rate limit. Guests get LIVE LLM responses (try-before-
+// signup is the point), capped by counting the existing LlmCall log in a
+// rolling window; real (signed-in) accounts are never rate-limited here.
+// Counted GLOBALLY rather than per-guest, since a guest can mint new guest
+// ids by clearing cookies — a window-scoped global cap on the cost-bearing
+// purposes is the honest abuse brake. Per-guest tightening could be layered
+// later by joining LlmCall to the owning intent's userId.
 
 // The cost-bearing LLM purposes a guest can drive from the pre-journey flow.
-// stt_transcribe is included because the MicButton (on the outcome and probe
-// pre-journey steps) is reachable by anonymous guests and each press is a real
-// Gemini-audio call, so guest transcription must count against the same budget
-// (D2). The /api/transcribe route enforces the cap before transcribing.
+// stt_transcribe is included because the MicButton (outcome/probe steps) is
+// guest-reachable and each press is a real Gemini-audio call, so it must
+// count against the same D2 budget; /api/transcribe enforces the cap.
 const GUEST_PURPOSES: LlmCallPurpose[] = [
   "intent_parse",
   "goal_interview",

@@ -4,13 +4,10 @@ import { prisma } from "@/lib/db";
 import type { IntentParser, ParsedSubject } from "@/lib/services/types";
 import { parsedSubjectSchema } from "./schemas";
 
-// Intent parsing is a TINY extraction task (one short noun phrase + a one-line
-// scope note), so it runs on the CHEAPEST structured-output-capable Gemini —
-// the Flash-Lite tier — rather than the heavier gemini-3.5-flash used by the
-// generative L0 services. Overridable via GEMINI_INTENT_MODEL. The resolved
-// model id is surfaced from completeStructured via the optional onUsage callback
-// (see lib/llm/types.ts); this constant is the fallback for telemetry when a
-// failure short-circuits the call before any usage callback fires.
+// Intent parsing is a tiny extraction task, so it runs on the cheapest
+// structured-output Gemini tier (Flash-Lite) rather than the heavier
+// gemini-3.5-flash used by generative L0 services. Overridable via
+// GEMINI_INTENT_MODEL; this constant is only the telemetry fallback.
 const INTENT_MODEL =
   process.env.GEMINI_INTENT_MODEL ?? "gemini-3.1-flash-lite";
 const TELEMETRY_MODEL = INTENT_MODEL;

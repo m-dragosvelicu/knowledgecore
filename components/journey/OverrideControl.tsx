@@ -18,9 +18,8 @@ type Props = {
 };
 
 /**
- * Low-key contestability control (L0.md §7 user override). The learner can say
- * the evaluation does not seem right, give a reason, and force an advance. The
- * override is recorded server-side as a calibration signal, not hidden.
+ * Contestability control (L0.md §7): lets the learner force an advance when
+ * the evaluation seems wrong. Recorded server-side as a calibration signal.
  */
 export default function OverrideControl({ goalpostId, intentId, action }: Props) {
   const [open, setOpen] = useState(false);

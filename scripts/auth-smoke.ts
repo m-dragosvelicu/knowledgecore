@@ -1,13 +1,6 @@
 // Auth integration smoke test for the Better Auth email+password flow.
-//
-// Requires the app to be running locally (e.g. `bun run dev` or `bun run start`)
-// and the Postgres dev DB to be up (`bun run db:up`).
-//
-// Run with: bun run scripts/auth-smoke.ts   (or `bun run test:auth`)
-//
-// It exercises the real HTTP surface end-to-end: sign-up -> session check ->
-// sign-out -> sign-in (correct + wrong password) -> cleanup. Exits non-zero on
-// any failed assertion.
+// Requires the app running locally (`bun run dev`) and Postgres up (`bun run db:up`).
+// Run: bun run scripts/auth-smoke.ts (or `bun run test:auth`). Exits non-zero on failure.
 import { prisma } from "@/lib/db";
 
 const BASE = process.env.BETTER_AUTH_URL || "http://localhost:3000";

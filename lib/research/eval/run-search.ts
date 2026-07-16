@@ -1,12 +1,10 @@
 /**
- * L2 ingestion bench — search-engine eval (CEO plan steps 2-5, §4).
- *
- * Fan out each query to all 4 engines -> extract every unique URL via
- * Trafilatura/Jina -> enrich with Open PageRank -> score relevance+credibility
- * (LLM judge) + groundability (deterministic) -> compute per-engine bands.
- *
- * Run: bun run lib/research/eval/run-search.ts
- * Writes: search-results.json, raw-search.json, extractions.json (out/).
+ * L2 ingestion bench — search-engine eval (CEO plan steps 2-5, §4). Fan out
+ * each query to all 4 engines -> extract every unique URL via Trafilatura/Jina
+ * -> enrich with Open PageRank -> score relevance+credibility (LLM judge) +
+ * groundability (deterministic) -> compute per-engine bands.
+ * Run: bun run lib/research/eval/run-search.ts. Writes: search-results.json,
+ * raw-search.json, extractions.json (out/).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -180,11 +178,8 @@ async function main() {
         continue;
       }
       const credibility = adjustCredibility(judge.credibility, pr);
-      // "useful + credible + groundable": all three axes at 1+, with relevance==2
-      // OR (relevance>=1 and credibility==2) treated as genuinely useful. We use
-      // the conservative rule: all three axes >= the plan's "ok+" bar AND not poor
-      // on relevance -> relevance>=1, credibility>=1, groundability>=1, and the
-      // result is "best" on at least relevance OR credibility.
+      // "useful": relevance>=1, credibility>=1, groundability>=1, and best
+      // (==2) on at least one of relevance/credibility. Conservative combined bar.
       const useful = judge.relevance >= 1 && credibility >= 1 && ground >= 1 && (judge.relevance === 2 || credibility === 2);
       scored.push({
         engine: r.engine,

@@ -22,16 +22,10 @@ type SubmitButtonProps = Omit<ButtonProps, "type"> & {
 };
 
 /**
- * A submit button that gives immediate, unmistakable feedback the moment it is
- * pressed: it disables itself, swaps in a spinner, and changes its label. This
- * is the single guard against spam-clicking buttons that fire slow server
- * actions (the live evaluator, path generation, etc.) per
- * bugs/no-feedback-on-submit.
- *
- * Two modes:
- *  - Inside a native <form action={serverAction}>: leave `pending` undefined and
- *    the button reads useFormStatus() automatically.
- *  - For onClick / useTransition flows: pass `pending={isPending}` explicitly.
+ * Guards against spam-clicking slow server actions (bugs/no-feedback-on-submit):
+ * disables itself, shows a spinner, swaps label, the instant it's pressed.
+ * Inside a <form action>: leave `pending` undefined (reads useFormStatus).
+ * Otherwise pass `pending` explicitly (e.g. useTransition).
  */
 export default function SubmitButton({
   pendingLabel = "Working…",

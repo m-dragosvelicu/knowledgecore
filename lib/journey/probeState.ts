@@ -75,15 +75,14 @@ export async function readProbeState(
 
 /**
  * Claim the right to run generation for this intent, race-safe:
- *   - no row yet -> create it (status running); a concurrent loser catches the
- *     unique-constraint violation and re-reads the winner's row instead of a
- *     blind retry (same convergence pattern as researchBundle's ensureBundle).
- *   - row exists and is already ready or running -> false, someone else owns it.
- *   - row exists and is failed/unstarted -> reclaim it for a retry. This
- *     window accepts a benign, rare double-generation on a concurrent retry —
- *     the same risk tolerance ensureLessonContent already carries; there is no
- *     atomic reclaim here on purpose, to avoid Json-path filter machinery for
- *     an edge case this codebase does not otherwise guard against.
+ *   - no row yet -> create it (running); a concurrent loser catches the
+ *     unique-constraint violation and re-reads the winner's row (same
+ *     convergence pattern as researchBundle's ensureBundle).
+ *   - already ready or running -> false, someone else owns it.
+ *   - failed/unstarted -> reclaim for a retry. No atomic reclaim here on
+ *     purpose (avoids Json-path filter machinery); accepts a benign, rare
+ *     double-generation on a concurrent retry, same tolerance as
+ *     ensureLessonContent.
  */
 async function claimProbeGeneration(intentId: string): Promise<boolean> {
   let row = await prisma.probeState.findUnique({ where: { intentId } });

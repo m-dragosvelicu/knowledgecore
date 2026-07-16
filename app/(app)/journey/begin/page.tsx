@@ -6,17 +6,11 @@ import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import BeginClient from "./BeginClient";
 
-// THE ACCOUNT GATE — create-account step (landing-flow plan, section 3b).
-//
-// Reached when an anonymous guest clicks "Looks good, start" on the path
-// overview: acceptPathAction rejects the guest (requireRealUserId) and redirects
-// here. This is NOT a bounce to the stock /signin tabs; it is the next step of
-// the journey, framed as "save your path and begin". It restates what they are
-// about to start so the value is visible at the point of commitment, then offers
-// email+password create-account (primary) and "I already have an account" sign-in
-// (secondary). On success the onLinkAccount hook re-owns the journey atomically
-// and the client resumes the pending begin (acceptPathAction), landing the
-// learner in goalpost 1 with their journey intact.
+// Account gate (landing-flow plan 3b): reached when acceptPathAction rejects
+// an anonymous guest (requireRealUserId) and redirects here. Deliberately not
+// a bounce to the stock /signin tabs — it's the next step, framed as "save
+// your path and begin". On success onLinkAccount re-owns the journey and the
+// client resumes acceptPathAction, landing the learner in goalpost 1.
 export default async function BeginPage({
   searchParams,
 }: {

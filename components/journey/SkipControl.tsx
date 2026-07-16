@@ -17,10 +17,8 @@ type Props = {
 };
 
 /**
- * Low-key skip-with-confirm affordance (L0.md §9.2; CEO override: allow skip
- * with confirmation). A secondary text link reveals an inline confirmation —
- * NOT a window.confirm dialog — before the learner can submit the skip. The
- * notice makes the trade-off explicit: prerequisites may surface later.
+ * Skip-with-confirm (L0.md §9.2). Inline confirmation, not window.confirm.
+ * Learner may be assessed on skipped prerequisites later.
  */
 export default function SkipControl({ goalpostId, intentId, action }: Props) {
   const [open, setOpen] = useState(false);

@@ -1,18 +1,9 @@
 /**
- * L1 Slice 1 — the Call B contract (lazy per-goalpost lesson-content generation).
- *
- * The L0 PathOutliner generates the whole path (structure AND information content)
- * up front in one call. L1 splits this:
- *
- *   - Call A = the existing PathOutliner: structure (titles, objectives, the
- *     experience task, estimated minutes). Built up front from journey context.
- *   - Call B = THIS service: the information-step content for ONE goalpost,
- *     generated WHEN THE LEARNER ENTERS IT, with the learner profile injected so
- *     the substance is tailored (more/fewer worked examples, support level).
- *
- * This contract is ADDITIVE — it does not touch the LOCKED `lib/services/types.ts`
- * interface boundary. It lives alongside it and is wired through `getServices()`
- * like the other services.
+ * Call B: lazy per-goalpost lesson-content generation, split from Call A (the
+ * PathOutliner, which builds structure up front). Runs when the learner enters
+ * the goalpost, with the learner profile injected to tailor support level and
+ * worked-example count. Additive — does not touch the locked `types.ts`
+ * boundary; wired through `getServices()`.
  */
 
 import type { LearnerProfileState } from "@/lib/journey/learnerProfile";
@@ -49,11 +40,9 @@ export type LessonContent = {
   /** The number of worked examples requested (audit / telemetry). */
   workedExamples: number;
   /**
-   * L1 Slice 4 — the VISUAL NEEDS the generator emits for this lesson, each
-   * tagged with a structured `visualKind`. The gate (lib/services/visual/gate.ts)
-   * routes each one to a concrete safe medium (sanitized SVG | sourced image |
-   * reference video). May be empty when no visual aids the concept. Additive: a
-   * generator that does not emit visuals simply returns [].
+   * Visual needs emitted for this lesson, each tagged with a `visualKind`
+   * that lib/services/visual/gate.ts routes to a concrete medium (SVG | image
+   * | video). May be empty — a generator that emits no visuals returns [].
    */
   visuals: VisualNeed[];
 };

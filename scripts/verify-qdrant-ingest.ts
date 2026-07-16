@@ -1,24 +1,14 @@
 /**
  * E01.S05 — standalone verification of the kc_passages bootstrap + bundle ingest.
  * Run: `bun run scripts/verify-qdrant-ingest.ts`. Exits non-zero on any failure.
+ * Uses REAL infra (live Qdrant + Postgres + Gemini embeddings).
  *
- * Proves the production path end to end against the REAL infra (live Qdrant +
- * live Postgres + live Gemini embeddings):
- *   1. ensureKcPassages bootstraps the dim-3072 Cosine collection + 3 keyword
- *      payload indexes (sourceId, bundleIds, sourceKind).
- *   2. A realistically-seeded bundle (Source + SourceChunk + BundleSourceLink
- *      rows, content-addressed exactly as the live agent persists them) ingests:
- *      every chunk lands as one point with the ratified payload.
- *   3. A filtered top-k query (by bundleId, and by sourceId) returns the seeded
- *      chunks.
- *   4. Re-ingest of the same content is idempotent: UUIDv5(contentHash) ids mean
- *      the point count does not grow.
- *   5. SourceChunk.embeddedAt and ResearchBundle.embeddingModel/embeddingDim are
- *      set.
+ * Covers: collection bootstrap (dim-3072 Cosine + keyword payload indexes),
+ * ingest of a seeded bundle (content-addressed points), filtered top-k by
+ * bundleId/sourceId, idempotent re-ingest (UUIDv5(contentHash) dedup), and
+ * embeddedAt/embeddingModel/embeddingDim stamping.
  *
- * Uses a throwaway bundle + sources that are fully cleaned up afterward (both in
- * Postgres and in Qdrant), so the shared kc_passages collection is left as it
- * was found apart from the idempotent collection/index creation.
+ * Throwaway bundle + sources are fully cleaned up afterward (Postgres + Qdrant).
  */
 
 import { createHash } from "crypto";

@@ -9,10 +9,9 @@ import type {
 } from "@/lib/services/types";
 import { evaluationResultSchema } from "./schemas";
 
-// gemini-3.5-flash is the live default for L0 services. Token usage is now
-// surfaced from completeStructured via the optional onUsage callback (see
-// lib/llm/types.ts); this constant is the fallback model id for telemetry when a
-// failure short-circuits the call before any usage callback fires.
+// gemini-3.5-flash is the live default. Token usage is surfaced from
+// completeStructured via the onUsage callback (lib/llm/types.ts); this
+// constant is only the telemetry fallback when a failure fires before usage.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
 const SYSTEM = `You are the checkpoint evaluator of an AI learning platform. A
@@ -360,12 +359,11 @@ export class LiveCheckpointEvaluator implements CheckpointEvaluator {
   }
 
   /**
-   * Produces exactly ONE evidence entry per dimension. For each dimension we
-   * prefer the first quote that verifies as a verbatim substring (returning the
-   * original-text span); a legitimate "(no evidence in artifact)" also counts as
-   * resolved. If no occurrence of a dimension verifies, we emit a single
-   * best-effort quote flagged "[unverified] " and report the dimension as
-   * unverified so the caller can log/degrade gracefully.
+   * Exactly one evidence entry per dimension: prefer the first quote that
+   * verifies as a verbatim substring (returns the original-text span); a
+   * legitimate "(no evidence in artifact)" also counts as resolved. If nothing
+   * verifies, emit one best-effort quote flagged "[unverified] " and report
+   * the dimension so the caller can degrade gracefully.
    */
   private verifyEvidence(
     artifact: string,

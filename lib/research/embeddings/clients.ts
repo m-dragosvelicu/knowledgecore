@@ -1,10 +1,9 @@
 /**
- * Embedding client adapters for the D4 eval.
- *   - Gemini Embedding (gemini-embedding-001) via @google/genai.
- *   - Qwen3-Embedding-8B / -4B via OpenRouter's OpenAI-compatible /embeddings.
- *
- * Each adapter records its live vector dimension, per-1M-token price (USD, from
- * the provider's public pricing at eval time), and exposes a batched embed().
+ * Embedding client adapters for the D4 eval: Gemini Embedding
+ * (gemini-embedding-001) via @google/genai, and Qwen3-Embedding-8B/-4B via
+ * OpenRouter's OpenAI-compatible /embeddings. Each records its live vector
+ * dimension and per-1M-token price (USD, provider's public pricing at eval
+ * time), and exposes a batched embed().
  */
 import { GoogleGenAI } from "@google/genai";
 

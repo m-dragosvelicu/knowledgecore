@@ -15,38 +15,23 @@ type Props = {
   // Server-rendered markdown content.
   content: React.ReactNode;
   /**
-   * Minimum dwell before the learner can continue, in whole seconds. Supplied by
-   * the server via the presenter seam (lib/journey/presenter.ts): the page asks
-   * the active strategy for render directives and passes the paced dwell down.
-   * Defaults to DEFAULT_DWELL_SECONDS so any caller that does not yet thread the
-   * presenter through keeps today's behavior.
+   * Minimum dwell before continue is enabled, in seconds. Comes from the
+   * presenter seam (lib/journey/presenter.ts); defaults to
+   * DEFAULT_DWELL_SECONDS when a caller doesn't thread the presenter through.
    */
   dwellSeconds?: number;
   /**
-   * Minutes shown in the eyebrow ("Read · about N min"), computed by the
-   * caller from the actual lesson content (lib/journey/readTime.ts) — not
-   * derived from the dwell gate, which is a UX floor, not a content measure.
+   * Minutes for the eyebrow, computed from actual lesson content
+   * (lib/journey/readTime.ts) — not derived from the dwell gate (a UX floor,
+   * not a content measure).
    */
   readMinutes: number;
 };
 
-// Default minimum dwell before the learner can continue. A gentle gate (B.6 Q1):
-// it signals that reading is the point, without being a hard lock that
-// frustrates. The presenter seam can scale this via paceMultiplier; with the
-// default pass-through strategy it stays 6s.
+// Default dwell gate (B.6 Q1) before continue is enabled. The presenter seam
+// can scale this via paceMultiplier; default pass-through strategy keeps 6s.
 const DEFAULT_DWELL_SECONDS = 6;
 
-/**
- * The Information surface (B.6 Q4): the calm READING half of a goalpost.
- *
- * Slice 4 restyle — this is the reading surface, tuned to the kit checkpoint as
- * the starting point: Hanken (NOT a serif), a calm reading size, a measure of
- * ~62ch, and a looser line-height than operational copy. The first paragraph of
- * the lesson reads as a "lead" (slightly larger, in full ink); the rest is
- * comfortable body in ink-2; blockquotes become teal-edged pull-quotes. Warm
- * paper surface, generous vertical rhythm. A short dwell gate keeps the continue
- * button disabled until the learner has plausibly read, or scrolled to the end.
- */
 export default function InformationView({
   stepId,
   intentId,
@@ -97,10 +82,6 @@ export default function InformationView({
 
         <Box
           sx={{
-            // Reading type (decided): Hanken — NOT a serif — tuned to the kit
-            // checkpoint values: a calm reading size, a ~62ch measure, and a
-            // looser line-height than operational copy. The lead paragraph reads
-            // a touch larger in full ink; the body settles into ink-2.
             fontFamily: "var(--font-read)",
             maxWidth: "62ch",
             color: "var(--ink-2)",

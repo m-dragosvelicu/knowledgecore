@@ -1,19 +1,5 @@
 "use client";
 
-// KnowledgeCore — account menu (the profile-icon dropdown).
-//
-// The avatar is the only affordance up top: clicking it opens a calm dropdown
-// CARD anchored to the avatar with exactly two items — "Profile" (-> /account)
-// and "Sign out" (the existing Better Auth sign-out server action, threaded in
-// from the server AppHeader as a hidden <form>).
-//
-// Styled to the design system: --surface paper card, 1px --line hairline border,
-// the soft warm directional shadow (var(--shadow)), --r-md rounding, calm ink
-// type in Hanken. The avatar keeps its concrete-plumbing look: ink circle, 2px
-// teal ring + quiet lift on hover, plus an active/open ring so the trigger reads
-// as pressed while the menu is open. Keyboard-accessible and dismisses on
-// outside-click / escape (MUI Menu handles both).
-
 import { useId, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";

@@ -91,11 +91,9 @@ export function getServices(): Services {
   };
 }
 
-// ---------------------------------------------------------------------------
-// L1 — Two-Phase Visual Lesson Pipeline. The orchestrator runs over two PORTS:
-// an Author (Phase 1) and per-medium VisualWorkers (Phase 2). This is the SINGLE
-// swap point; the orchestrator and ensureLessonContent seam stay untouched.
-// ---------------------------------------------------------------------------
+// L1 — Two-Phase Visual Lesson Pipeline: an Author (Phase 1) and per-medium
+// VisualWorkers (Phase 2). This is the single swap point; the orchestrator and
+// ensureLessonContent seam stay untouched.
 
 function buildLessonAuthor(): Author {
   return new LiveLessonAuthor(getSharedClient());
@@ -117,33 +115,26 @@ export function getLessonOrchestratorPorts(): OrchestratorPorts {
   };
 }
 
-// ---------------------------------------------------------------------------
-// L1 Slice 2 — the Path Confirmation clarifying-dialogue interviewer. Same
-// SHARED dialogue engine as the Goal Interview, in the Path Confirmation context.
-// Kept as a SEPARATE selector (the LOCKED `Services` type must not change).
-// ---------------------------------------------------------------------------
+// L1 Slice 2 — Path Confirmation clarifying dialogue: same shared dialogue
+// engine as the Goal Interview, kept as a separate selector since the locked
+// `Services` type must not change.
 
 export function getPathConfirmationInterviewer(): PathConfirmationInterviewer {
   requireApiKey();
   return new LivePathConfirmationInterviewer(getSharedClient());
 }
 
-// ---------------------------------------------------------------------------
-// L1 Slice 3 — the speech-to-text Transcriber (Gemini audio). Uses the Gemini
-// AUDIO client, not the shared text client, but the same provider + key.
-// ---------------------------------------------------------------------------
+// L1 Slice 3 — speech-to-text Transcriber (Gemini audio). Uses the Gemini
+// audio client, not the shared text client, but the same provider + key.
 
 export function getTranscriber(): Transcriber {
   requireApiKey();
   return new LiveTranscriber(getDefaultTranscriptionClient());
 }
 
-// ---------------------------------------------------------------------------
-// L1 Slice 4 — visual-media SOURCES (the image + video halves of the gate).
-// Keyless: Openverse anonymous search and YouTube oEmbed need no API key, so
-// these are NOT guarded. The SVG half is pure (the model authors it; it is
-// sanitized locally), so it has no source selector.
-// ---------------------------------------------------------------------------
+// L1 Slice 4 — visual-media sources (image + video halves of the gate).
+// Keyless (Openverse, YouTube oEmbed), so not guarded. SVG is authored by the
+// model and sanitized locally; it has no source selector.
 
 export function getImageSource(): ImageSource {
   return new LiveOpenverseImageSource();
@@ -161,15 +152,10 @@ export function getVisualResolvers(): {
   return { imageSource: getImageSource(), videoSource: getVideoSource() };
 }
 
-// ---------------------------------------------------------------------------
-// L2 — the Research Agent (live, ADR 9 ratified).
-//
-// The live agent is the ONLY path. TAVILY_API_KEY is required and the selector
-// throws immediately if it is absent (fail-fast, consistent with live-only
-// philosophy). Empty-retrieval (zero usable sources WITH a valid key) is handled
-// gracefully inside LiveResearchAgent itself (T04): it returns an empty Bundle
-// and the journey stays ungrounded rather than failing hard.
-// ---------------------------------------------------------------------------
+// L2 — the Research Agent (live, ADR 9). TAVILY_API_KEY is required; the
+// selector fails fast if absent. Empty-retrieval (zero sources with a valid
+// key) is handled gracefully inside LiveResearchAgent (T04): it returns an
+// empty Bundle and the journey stays ungrounded rather than failing hard.
 
 export function getResearchAgent(): ResearchAgent {
   if (!process.env.TAVILY_API_KEY) {

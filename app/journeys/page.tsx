@@ -101,13 +101,8 @@ const ACTIVE_STATUSES: JourneyStatus[] = [
   "paused",
 ];
 
-/**
- * The "all journeys" page reached from the "View all journeys" affordance on the
- * home dashboard. Lists ALL of the signed-in user's journeys using the same
- * design-system journey rows as home, split into the active journey (if any) and
- * everything that has been completed or set aside. Each row carries a quiet
- * overflow delete with a styled confirmation dialog (see JourneyListRow).
- */
+// The "all journeys" page, reached from the "View all journeys" affordance on
+// the home dashboard.
 export default async function JourneysPage() {
   const session = await getCurrentSession();
   if (!session?.user?.id) {

@@ -7,21 +7,13 @@ import {
 } from "@/lib/journey/guestRateLimit";
 
 /**
- * L1 Slice 3 — speech-to-text route.
- *
- * Contract: receive a recorded-audio Blob (multipart form field `audio`),
- * transcribe it via the Gemini-audio provider (or the mock, per the LIVE_STT
- * opt-out in the service registry), and return the transcript as JSON. The audio
- * is NEVER persisted: it lives only as an in-request Uint8Array passed to the
- * transcriber and is then out of scope. The only durable trace is the LlmCall
- * telemetry row written by the live transcriber.
- *
- * The client puts the returned transcript into the SAME editable text field the
- * learner is typing in (not a black-box voice mode), so transcription errors can
- * be corrected before a graded answer is submitted.
- *
- * English-first; an optional `languageHint` form field is forwarded so the same
- * route handles other languages later by passing a different hint.
+ * L1 Slice 3 speech-to-text route. Takes a recorded-audio Blob (`audio` form
+ * field), transcribes via the Gemini-audio provider (or mock, per LIVE_STT),
+ * returns the transcript as JSON. Audio is never persisted — it's an
+ * in-request Uint8Array only; the durable trace is the LlmCall telemetry row.
+ * The client puts the transcript into the same editable field the learner was
+ * typing in, so errors can be corrected before submitting. English-first; an
+ * optional `languageHint` field carries other languages later.
  */
 
 // Node runtime: the transcriber writes a Prisma telemetry row and Buffer-encodes
@@ -41,10 +33,9 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // D2 — a guest's transcription is a real Gemini call, so gate it against the
-  // same rolling-window guest LLM budget the pre-journey actions use. No-op for
-  // real (non-anonymous) accounts. Refuse over-budget with the same graceful
-  // message the wizard shows, as a 429.
+  // D2: a guest's transcription is a real Gemini call, so gate it against the
+  // same rolling-window guest LLM budget the pre-journey actions use (no-op
+  // for real accounts). Over-budget returns the wizard's message as a 429.
   try {
     await assertGuestLlmBudget(isAnonymousSession(session));
   } catch (err) {

@@ -147,12 +147,10 @@ export const visualKindSchema = z.enum([
   "motion",
 ]);
 
-// Phase-1 Author schema. THE ANTI-ASCII GUARANTEE (redesign §6): there is NO field
-// through which the Author can emit a DRAWN figure — a visual is described ONLY as
-// { kind, spec }, so ASCII-art diagrams are structurally impossible, not merely
-// forbidden. The drawn payload is produced LATER by a Phase-2 worker from `spec`.
-// A block is a flat object (the Gemini converter has no oneOf/anyOf) with a `type`
-// enum and per-variant nullish fields, normalized in code by `type`.
+// Phase-1 Author schema. Anti-ASCII guarantee (redesign §6): no field lets
+// the Author emit a drawn figure — a visual is only { kind, spec }; the
+// drawn payload comes later from a Phase-2 worker. Flat object (Gemini has
+// no oneOf/anyOf) normalized in code by `type`.
 export const authoredBlockSchema = z.object({
   type: z.enum(["prose", "visual"]),
   md: z.string().nullish(),

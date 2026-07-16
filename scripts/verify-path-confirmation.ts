@@ -1,21 +1,15 @@
 /**
  * L1 Slice 2 — end-to-end check of the Path Confirmation gate + clarifying
- * dialogue + path revision, against the local DB, exercising the SAME pieces the
- * server actions use:
- *   - the REUSED turn-taking dialogue engine (MockPathConfirmationInterviewer,
- *     same InterviewTurn / step shape as the Goal Interview),
- *   - the EXISTING Path Adjuster (MockPathAdjuster) that produces a PathAdjustment,
- *   - the new pre-acceptance applier applyPreAcceptancePathAdjustment() that
- *     revises a DRAFT path without completing any goalpost.
+ * dialogue + path revision, against the local DB (reuses the goal-interview
+ * turn-taking engine + the existing Path Adjuster; the new piece is the
+ * pre-acceptance applier applyPreAcceptancePathAdjustment()).
  *
- * Asserts: the dialogue terminates with a concern; the revision inserts and
- * renumbers the draft contiguously WITHOUT marking anything complete and WITHOUT
- * accepting the path; a PathRevision with no triggerEval is recorded;
- * revisionCount tracks rounds (the soft-cap signal); and getCurrentGoalpost
- * serves goalpost 1 of the revised draft (the "Looks good, start" anchor).
+ * Asserts the revision inserts/renumbers the draft WITHOUT completing any
+ * goalpost or accepting the path, records a PathRevision with no triggerEval,
+ * and getCurrentGoalpost serves goalpost 1 of the revised draft.
  *
- * Run: `bun run scripts/verify-path-confirmation.ts` (needs local Postgres up:
- * bun run db:up). Cleans up the throwaway user. Exits non-zero on any failure.
+ * Run: `bun run scripts/verify-path-confirmation.ts` (needs `bun run db:up`).
+ * Cleans up the throwaway user. Exits non-zero on any failure.
  */
 import { prisma } from "../lib/db";
 import { getCurrentGoalpost } from "../lib/journey/state";
@@ -33,11 +27,10 @@ import type {
   PathConfirmationStep,
 } from "../lib/services/pathConfirmation";
 
-// Local deterministic doubles for the dialogue engine + adjuster (mirroring the
-// deleted mocks). The interviewer asks ONE canned clarifying question, then
-// completes with a concern synthesized from the learner's own words (so the
-// "concern reflects the learner's words" assertion holds). The adjuster inserts
-// ONE remediation goalpost (minimal edit).
+// Local deterministic doubles for the dialogue engine + adjuster. The
+// interviewer asks one canned question, then completes with a concern
+// synthesized from the learner's own words (backs the "concern reflects the
+// learner's words" assertion). The adjuster inserts one remediation goalpost.
 const PATHCONF_QUESTIONS = [
   "What feels off about this plan — is it aimed at the wrong level, missing something you need, or covering things you already know?",
 ];

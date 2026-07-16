@@ -6,11 +6,8 @@ import Backdrop from "@/components/Backdrop";
 import "./globals.css";
 
 // Fonts via next/font — self-hosted, no layout shift, no external Google CSS.
-//
-// Fraunces SPEAKS: the variable display serif. We pull the SOFT axis (softens
-// terminals) and opsz (optical size) so headlines never read cold; the .kc-*
-// classes / MUI variants dial SOFT 20 + opsz 144 on big display and SOFT 30 on
-// UI-scale serif. Exposed as --font-fraunces.
+// Fraunces: variable display serif; pulls the SOFT + opsz axes. Exposed as
+// --font-fraunces.
 const fraunces = Fraunces({
   subsets: ["latin"],
   display: "swap",
@@ -31,10 +28,9 @@ const hanken = Hanken_Grotesk({
   variable: "--font-hanken",
 });
 
-// NOTE: Architects Daughter is intentionally NOT loaded here. It is an
-// annotation/presentation font for docs & slides only and must never ship in
-// the app bundle. The --font-annotate token exists for documentation but is
-// referenced nowhere in product code.
+// Architects Daughter is intentionally not loaded here: docs/slides-only
+// annotation font, must never ship in the app bundle. --font-annotate exists
+// for documentation but is referenced nowhere in product code.
 
 export const metadata: Metadata = {
   title: "KnowledgeCore",

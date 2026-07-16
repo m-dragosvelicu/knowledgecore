@@ -29,23 +29,17 @@ declare module "@mui/material/Typography" {
   }
 }
 
-// KnowledgeCore MUI theme — the component-layer mirror of lib/theme/tokens.ts.
-// Warm paper, ink, one deep teal. Fraunces speaks (display/headings/numbers),
-// Hanken operates AND reads (body/labels/buttons/metadata).
-//
-// Semantic-color remap (decided): the chatty MUI status palette collapses onto
-// ink + teal so the product reads as one calm voice, not a traffic-light UI.
+// KnowledgeCore MUI theme — component-layer mirror of lib/theme/tokens.ts.
+// Semantic-color remap: the MUI status palette collapses onto ink + teal.
 //   - info     -> teal (informational accent)
 //   - success  -> teal-deep (a quiet "done", not a green)
 //   - warning  -> ink-2 (a neutral note, carried by copy not color)
-//   - error    -> muted warm red (--error), reserved for genuine failures
-//                 (mic permission/hardware, hard load failures) ONLY.
-// There is no second decorative hue and no gradients.
+//   - error    -> muted warm red (--error), genuine failures only
+//                 (mic permission/hardware, hard load failures)
 
-// MUI's shadows array must have exactly 25 entries (elevation 0..24). We keep
-// elevation 0 as "none", then map the low elevations to the soft directional
-// hover shadow and the higher ones to the larger card shadow, so any raised
-// surface reads as the warm paper glow rather than a hard drop shadow.
+// MUI's shadows array must have exactly 25 entries (elevation 0..24).
+// Elevation 0 is "none"; low elevations map to the soft hover shadow, higher
+// ones to the card shadow.
 const warmShadows = Array.from({ length: 25 }, (_, i) => {
   if (i === 0) return "none";
   if (i <= 2) return shadows.sm;

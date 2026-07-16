@@ -2,20 +2,13 @@
  * E01.S06 — standalone verification of the Library learner-search path.
  * Run: `bun run scripts/verify-learner-search.ts`. Exits non-zero on any failure.
  *
- * Exercises the SAME service function the API route calls
- * (searchLibraryForLearner) against the REAL infra (live Qdrant + live Postgres +
- * live Gemini embeddings). Proves the S06 contract end to end:
- *   1. A learner query against a real (seeded) journey returns relevant,
- *      bundle-scoped passages with citable metadata joined from Postgres.
- *   2. The minimum-score floor actually drops below-threshold (off-topic) hits.
- *   3. Scope isolation: a journey only sees its own bound bundles' sources — a
- *      second journey bound to a DIFFERENT bundle never surfaces the first's
- *      passages, and an unbound journey resolves nothing.
- *   4. Ranking is cosine-descending with a deterministic, stable tie-break.
+ * Exercises searchLibraryForLearner (the same function the API route calls)
+ * against REAL infra (live Qdrant + Postgres + Gemini embeddings): relevance +
+ * score floor, bundle-scope isolation between journeys, and deterministic
+ * cosine-descending ranking.
  *
- * Two throwaway journeys + bundles are created and fully cleaned up afterward
- * (Postgres rows + the Qdrant points), so the shared kc_passages collection is
- * left as found apart from the idempotent collection/index creation.
+ * Creates two throwaway journeys/bundles, fully cleaned up (Postgres + Qdrant)
+ * afterward.
  */
 
 import { createHash } from "crypto";
