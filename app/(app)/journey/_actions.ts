@@ -6,7 +6,11 @@ import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { requireOwnerId, requireRealUserId } from "@/lib/auth-guards";
 import { assertGuestLlmBudget } from "@/lib/journey/guestRateLimit";
 import { prisma, getOrCreateActiveIntent, getCurrentGoalpost } from "@/lib/journey/state";
-import { getServices, getPathConfirmationInterviewer } from "@/lib/services";
+import {
+  getServices,
+  getPathConfirmationInterviewer,
+  getOutcomeReviser,
+} from "@/lib/services";
 import type {
   CanDoStatement,
   Competency,
@@ -15,6 +19,7 @@ import type {
   ProbeAnswer,
   ProbeQuestion,
 } from "@/lib/services/types";
+import type { OutcomeRevisionResult } from "@/lib/services/outcomeRevision";
 import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision, Prisma } from "@prisma/client";
 import { deriveDecision } from "@/lib/journey/decision";
 import {
@@ -432,6 +437,77 @@ export async function finalizeOutcomeAction(
   });
 
   redirect(`/journey/probe?j=${intentId}`);
+}
+
+// --- Outcome revision (founder ruling 2026-07-16) ---
+//
+// On the "here's what success looks like for you" confirm screen, before the
+// learner proceeds to the knowledge probe, they can push back in free text and
+// get a revised outcome. A single-shot LLM call, not a turn-taking dialogue (see
+// lib/services/outcomeRevision.ts); repeatable so "revise a revision" works.
+
+const reviseOutcomeSchema = z.object({
+  feedback: z.string().min(1, "Tell us what you'd like changed."),
+});
+
+/**
+ * Revise the outcome from one piece of learner feedback. Reads the current
+ * subject + draft outcome from the DB (so each round revises the LATEST state,
+ * including a prior revision), calls the OutcomeReviser, persists the result
+ * back to Subject + LearningGoal.draftOutcome (the same pre-confirm slots
+ * intent-parsing and the interview write to), and returns the revised outcome
+ * plus a short acknowledgment for the client to render. Does not touch
+ * ExpectedOutcome — that is only written by finalizeOutcomeAction once the
+ * learner accepts and moves on.
+ */
+export async function reviseOutcomeAction(
+  intentId: string,
+  feedback: string,
+): Promise<OutcomeRevisionResult> {
+  const { userId, isAnonymous } = await ownerContext();
+  intentId = await requireActiveIntentId(userId, intentId);
+  const parsed = reviseOutcomeSchema.parse({ feedback });
+  await assertGuestLlmBudget(isAnonymous);
+
+  const [subject, goal] = await Promise.all([
+    prisma.subject.findUnique({ where: { intentId } }),
+    prisma.learningGoal.findUnique({ where: { intentId } }),
+  ]);
+  if (!subject) redirect(`/journey/intent?j=${intentId}`);
+  const draft = goal?.draftOutcome as unknown as {
+    canDoStatements: CanDoStatement[];
+    successCriterion: string;
+  } | null;
+  if (!draft) redirect(`/journey/outcome?j=${intentId}`);
+
+  const reviser = getOutcomeReviser();
+  const revised = await reviser.revise({
+    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+    canDoStatements: draft!.canDoStatements,
+    successCriterion: draft!.successCriterion,
+    feedback: parsed.feedback,
+  });
+
+  await prisma.subject.update({
+    where: { intentId },
+    data: {
+      canonicalName: revised.subject.canonicalName,
+      scopeNote: revised.subject.scopeNote,
+    },
+  });
+  await prisma.learningGoal.update({
+    where: { intentId },
+    data: {
+      draftOutcome: {
+        canDoStatements: revised.canDoStatements,
+        successCriterion: revised.successCriterion,
+      } as unknown as object,
+    },
+  });
+
+  await touchIntentRecency(intentId);
+
+  return revised;
 }
 
 // ---------------------------------------------------------------------------

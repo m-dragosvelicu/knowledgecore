@@ -164,6 +164,11 @@ enum LlmCallPurpose {
   // Closes the documented enum debt; the SVG is sanitized on its own dedicated
   // render path before display (never the markdown sanitizer).
   visual_generate
+  // Outcome revision — the learner objects to the synthesized outcome (before
+  // finalize) and the OutcomeReviser revises subject/scopeNote/successCriterion/
+  // canDoStatements in place. A single-shot revise call, not a turn-taking
+  // dialogue; see lib/services/outcomeRevision.ts for why.
+  outcome_revision
   other
 }
 
