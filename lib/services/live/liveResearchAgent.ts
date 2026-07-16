@@ -35,12 +35,13 @@ import type {
   ResearchProgressSink,
   Source,
 } from "@/lib/services/research";
-import { webSearch } from "@/lib/research/tavily";
+import { webSearch, TavilyRequestError } from "@/lib/research/tavily";
 import { searchWorks } from "@/lib/research/openalex";
 import { searchPapers } from "@/lib/research/semanticScholar";
 import { extract } from "@/lib/research/extract";
 import { routeQueries } from "@/lib/research/intentRouter";
 import type { RoutingDecision } from "@/lib/research/intentRouter";
+import { buildSearchQuery } from "@/lib/research/queryBuilder";
 
 // Approximate character budget per chunk (~512 tokens at ~4 chars/token).
 const CHUNK_CHAR_BUDGET = 2_048;
@@ -338,8 +339,9 @@ export class LiveResearchAgent implements ResearchAgent {
 
     await safeEmit(onProgress, { phase: "searching" });
 
-    const primaryQuery =
-      goalpostQueries.length > 0 ? goalpostQueries.join(" ") : topicLabel;
+    // Topic label first, then objectives while they fit under the 400-char
+    // cap Tavily enforces; never a naive unbounded join (T-tavily-query-length).
+    const primaryQuery = buildSearchQuery(topicLabel, goalpostQueries);
 
     const decision: RoutingDecision = routeQueries(topicLabel, goalpostQueries);
 
@@ -368,13 +370,31 @@ export class LiveResearchAgent implements ResearchAgent {
         sources.push(...academicSources);
       }
     } catch (err) {
-      // Non-key failures (network timeouts, unexpected 5xx) are logged and
-      // degrade gracefully: the bundle returns whatever was collected so far,
-      // which may be zero sources (T04).
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[live-research-agent] retrieval error for "${topicLabel}": ${(err as Error).message}`,
-      );
+      if (err instanceof TavilyRequestError && err.status >= 400 && err.status < 500) {
+        // A 4xx is OUR bug (malformed request, e.g. a query that slipped past
+        // the length guard) — not network flakiness. Log it loudly and
+        // distinctly so it is never indistinguishable from "no results" in
+        // the logs, even though the bundle still degrades gracefully (T04).
+        // eslint-disable-next-line no-console
+        console.error(
+          JSON.stringify({
+            event: "live_research_agent.client_error",
+            topicKey,
+            topicLabel,
+            status: err.status,
+            queryLength: primaryQuery.length,
+            queryPreview: primaryQuery.slice(0, 120),
+          }),
+        );
+      } else {
+        // Non-key failures (network timeouts, unexpected 5xx) are logged and
+        // degrade gracefully: the bundle returns whatever was collected so far,
+        // which may be zero sources (T04).
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[live-research-agent] retrieval error for "${topicLabel}": ${(err as Error).message}`,
+        );
+      }
     }
 
     // eslint-disable-next-line no-console
