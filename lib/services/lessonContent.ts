@@ -3,7 +3,9 @@
  * PathOutliner, which builds structure up front). Runs when the learner enters
  * the goalpost, with the learner profile injected to tailor support level and
  * worked-example count. Additive — does not touch the locked `types.ts`
- * boundary; wired through `getServices()`.
+ * boundary; wired through `getServices()`. The `LessonContentGenerator`
+ * interface itself lives in
+ * `lib/services/interfaces/lessonContentGenerator.interface.ts`.
  */
 
 import type { LearnerProfileState } from "@/lib/journey/learnerProfile";
@@ -46,7 +48,3 @@ export type LessonContent = {
    */
   visuals: VisualNeed[];
 };
-
-export interface LessonContentGenerator {
-  generate(input: LessonContentInput): Promise<LessonContent>;
-}

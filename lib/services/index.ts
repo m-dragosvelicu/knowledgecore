@@ -1,71 +1,39 @@
 import type { Services } from "@/lib/services/types";
 import type { LLMClient } from "@/lib/llm";
 import { getDefaultClient } from "@/lib/llm";
-import { GeminiIntentParser } from "@/lib/services/providers/intentParser";
-import { GeminiGoalInterviewer } from "@/lib/services/providers/goalInterviewer";
-import { GeminiKnowledgeProbe } from "@/lib/services/providers/knowledgeProbe";
-import { GeminiPathOutliner } from "@/lib/services/providers/pathOutliner";
-import { GeminiCheckpointEvaluator } from "@/lib/services/providers/checkpointEvaluator";
-import { GeminiPathAdjuster } from "@/lib/services/providers/pathAdjuster";
+import { GeminiIntentParser } from "@/lib/services/providers/intentParser.service";
+import { GeminiGoalInterviewer } from "@/lib/services/providers/goalInterviewer.service";
+import { GeminiKnowledgeProbe } from "@/lib/services/providers/knowledgeProbe.service";
+import { GeminiPathOutliner } from "@/lib/services/providers/pathOutliner.service";
+import { GeminiCheckpointEvaluator } from "@/lib/services/providers/checkpointEvaluator.service";
+import { GeminiPathAdjuster } from "@/lib/services/providers/pathAdjuster.service";
 import type { Author, OrchestratorPorts } from "@/lib/journey/lessonOrchestration";
-import { LessonAuthor } from "@/lib/services/providers/lessonAuthor";
-import { buildVisualWorkers } from "@/lib/services/providers/visualWorkers";
+import { LessonAuthor } from "@/lib/services/providers/lessonAuthor.service";
+import { buildVisualWorkers } from "@/lib/services/providers/visualWorkers.service";
 import type { VisualWorkers } from "@/lib/journey/lessonOrchestration";
-import type { PathConfirmationInterviewer } from "@/lib/services/pathConfirmation";
-import { GeminiPathConfirmationInterviewer } from "@/lib/services/providers/pathConfirmationInterviewer";
-import type { OutcomeReviser } from "@/lib/services/outcomeRevision";
-import { GeminiOutcomeReviser } from "@/lib/services/providers/outcomeReviser";
-import type { Transcriber } from "@/lib/services/transcription";
-import { GeminiTranscriber } from "@/lib/services/providers/transcriber";
+import type { PathConfirmationInterviewer } from "@/lib/services/interfaces/pathConfirmationInterviewer.interface";
+import { GeminiPathConfirmationInterviewer } from "@/lib/services/providers/pathConfirmationInterviewer.service";
+import type { OutcomeReviser } from "@/lib/services/interfaces/outcomeReviser.interface";
+import { GeminiOutcomeReviser } from "@/lib/services/providers/outcomeReviser.service";
+import type { Transcriber } from "@/lib/services/interfaces/transcriber.interface";
+import { GeminiTranscriber } from "@/lib/services/providers/transcriber.service";
 import { getDefaultTranscriptionClient } from "@/lib/llm";
-import type { ImageSource, VideoSource } from "@/lib/services/visualMedia";
-import { OpenverseImageSource } from "@/lib/services/providers/openverseImageSource";
-import { YouTubeVideoSource } from "@/lib/services/providers/youTubeVideoSource";
-import type { ResearchAgent } from "@/lib/services/research";
-import { MultiSourceResearchAgent } from "@/lib/services/providers/researchAgent";
-
-export * from "@/lib/services/types";
-export type { LessonContentGenerator } from "@/lib/services/lessonContent";
-export type {
-  PathConfirmationInterviewer,
-  PathConfirmationInput,
-  PathConfirmationStep,
-  OverviewGoalpost,
-} from "@/lib/services/pathConfirmation";
-export type {
-  OutcomeReviser,
-  OutcomeSubject,
-  OutcomeRevisionInput,
-  OutcomeRevisionResult,
-} from "@/lib/services/outcomeRevision";
-export type {
-  Transcriber,
-  TranscribeInput,
-  TranscribeResult,
-} from "@/lib/services/transcription";
-export type {
-  ImageSource,
-  VideoSource,
-  VisualKind,
-  VisualMedium,
-  VisualNeed,
-  ResolvedVisual,
-  ImageAttribution,
-} from "@/lib/services/visualMedia";
-export type {
-  ResearchAgent,
-  Bundle,
-  Source,
-  Chunk,
-  GapQueries,
-} from "@/lib/services/research";
+import type { ImageSource } from "@/lib/services/interfaces/imageSource.interface";
+import type { VideoSource } from "@/lib/services/interfaces/videoSource.interface";
+import { OpenverseImageSource } from "@/lib/services/providers/openverseImageSource.service";
+import { YouTubeVideoSource } from "@/lib/services/providers/youTubeVideoSource.service";
+import type { ResearchAgent } from "@/lib/services/interfaces/researchAgent.interface";
+import { MultiSourceResearchAgent } from "@/lib/services/providers/researchAgent.service";
 
 /**
  * Service registry: builds each service contract's Gemini-backed
  * implementation. Every LLM-backed service requires `GOOGLE_GENAI_API_KEY`
  * and the selectors fail fast (throw) when it is missing. The image/video
  * SOURCES are keyless (Openverse anonymous search, YouTube oEmbed) so they
- * are not gated.
+ * are not gated. This module is the registry's wiring only — the data types,
+ * schemas, and service interfaces each live in their own module
+ * (lib/services/types.ts, lib/services/interfaces/, lib/services/<domain>.ts);
+ * import them directly from there rather than through this file.
  */
 
 /** The LLM-backed selectors cannot run without the Gemini key. */

@@ -1,5 +1,5 @@
 // Static system prompt for the path-confirmation clarifying dialogue. Owned
-// by lib/services/providers/pathConfirmationInterviewer.ts; kept here so the
+// by lib/services/providers/pathConfirmationInterviewer.service.ts; kept here so the
 // prompt text is separate from the turn-taking/telemetry plumbing around it.
 
 export const PATH_CONFIRMATION_INTERVIEWER_SYSTEM = `You are the PATH CONFIRMATION interviewer of an AI learning

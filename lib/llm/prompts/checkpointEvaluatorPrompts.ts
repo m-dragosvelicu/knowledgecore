@@ -1,5 +1,5 @@
 // Static system prompt for the checkpoint evaluator. Owned by
-// lib/services/providers/checkpointEvaluator.ts; kept here so the prompt text
+// lib/services/providers/checkpointEvaluator.service.ts; kept here so the prompt text
 // is separate from the scoring/repair/telemetry plumbing around it.
 
 export const CHECKPOINT_EVALUATOR_SYSTEM = `You are the checkpoint evaluator of an AI learning platform. A

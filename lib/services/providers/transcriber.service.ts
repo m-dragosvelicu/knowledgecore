@@ -2,10 +2,10 @@ import type { TranscriptionClient, TranscriptionResult } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
-  Transcriber,
   TranscribeInput,
   TranscribeResult,
 } from "@/lib/services/transcription";
+import type { Transcriber } from "@/lib/services/interfaces/transcriber.interface";
 
 // Fallback model id for the telemetry row when a failure short-circuits the call
 // before usage is reported. Mirrors the other providers' TELEMETRY_MODEL.

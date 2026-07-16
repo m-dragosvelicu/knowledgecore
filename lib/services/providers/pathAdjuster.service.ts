@@ -2,11 +2,8 @@ import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
-import type {
-  PathAdjuster,
-  PathAdjusterInput,
-  PathAdjustment,
-} from "@/lib/services/types";
+import type { PathAdjusterInput, PathAdjustment } from "@/lib/services/types";
+import type { PathAdjuster } from "@/lib/services/interfaces/pathAdjuster.interface";
 import { PATH_ADJUSTER_SYSTEM } from "@/lib/llm/prompts/pathAdjusterPrompts";
 
 // Fallback model id for telemetry when a failure short-circuits before onUsage fires.
@@ -31,7 +28,8 @@ const insertedStepTypeSchema = z.enum([
 
 // Flat object, not a union (Gemini's converter has no oneOf/anyOf — see
 // lib/llm/gemini.ts zodToGeminiSchema; mirrors the same flattening already used
-// by interviewStepSchema/authoredBlockSchema in providers/schemas.ts). Discriminated
+// by interviewStepSchema in goalInterviewer.service.ts and authoredBlockSchema in
+// lessonAuthor.service.ts). Discriminated
 // by `type`; fields belonging to the other variant are nullish. SKELETON ONLY
 // (redesign §9) for information steps: the two-phase pipeline authors `content`
 // on entry, so no content field exists here. superRefine below reinstates the

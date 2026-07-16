@@ -1,10 +1,11 @@
 /**
- * The Transcriber contract (speech-to-text): recorded audio in, clean
+ * The Transcriber data types (speech-to-text): recorded audio in, clean
  * transcript out. Additive — lives alongside the locked `lib/services/types.ts`
  * boundary, wired through the registry like the other L1 services. Audio is
  * NOT persisted anywhere; only the transcript and a telemetry row survive.
  * English-first; `languageHint` is wired so multilingual is a parameter change
- * later, not a new integration.
+ * later, not a new integration. The `Transcriber` interface itself lives in
+ * `lib/services/interfaces/transcriber.interface.ts`.
  */
 
 export type TranscribeInput = {
@@ -23,7 +24,3 @@ export type TranscribeResult = {
   /** The clean transcript. May be empty for a silent/unintelligible recording. */
   transcript: string;
 };
-
-export interface Transcriber {
-  transcribe(input: TranscribeInput): Promise<TranscribeResult>;
-}

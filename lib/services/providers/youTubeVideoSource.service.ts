@@ -1,8 +1,8 @@
 import type {
   SourcedVideo,
   VideoSearchInput,
-  VideoSource,
 } from "@/lib/services/visualMedia";
+import type { VideoSource } from "@/lib/services/interfaces/videoSource.interface";
 
 /**
  * Reference-video source (YouTube). Video is a reference suggestion for

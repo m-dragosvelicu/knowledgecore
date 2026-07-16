@@ -1,14 +1,47 @@
+import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
 import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
-  CheckpointEvaluator,
   EvaluationResult,
   EvaluatorInput,
   EvidenceQuote,
 } from "@/lib/services/types";
-import { evaluationResultSchema } from "./schemas";
+import type { CheckpointEvaluator } from "@/lib/services/interfaces/checkpointEvaluator.interface";
+import { rubricLevelSchema } from "./shared.schemas";
 import { CHECKPOINT_EVALUATOR_SYSTEM } from "@/lib/llm/prompts/checkpointEvaluatorPrompts";
+
+const rubricScoresSchema = z.object({
+  recall: rubricLevelSchema,
+  application: rubricLevelSchema,
+  conceptual: rubricLevelSchema,
+  transfer: rubricLevelSchema,
+  communication: rubricLevelSchema,
+  coverage: rubricLevelSchema,
+});
+
+const dimensionSchema = z.enum([
+  "recall",
+  "application",
+  "conceptual",
+  "transfer",
+  "communication",
+  "coverage",
+]);
+
+const evidenceQuoteSchema = z.object({
+  dimension: dimensionSchema,
+  quote: z.string(),
+});
+
+const decisionSchema = z.enum(["advance", "repeat", "adjust_plan"]);
+
+const evaluationResultSchema = z.object({
+  scores: rubricScoresSchema,
+  evidence: z.array(evidenceQuoteSchema).min(1),
+  decision: decisionSchema,
+  rationale: z.string().min(1),
+});
 
 // gemini-3.5-flash is the live default. Token usage is surfaced from
 // completeStructured via the onUsage callback (lib/llm/types.ts); this
