@@ -120,7 +120,7 @@ type GeminiSchema = {
   nullable?: boolean;
 };
 
-function zodToGeminiSchema(schema: z.ZodTypeAny): GeminiSchema {
+export function zodToGeminiSchema(schema: z.ZodTypeAny): GeminiSchema {
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
     const inner = zodToGeminiSchema(schema.unwrap());
     return { ...inner, nullable: true };
