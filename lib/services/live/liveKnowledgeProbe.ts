@@ -52,10 +52,9 @@ Produce two things:
    their knowledge (e.g. "Correctly solved the linear equation, showing solid
    algebra fluency." or "Selected 'I'm not sure', so no eigenvalue intuition yet.").`;
 
-// gemini-3.5-flash is the live default for L0 services. Token usage is surfaced
-// from completeStructured via the optional onUsage callback (lib/llm/types.ts);
-// this constant is the fallback model id for telemetry when a failure
-// short-circuits the call before any usage callback fires.
+// gemini-3.5-flash is the live default. Token usage is surfaced from
+// completeStructured via the onUsage callback (lib/llm/types.ts); this
+// constant is only the telemetry fallback for a pre-usage failure.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
 type ProbePurpose = "knowledge_probe_questions" | "knowledge_probe_score";

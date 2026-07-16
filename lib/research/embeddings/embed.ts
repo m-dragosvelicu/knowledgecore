@@ -1,10 +1,8 @@
 /**
- * Production passage-embedding service.
- *
- * Reuses the ADR-9-ratified Gemini embedding call EXACTLY as proven by the D4
- * eval (gemini-embedding-001, dim 3072, Cosine — see lib/research/embeddings/
- * clients.ts and decisions/2026-06-03-adr9-web-search-source-strategy). No
- * embedding params are re-derived here: this module only productionizes the
+ * Production passage-embedding service. Reuses the ADR-9-ratified Gemini
+ * embedding call exactly as proven by the D4 eval (gemini-embedding-001, dim
+ * 3072, Cosine — see clients.ts and decisions/2026-06-03-adr9-web-search-
+ * source-strategy). No params are re-derived; this only productionizes the
  * proven call into a reusable, dim-checked function for kc_passages ingestion.
  */
 import { GoogleGenAI } from "@google/genai";
@@ -12,11 +10,8 @@ import { GoogleGenAI } from "@google/genai";
 export const EMBEDDING_MODEL = "gemini-embedding-001";
 export const EMBEDDING_DIM = 3072;
 
-// Gemini API hard limit on batchEmbedContents ("at most 100 requests can be
-// in one batch") — undocumented in the SDK types, confirmed against the live
-// API. embedContent() with an array `contents` already maps to one
-// batchEmbedContents HTTP call per array, so chunking at this ceiling
-// collapses N sequential round trips into ceil(N / 100).
+// Gemini API hard limit on batchEmbedContents (undocumented in SDK types,
+// confirmed against the live API: "at most 100 requests can be in one batch").
 const MAX_BATCH_SIZE = 100;
 
 declare global {
@@ -39,13 +34,11 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 /**
- * Embed passages with gemini-embedding-001 at dim 3072. Texts are sent in
- * batches of up to MAX_BATCH_SIZE via a single embedContent call per batch
- * (an array `contents` maps to one batchEmbedContents request), which
- * preserves input order per the Gemini API's documented response guarantee
- * ("embeddings for each request, in the same order as provided"). Throws if
- * any vector is not EMBEDDING_DIM so a model/param drift can never silently
- * land mismatched vectors in the dim-locked collection.
+ * Embed passages with gemini-embedding-001 at dim 3072, in batches of up to
+ * MAX_BATCH_SIZE. Order is preserved per the Gemini API's documented guarantee
+ * ("embeddings for each request, in the same order as provided"). Throws if any
+ * vector isn't EMBEDDING_DIM so drift never lands mismatched vectors in the
+ * dim-locked collection.
  */
 export async function embedPassages(texts: string[]): Promise<number[][]> {
   const gemini = client();

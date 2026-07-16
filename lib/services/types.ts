@@ -3,10 +3,9 @@ import type { Decision, Motivation, StepType } from "@prisma/client";
 export type ParsedSubject = {
   canonicalName: string;
   scopeNote: string;
-  // L0.md §3 Stage 2: the parser must surface ambiguity back to the learner
-  // rather than silently narrowing. Set when the raw input is too vague, too
-  // broad, or carries two intents in one. Transient (not persisted) — used to
-  // drive the confirm/refine step in the intent wizard.
+  // Surfaces ambiguity back to the learner instead of silently narrowing
+  // (L0.md §3 Stage 2). Transient — not persisted; drives the confirm/refine
+  // step in the intent wizard.
   ambiguous?: boolean;
   // A short clarification question/note shown to the learner when `ambiguous`.
   clarification?: string;
@@ -154,13 +153,11 @@ export interface CheckpointEvaluator {
   evaluate(input: EvaluatorInput): Promise<EvaluationResult>;
 }
 
-// =====================================================================
-// Path Adjuster — L0.md §5 / §7 decision branch `adjust_plan`.
-// Added to the locked boundary under CEO delegated authority (2026-05-31)
-// to close the M6 remediation loop; see DECISIONS-INDEX.
-// Minimal-edit principle: prefer inserting/replacing 1-2 goalposts over
-// rewriting the tail; keep >=70% of the original remaining path intact.
-// =====================================================================
+// Path Adjuster — L0.md §5/§7 decision branch `adjust_plan`. Added to the
+// locked boundary under CEO delegated authority (2026-05-31) to close the M6
+// remediation loop (see DECISIONS-INDEX). Minimal-edit principle: prefer
+// inserting/replacing 1-2 goalposts over rewriting the tail; keep >=70% of
+// the original remaining path intact.
 
 export type RemainingGoalpost = {
   order: number;

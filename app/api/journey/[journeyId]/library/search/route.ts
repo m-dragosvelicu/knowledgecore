@@ -34,7 +34,6 @@ export async function POST(
 
   const { journeyId } = await params;
 
-  // Ownership: only the journey owner may search its Library scope.
   const intent = await prisma.learningIntent.findUnique({
     where: { id: journeyId },
     select: { userId: true },

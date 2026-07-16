@@ -3,17 +3,10 @@
  * (lib/journey/learnerProfile.ts). Run: `bun run scripts/verify-learner-profile.ts`.
  * No DB or LLM needed — learnerProfile.ts is pure. Exits non-zero on any failure.
  *
- * Proves the BKT-style update rule is well-behaved with the fixed parameters:
- *   (a) a correct answer raises mastery; an incorrect answer lowers the
- *       conditioned belief; the result is always clamped to [0,1].
- *   (b) the rule is deterministic and monotone-ish: repeated correct answers
- *       converge UP toward (but never exceed) 1; repeated incorrect answers
- *       stay low.
- *   (c) `applyMasteryEvidence` is immutable, starts a new concept from the prior,
- *       increments `observations`, and stamps `lastUpdatedAt`.
- *   (d) decision -> evidence mapping: advance=correct, repeat=incorrect,
- *       adjust_plan=null (not mastery evidence).
- *   (e) the fixed parameters satisfy the BKT identifiability bound slip+guess<1.
+ * Covers the BKT update rule: direction + clamping to [0,1], convergence over
+ * repeated evidence, applyMasteryEvidence's immutability/observation-count/
+ * timestamp behavior, decision->evidence mapping, and the slip+guess<1
+ * identifiability bound on the fixed parameters.
  */
 import {
   BKT_PARAMS,

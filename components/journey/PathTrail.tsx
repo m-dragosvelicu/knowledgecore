@@ -12,21 +12,10 @@ import {
   TrailScore,
 } from "@/components/marks/Marks";
 
-// B.6 Q3 (resolved 2026-05-30): a VERTICAL, Duolingo-style skill trail -- a
-// winding column of nodes with one obvious next step, a sticky "you are here"
-// marker, completed nodes tappable for review, and future nodes locked. We
-// adopt only the navigational affordance: NO streaks, XP, lives, or points.
-//
-// Slice 5 (design system): the trail is now drawn in the product's literal
-// hand-drawn language -- the connector legs are wobbly self-drawing teal strokes
-// for the walked path and quiet dotted legs for what is ahead; checkpoint nodes
-// are hatched circles (completed), a filled node with a planted flag (current),
-// or a bone circle (locked); completed goalposts carry a roughened score
-// ellipse. Marks live in components/marks/Marks.tsx and reference the shared
-// #rough / #hatchT defs; the draw-on resolves to its finished stroke under
-// prefers-reduced-motion (handled by .kc-draw in globals.css). This is
-// presentation only: states, ordering, scores, and every link/lock/aria
-// behavior are driven by the SAME real journey data as before.
+// Vertical skill trail (B.6 Q3): navigational affordance only, no
+// streaks/XP/points. Visual marks live in components/marks/Marks.tsx;
+// presentation only — states/ordering/scores/aria are driven by the same
+// journey data as before.
 
 export type TrailStepKind =
   | "information"
@@ -46,10 +35,9 @@ export type TrailNode = {
   added: boolean;
   // Step-type chips (information + experience) for the goalpost.
   stepTypes: TrailStepKind[];
-  // The cleared goalpost's score out of 4 (mean of the rubric dimensions),
-  // derived on the server from the latest checkpoint evaluation. Present only
-  // for completed goalposts that were actually evaluated; absent ones render
-  // the hatched node + check without a score ellipse.
+  // Score out of 4 (mean of rubric dims), present only for completed
+  // goalposts that were evaluated; absent renders the hatched node without
+  // an ellipse.
   score?: number;
 };
 
@@ -151,8 +139,7 @@ function NodeCard({ node }: { node: TrailNode }) {
 
 // The card, wrapped in its interaction affordance. Completed goalposts are
 // tappable for read-only review; the current goalpost links into the live
-// execution loop; locked goalposts are inert (tooltip). Unchanged from before
-// the restyle -- only the surrounding marks moved to the hand-drawn language.
+// execution loop; locked goalposts are inert (tooltip).
 function NodeCardLink({
   node,
   intentId,

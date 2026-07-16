@@ -9,20 +9,12 @@ import { SkipButton } from "@/components/ui";
 import type { ResolvedVisual } from "@/lib/services/visualMedia";
 
 /**
- * L1 Slice 4 — the ONE component that renders whichever medium the gate chose:
- * a sanitized SVG, a license-clean attributed image, or a reference video embed.
- * Build once, route at the data layer, render here.
+ * Renders whichever visual medium the gate chose (svg/image/video).
  *
- * SECURITY: an `svg` ResolvedVisual has ALREADY passed the dedicated SVG
- * sanitizer (lib/services/visual/svgSanitizer.ts) on the SERVER before it reaches
- * this component. That is the ONLY reason dangerouslySetInnerHTML is acceptable
- * here. This component MUST be handed only sanitizer output for the svg case; it
- * never sanitizes raw model output itself, and the markdown sanitizer is never
- * involved with SVG.
- *
- * Accessibility: images carry real alt text (the caption); the SVG container is
- * given role="img" + aria-label; the video iframe has a title; every visual has a
- * visible caption. The "not helpful" control is a real button with an aria-label.
+ * SECURITY: an `svg` ResolvedVisual must already be sanitizer output
+ * (lib/services/visual/svgSanitizer.ts) — the only reason
+ * dangerouslySetInnerHTML is safe here. Never feed raw model output through
+ * this path.
  */
 
 type Props = {
@@ -51,10 +43,6 @@ function Caption({ children }: { children: React.ReactNode }) {
   );
 }
 
-// The "not helpful" control is a skip-tier affordance: text-only at rest, a
-// loose freehand teal loop draws around it on hover. Same machinery as the rest
-// of the lightest workbench tier -- a low-stakes opt-out, not a commitment. The
-// wiring to the learner profile (onNotHelpful) is unchanged: presentation only.
 function NotHelpful({
   visualId,
   intentId,

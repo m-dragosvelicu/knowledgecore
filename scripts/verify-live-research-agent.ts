@@ -2,15 +2,10 @@
  * E01.S03 verification: live Research Agent end-to-end.
  * Run: bun run scripts/verify-live-research-agent.ts
  *
- * Checks:
- *   1. routeQueries classifies correctly across all four depth tiers.
- *   2. LiveResearchAgent.research() returns a Bundle with >= 1 real Tavily source.
- *   3. Sources have real URLs (not mock example.org URLs).
- *   4. Sources have non-empty chunks.
- *   5. DB persistence: source + chunks written, bundle marked ready, intentId bound.
- *   6. Closed-book check: the agent pre-assembles sources; it does NOT open the web mid-lesson.
- *
- * Exits non-zero on any failure.
+ * Checks: intent-router tier classification, LiveResearchAgent returns a real
+ * Tavily-backed bundle (real URLs, non-empty chunks), DB persistence (source +
+ * chunks + bound bundle), and the closed-book guarantee (sources pre-assembled
+ * before generation, never fetched mid-lesson). Exits non-zero on failure.
  */
 
 import { routeQueries } from "../lib/research/intentRouter";
@@ -153,7 +148,6 @@ try {
     );
   }
 } finally {
-  // Cleanup.
   try {
     const b = await prisma.researchBundle.findUnique({
       where: { topicFingerprint },

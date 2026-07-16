@@ -26,10 +26,9 @@ export default async function ProbePage({
   const outcome = await prisma.expectedOutcome.findUnique({ where: { intentId: intent.id } });
   if (!subject || !outcome) redirect(`/journey/outcome?j=${intent.id}`);
 
-  // Lazy generation (mirrors the goalpost lesson-content gate in
-  // goalpost/page.tsx): no inline LLM await here. A missing/not-ready record
-  // renders the wait screen, which kicks off generation and polls; a `ready`
-  // record renders the real questions + any saved answers immediately.
+  // Lazy generation (mirrors goalpost/page.tsx): no inline LLM await. A
+  // missing/not-ready record renders the wait screen (kicks off generation +
+  // polls); a `ready` record renders the questions + saved answers.
   const probeState = await readProbeGenerationStateAction(intent.id);
 
   const header = (

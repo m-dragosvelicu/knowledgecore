@@ -1,17 +1,9 @@
 "use client";
 
-// KnowledgeCore — Skip button (Slice 1): the lightest workbench tier.
-//
-// For actions so low-stakes a resting outline would be too much weight
-// (e.g. "skip for now"). Text-only at rest; on hover a loose freehand teal loop
-// draws itself around the word (stroke-dashoffset 1 -> 0) and that is ALL — NO
-// hatch fill, no silhouette. Same machinery as WobbleButton, less of it: one
-// looser loop path instead of a tidy pill, and the hatch step is skipped.
-//
-// kcBuildSkip() is ported verbatim from
-// design-system/ui_kits/web-app/Controls.jsx (mirrors preview/comp-buttons.html
-// buildSkip()). The seed re-rolls on every mouseenter so the loop never repeats.
-// CSS (.kc-skip / .kc-loop-stroke, opacity:0 at rest) lives in app/globals.css.
+// Lightest workbench-tier button: text-only at rest; hover draws a freehand
+// teal loop only (no hatch fill, unlike WobbleButton).
+// kcBuildSkip() ported verbatim from design-system/ui_kits/web-app/Controls.jsx
+// (buildSkip()). CSS (.kc-skip / .kc-loop-stroke) lives in app/globals.css.
 
 import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";

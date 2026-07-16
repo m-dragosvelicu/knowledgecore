@@ -21,16 +21,11 @@ export function daysSince(when: Date, now: Date = new Date()): number {
 }
 
 /**
- * Lazily apply the §6 inactivity state machine to a single intent, based on how
- * long ago it was last touched (`updatedAt`). Safe and narrow:
- *  - only acts on `in_progress` / `paused` journeys; never on complete/abandoned
- *    or the pre-execution wizard statuses.
- *  - `> 30d` idle  -> `abandoned` (returns null: it is no longer the active journey).
- *  - `> 7d` idle and currently `in_progress` -> `paused`.
- * Returns the (possibly updated) intent, or null when it became abandoned.
- *
- * This is app/server code (not a workflow script), so `new Date()` at runtime
- * is the intended clock; it is injectable for tests via the `now` parameter.
+ * Lazily apply the §6 inactivity state machine to a single intent, based on
+ * `updatedAt`. Only acts on `in_progress`/`paused` journeys. `> 30d` idle ->
+ * `abandoned` (returns null); `> 7d` idle and `in_progress` -> `paused`.
+ * Returns the (possibly updated) intent, or null when abandoned. `now`
+ * defaults to the runtime clock and is injectable for tests.
  */
 export async function applyInactivityTransitions(
   intent: LearningIntent,
@@ -64,13 +59,9 @@ export async function getOrCreateActiveIntent(
   userId: string,
   intentId?: string | null,
 ): Promise<LearningIntent | null> {
-  // Addressable resume (bug: clicking a journey card opened the most-recent
-  // journey, not the clicked one). When the caller passes an explicit intent id
-  // (from the `?j=<id>` route param), load THAT journey -- but only if it
-  // belongs to the requesting user. Ownership is enforced in the `where` clause
-  // (userId must match), so a user can never open another user's journey by
-  // guessing an id. A non-terminal status is still required so we don't resume a
-  // complete/abandoned journey into the wizard.
+  // Addressable resume: an explicit intent id (from `?j=<id>`) loads THAT
+  // journey, ownership-checked in the `where` clause so a user can't open
+  // another user's journey by guessing an id. Terminal statuses excluded.
   if (intentId) {
     const byId = await prisma.learningIntent.findFirst({
       where: {
@@ -97,11 +88,9 @@ export async function getOrCreateActiveIntent(
 
 export function nextWizardRoute(intent: LearningIntent | null): string {
   if (!intent) return "/journey/intent";
-  // Make the route ADDRESSABLE by journey id. Each wizard stage resolves which
-  // journey to load via getOrCreateActiveIntent, which honors a `?j=<id>` param
-  // (falling back to most-recent when absent). Without this, every card linked
-  // to a generic, id-less route and the page then loaded whichever journey was
-  // touched most recently -- so clicking journey A could open journey B.
+  // Route is addressable by journey id (`?j=<id>`), resolved by
+  // getOrCreateActiveIntent — otherwise every card links to a generic
+  // id-less route and clicking journey A could open journey B.
   const withId = (path: string) => `${path}?j=${intent.id}`;
   switch (intent.status) {
     case "created":

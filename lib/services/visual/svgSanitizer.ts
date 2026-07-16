@@ -1,38 +1,20 @@
 /**
- * L1 Slice 4 — the DEDICATED SVG sanitization path (SECURITY BOUNDARY).
+ * Dedicated SVG sanitization path (security boundary). Generated SVG is code,
+ * not text: it can carry <script>, event-handler attributes, <foreignObject>
+ * (arbitrary HTML), and external refs (href/url()/<use>) that fetch or
+ * execute attacker content. The markdown sanitizer (components/Markdown.tsx)
+ * must never see SVG — this is the separate, purpose-built path.
  *
- * WHY THIS EXISTS
- * ---------------
- * A generated SVG is CODE, not text. SVG can carry <script>, event-handler
- * attributes (onload, onclick, ...), <foreignObject> (which embeds arbitrary
- * HTML), and external references (href/xlink:href, url(...), <use> to remote
- * documents) that fetch or execute attacker-controlled content. The lesson-text
- * markdown sanitizer (components/Markdown.tsx) is tuned for prose + LaTeX + code
- * fences; it is the WRONG tool for SVG and must NEVER see SVG. This is that
- * separate, purpose-built path.
- *
- * DESIGN: DEFAULT-DENY, ALLOWLIST.
- *   - Only an explicit allowlist of SVG drawing elements survives. Anything not
- *     on the list (script, foreignObject, image, use, a, iframe, style, ...) is
- *     dropped entirely.
- *   - Only an explicit allowlist of presentational attributes survives. Every
- *     event handler (on*) and every external/script-bearing attribute is dropped.
- *   - Any attribute VALUE containing a dangerous scheme (javascript:, data: that
- *     is not an inline image we explicitly forbid anyway, etc.) is dropped.
- *   - The result is re-serialized from the allowlisted shape, so even malformed
- *     or smuggled markup cannot survive — only what the allowlist re-emits does.
- *
- * This module is PURE and has NO React / DOM-runtime dependency, so it runs in
- * the verify script, on the server, and in tests identically. It does its own
- * lightweight tokenization rather than relying on a browser DOMParser so it is
- * deterministic and server-safe.
+ * Default-deny, allowlist only (elements, then attributes, then attribute
+ * values), re-serialized from the allowlisted shape so malformed/smuggled
+ * markup cannot survive. Pure, no DOM/React dependency — runs identically in
+ * the verify script, server, and tests; does its own tokenization rather than
+ * a browser DOMParser for determinism.
  */
 
-// ---------------------------------------------------------------------------
-// Allowlists. Conservative on purpose: this is the set needed for explanatory
-// line/box/arrow/label diagrams + simple charts. Add to it deliberately, never
-// by reflex — every addition widens the attack surface.
-// ---------------------------------------------------------------------------
+// Allowlists — conservative on purpose (the set needed for explanatory
+// line/box/arrow/label diagrams + simple charts). Extend deliberately, never
+// by reflex: every addition widens the attack surface.
 
 /** SVG elements that are SAFE to render (drawing + grouping + text + defs). */
 const ALLOWED_ELEMENTS = new Set<string>([
@@ -59,11 +41,10 @@ const ALLOWED_ELEMENTS = new Set<string>([
 ]);
 
 /**
- * EXPLICITLY DENIED elements. Not strictly necessary given default-deny, but
- * listed so the intent is auditable and so the verify script can assert each is
- * neutralized. <foreignObject> embeds arbitrary HTML; <script> executes; <image>
- * / <use> / <a> can pull or navigate to external content; <style> can smuggle
- * CSS-driven script in some engines.
+ * Explicitly denied (redundant given default-deny, but keeps intent auditable
+ * and lets the verify script assert each is neutralized). <foreignObject>
+ * embeds arbitrary HTML; <script> executes; <image>/<use>/<a> pull or
+ * navigate to external content; <style> can smuggle CSS-driven script.
  */
 export const DENIED_ELEMENTS = new Set<string>([
   "script",
@@ -152,10 +133,10 @@ const ALLOWED_ATTRS = new Set<string>([
 ]);
 
 /**
- * A curated, SAFE subset of inline CSS properties allowed inside a `style="..."`
- * attribute. `style` is otherwise a common smuggling vector, so it is parsed
- * property-by-property and rebuilt from this allowlist; anything with a url(),
- * expression(), or javascript: is dropped.
+ * Curated allowlist of inline CSS properties permitted inside `style="..."`.
+ * `style` is otherwise a smuggling vector: parsed property-by-property and
+ * rebuilt from this list; anything with url(), expression(), or javascript:
+ * is dropped.
  */
 const ALLOWED_STYLE_PROPS = new Set<string>([
   "fill",
@@ -281,13 +262,12 @@ export type SvgSanitizeResult = {
 };
 
 /**
- * Sanitize untrusted SVG markup on the DEDICATED path. Default-deny + allowlist.
- *
- * Re-serializes from the allowlisted token stream so smuggled/malformed markup
- * cannot survive: an unknown element's TAGS are dropped (its allowlisted text
- * children may remain as inert text, which is harmless), every disallowed
- * attribute is dropped, and dangerous values are dropped. The output, if
- * non-empty, is a single sanitized <svg>...</svg> tree safe to inline.
+ * Sanitize untrusted SVG markup on the dedicated path (default-deny +
+ * allowlist). Re-serializes from the allowlisted token stream so
+ * smuggled/malformed markup cannot survive: an unknown element's tags are
+ * dropped (its allowlisted text children may remain as harmless inert text),
+ * disallowed attributes and dangerous values are dropped. Non-empty output is
+ * a single sanitized <svg>...</svg> tree safe to inline.
  */
 export function sanitizeSvg(input: string): SvgSanitizeResult {
   const removed: string[] = [];
@@ -315,14 +295,12 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
   };
 
   while ((m = tagRe.exec(cleaned)) !== null) {
-    // text before this tag
     emitText(cleaned.slice(lastIndex, m.index));
     lastIndex = tagRe.lastIndex;
 
     const tag = m[0];
     const isClose = tag.startsWith("</");
     const selfClose = /\/>\s*$/.test(tag);
-    // element name
     const nameMatch = /^<\/?\s*([a-zA-Z][\w:.-]*)/.exec(tag);
     const rawName = nameMatch ? nameMatch[1] : "";
     const lname = rawName.toLowerCase();
@@ -373,7 +351,6 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
     const attrStr = safeAttrs.length ? " " + safeAttrs.join(" ") : "";
     out.push(selfClose ? `<${lname}${attrStr}/>` : `<${lname}${attrStr}>`);
   }
-  // trailing text
   emitText(cleaned.slice(lastIndex));
 
   let svg = out.join("");
@@ -384,7 +361,6 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
     return { svg: "", ok: false, removed: [...removed, "FAILSAFE_TRIGGERED"] };
   }
 
-  // The result is only usable if it actually contains an <svg> root.
   const ok = /<svg[\s>]/i.test(svg) && /<\/svg>/i.test(svg);
   if (!ok) svg = "";
 

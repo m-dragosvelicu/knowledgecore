@@ -1,13 +1,6 @@
-// KnowledgeCore — global backdrop: the two fixed texture layers (dot grid +
-// grain) and the shared hand-mark SVG defs (#rough filter + #hatchT pattern).
-//
-// Mounted once, high in the app shell (app/layout.tsx), before any consumer.
-// The texture layers sit at z-index 0 with pointer-events:none; app content
-// renders in normal flow above them. The defs live in a 0x0 hidden SVG so later
-// slices' hand-drawn marks can reference url(#rough) / url(#hatchT) anywhere.
-//
-// This is the Visualization Engineer's mechanism: the defs are the inky-edge
-// machinery; the marks themselves arrive in later slices.
+// Mounted once in app/layout.tsx, before any consumer. The defs live in a 0x0
+// hidden SVG so hand-drawn marks elsewhere can reference url(#rough) /
+// url(#hatchT).
 
 // Pure markup, no client interactivity — safe as a server component.
 export default function Backdrop() {

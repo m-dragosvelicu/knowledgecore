@@ -1,11 +1,8 @@
 "use client";
 
-// KnowledgeCore — staged-wait presentational primitive (T3), extracted
-// verbatim from the original GettingReady screen (E04.S01 PRD sec. 5 move 1).
-// Draws the honest dot ladder + indeterminate sweep for a real, persisted
-// multi-stage pipeline, plus the shared failure/retry state. Purely
-// presentational: a caller (typically via usePolledStage) owns polling and
-// stage derivation; this component only renders what it is given.
+// Staged-wait presentational primitive (T3): draws the dot ladder +
+// indeterminate sweep, plus failure/retry state. Purely presentational — the
+// caller (typically usePolledStage) owns polling and stage derivation.
 
 import type { ReactNode } from "react";
 import Stack from "@mui/material/Stack";

@@ -19,10 +19,9 @@ export default async function OutcomePage({
   if (!subject) redirect(`/journey/intent?j=${intent.id}`);
   const goal = await prisma.learningGoal.findUnique({ where: { intentId: intent.id } });
 
-  // RESUME SUPPORT — re-hydrate the outcome sub-state persisted progressively by
-  // advanceInterviewAction so a learner who saved & left mid-outcome returns to
-  // their position (the conversation so far, or the generated outcome ready to
-  // confirm), NOT the motivation question. Both are JSON columns on LearningGoal.
+  // Resume support: re-hydrate the outcome sub-state persisted progressively by
+  // advanceInterviewAction, so a learner who left mid-outcome returns to their
+  // position, not the motivation question. Both are JSON columns on LearningGoal.
   const resumeTranscript =
     (goal?.interviewTranscript as unknown as InterviewTurn[] | null) ?? null;
   const resumeDraftOutcome =

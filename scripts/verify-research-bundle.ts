@@ -2,15 +2,12 @@
  * L2 Phase 0 — standalone verification of the research-bundle spine.
  * Run: `bun run scripts/verify-research-bundle.ts`. Exits non-zero on any failure.
  *
- * Two halves:
- *   (A) PURE — fingerprint determinism + divergence (no DB, no network).
- *   (B) DB-backed — the BundleStore read-through cache, source/chunk dedup +
- *       idempotency, the journey bind, and the end-to-end assertion that a journey
- *       bound to a (Phase 0 MOCK) bundle resolves NON-EMPTY, VALID sourceIds. Uses
- *       a throwaway User + LearningIntent that is fully cleaned up afterward.
+ * (A) PURE: fingerprint determinism + divergence, no DB/network.
+ * (B) DB-backed: BundleStore cache, source/chunk dedup + idempotency, and
+ * journey-bind resolving non-empty valid sourceIds. Throwaway User +
+ * LearningIntent, cleaned up afterward.
  *
- * Phase 0 contract: zero external dependencies (the agent is the deterministic
- * mock), so this runs offline / in CI with only a local Postgres.
+ * Phase 0 has zero external dependencies (mock agent), so this runs offline.
  */
 
 import { fingerprint, FINGERPRINT_VERSION } from "../lib/research/fingerprint";

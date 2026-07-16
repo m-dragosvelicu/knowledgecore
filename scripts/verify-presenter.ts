@@ -3,13 +3,10 @@
  * Run: `bun run scripts/verify-presenter.ts`. No DB or LLM needed — presenter.ts
  * has only a type-level import of StepType. Exits non-zero on any failure.
  *
- * Proves:
- *   (a) defaultPresenter returns IDENTITY directives (pace 1 / support standard /
- *       modality neutral), for an information step AND for an experience step,
- *       and with a null, undefined, and populated profile.
- *   (b) the registry/selector (getPresenter) returns the default strategy.
- *   (c) the dwell computation with paceMultiplier:1 equals the current 6s, and
- *       applyPace guards against malformed multipliers.
+ * Proves defaultPresenter returns identity directives (pace 1, support
+ * standard, modality neutral) across step types and profile states, that
+ * getPresenter() resolves to it, and that applyPace guards malformed
+ * multipliers while dwell(paceMultiplier=1) matches the current 6s.
  */
 import {
   getPresenter,

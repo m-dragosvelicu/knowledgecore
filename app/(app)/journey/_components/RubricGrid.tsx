@@ -43,13 +43,6 @@ const DIMENSIONS: Array<{
 
 const LEVEL_LABEL = ["Below threshold", "Emerging", "Proficient", "Advanced", "Mastery"];
 
-/**
- * The checkpoint rubric, in the one-teal vocabulary (no traffic light). Each
- * dimension is a quiet surface card: the level reads as a Fraunces figure, the
- * label in a calm Hanken eyebrow, and the evidence quote in the reading voice
- * behind a teal edge. Below-threshold dimensions sit on the recessed surface so
- * the gap is felt by tone, not by an alarm hue.
- */
 export default function RubricGrid({
   scores,
   evidence,

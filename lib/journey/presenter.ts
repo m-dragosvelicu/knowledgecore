@@ -1,48 +1,15 @@
 /**
- * Presenter-strategy seam (L1 architectural foundation, CHARTER B.4/B.7).
- *
- * WHAT THIS IS
- * ------------
- * The presenter is the single point at which a goalpost step's RENDER is adapted
- * to the learner. It does NOT change WHAT content a step contains (that is the
- * Path Outliner / Information Generator's job); it adapts HOW that content is
- * presented — pacing, how much support framing to show, and (later, placeholder
- * only) modality emphasis.
- *
- * A strategy takes a `(step, learnerProfile)` pair and returns RENDER DIRECTIVES.
- * The page reads those directives and applies them at the render boundary. The
- * default strategy is a pure pass-through: it returns identity directives, so
- * with only the default registered the learner sees EXACTLY what they see today.
- *
- * WHY A SEAM NOW
- * --------------
- * L1 needs a clean, swappable place to plug in adaptation (pace/support) without
- * touching every render site. This file is that seam. Strategies are looked up
- * through `getPresenter()`, mirroring the `getServices()` registry pattern in
- * `lib/services/index.ts`, so an alternate strategy can be registered later
- * behind a flag without changing call sites.
- *
- * BOUNDARY NOTES
- * --------------
- * - The seam is intentionally decoupled from Prisma's full `Step` model. It
- *   consumes a minimal `PresenterStep` shape so the directive logic never
- *   depends on persistence details.
- * - `LearnerProfile` is a MINIMAL, forward-looking type. Its real
- *   persistence/schema is owned by the Backend Engineer and designed separately;
- *   the seam treats the profile as optional and the default strategy ignores it.
- *   The seam MUST accept a null/empty/undefined profile gracefully.
- * - `modalityWeight` is a PLACEHOLDER field only. It is included, defaulted to a
- *   neutral value, and NO modality behavior is implemented here. The design is
- *   being reframed so that visuals are content-driven, not a learner trait, so
- *   nothing should branch on this field yet.
+ * Presenter seam (CHARTER B.4/B.7): adapts HOW a goalpost step renders
+ * (pacing, support, framing) — never WHAT it contains. A strategy maps
+ * (step, learnerProfile) -> render directives; the default is an identity
+ * pass-through. Strategies are looked up via getPresenter(), mirroring the
+ * getServices() registry, so alternates can ship behind a flag without
+ * touching call sites. The profile is optional and may be null/undefined.
+ * `modalityWeight` is a placeholder — nothing should branch on it yet.
  */
 
 import type { StepType } from "@prisma/client";
 import type { LearnerProfileState } from "./learnerProfile";
-
-// ---------------------------------------------------------------------------
-// Inputs
-// ---------------------------------------------------------------------------
 
 /**
  * The minimal slice of a goalpost step the presenter needs. Decoupled from the
@@ -56,28 +23,19 @@ export interface PresenterStep {
 }
 
 /**
- * The learner profile the seam consumes.
+ * The learner profile the seam consumes: the real persisted
+ * `LearnerProfileState` (lib/journey/learnerProfile.ts), imported as a plain
+ * domain type so the seam stays decoupled from the Prisma client model.
  *
- * This is now the REAL persisted shape: it is the structured
- * `LearnerProfileState` owned by `lib/journey/learnerProfile.ts` (the mastery
- * core + the typed signal vector + the derived-signals bag), which maps 1:1 onto
- * the `LearnerProfile` Prisma row. The seam stays decoupled from Prisma by
- * importing only this plain domain type, not the client model.
- *
- * Every strategy MUST tolerate a `null`/`undefined` profile and an empty mastery
- * map. The default strategy reads NONE of the fields — and, per the Slice 1
- * rescope, the presenter seam is render-only (pace / dwell): SUBSTANCE
- * adaptation (depth, worked-example count) happens at GENERATION time with the
- * profile injected, not here.
+ * Every strategy must tolerate a null/undefined profile and an empty mastery
+ * map. Per the Slice 1 rescope, this seam is render-only (pace/dwell) —
+ * substance adaptation (depth, worked-example count) happens at generation
+ * time with the profile injected, not here.
  */
 export type LearnerProfile = LearnerProfileState;
 
 /** A profile may legitimately be absent (e.g. anonymous / not-yet-built). */
 export type MaybeLearnerProfile = LearnerProfile | null | undefined;
-
-// ---------------------------------------------------------------------------
-// Outputs (render directives)
-// ---------------------------------------------------------------------------
 
 /**
  * How much supporting framing/scaffolding to surface around a step.
@@ -120,10 +78,6 @@ export const IDENTITY_DIRECTIVES: Readonly<RenderDirectives> = Object.freeze({
   supportLevel: "standard",
   modalityWeight: "neutral",
 });
-
-// ---------------------------------------------------------------------------
-// Strategy interface
-// ---------------------------------------------------------------------------
 
 /**
  * A presenter strategy maps `(step, learnerProfile)` to render directives.
@@ -176,18 +130,11 @@ export function getPresenter(): PresenterStrategy {
   return REGISTRY.default;
 }
 
-// ---------------------------------------------------------------------------
-// Render helpers
-// ---------------------------------------------------------------------------
-
 /**
- * Apply a pace multiplier to a base duration in seconds. Centralized so every
- * time-based render value uses identical rounding. With `paceMultiplier === 1`
- * this is the identity on whole-second inputs (e.g. 6 -> 6).
- *
- * Guards against a non-finite or non-positive multiplier by falling back to the
- * base seconds, so a malformed strategy can never produce a zero/NaN/negative
- * gate that would break the UI.
+ * Apply a pace multiplier to a base duration in seconds; identity at
+ * `paceMultiplier === 1`. Falls back to the base seconds on a non-finite or
+ * non-positive multiplier, so a malformed strategy can't produce a
+ * zero/NaN/negative gate.
  */
 export function applyPace(baseSeconds: number, paceMultiplier: number): number {
   if (!Number.isFinite(paceMultiplier) || paceMultiplier <= 0) return baseSeconds;

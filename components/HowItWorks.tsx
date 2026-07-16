@@ -1,12 +1,3 @@
-// KnowledgeCore — the public landing "how it works" strip.
-//
-// A thin, calm row under the hero on the unauthenticated landing: the five
-// pre-journey stages a visitor can run before committing (intent -> goal ->
-// outcome -> probe -> your path), then "begin". Sentence case, second person,
-// domain vocabulary; no emoji, no em/en dashes. Reuses the design-system
-// primitives + tokens (Eyebrow, Fraunces, --line/--ink/--teal) — no new design
-// language. Server component (static copy only).
-
 import Box from "@mui/material/Box";
 import { Eyebrow } from "@/components/ui";
 

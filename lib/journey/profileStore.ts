@@ -1,24 +1,16 @@
 /**
- * L1 Slice 1 — the LIVING LOOP persistence layer for the LearnerProfile.
+ * L1 Slice 1 — the living-loop persistence layer for the LearnerProfile: the
+ * DB-facing bridge between the pure profile logic (learnerProfile.ts, no
+ * Prisma) and the journey server actions. Lazily creates the per-intent
+ * LearnerProfile row (seeded from the empty state, writing an `init`
+ * snapshot), reads it back into the plain `LearnerProfileState` shape, and
+ * applies evidence via the pure functions — always writing a new append-only
+ * `LearnerProfileSnapshot`, never overwriting one.
  *
- * WHAT THIS IS
- * ------------
- * The DB-facing bridge between the pure profile logic (lib/journey/learnerProfile.ts,
- * which never touches Prisma) and the journey server actions. It:
- *
- *   1. Lazily creates the journey-level LearnerProfile row (one per intent) the
- *      first time it is needed, seeding it from the empty profile state and
- *      writing the initial `init` snapshot.
- *   2. Reads the live row back into the plain `LearnerProfileState` shape that
- *      generation + the presenter seam consume.
- *   3. Applies evidence via the pure functions and persists the result, ALWAYS
- *      writing a new append-only `LearnerProfileSnapshot` (never overwriting an
- *      existing snapshot) so the snapshot stream is the empirical artifact.
- *
- * All writes here are best-effort at the call site: signal capture must never
- * break the learner's flow, so callers wrap these in try/catch. The functions
- * themselves use a transaction + the snapshot `@@unique([profileId, seq])` so the
- * per-profile sequence stays gap-free under the normal sequential journey flow.
+ * Writes here are best-effort at the call site (signal capture must never
+ * break the learner's flow — callers wrap in try/catch). Each function uses
+ * a transaction + `@@unique([profileId, seq])` to keep the per-profile
+ * sequence gap-free under normal sequential journey flow.
  */
 
 import type { Prisma, PrismaClient } from "@prisma/client";
@@ -51,7 +43,6 @@ function asDerivedSignals(value: unknown): DerivedSignals | null {
   return null;
 }
 
-/** Map a persisted LearnerProfile row onto the plain domain state. */
 function rowToState(row: {
   conceptMastery: unknown;
   latestPaasEffort: number | null;
@@ -203,15 +194,12 @@ export interface CheckpointEvidence {
 }
 
 /**
- * Apply one checkpoint's evidence to the journey profile and persist it, writing
- * a new append-only snapshot. Pure folding is delegated to learnerProfile.ts;
- * this function only sequences the read → fold → write-row → write-snapshot in a
- * single transaction.
- *
- * `adjust_plan` is NOT mastery evidence about the learner (Coverage Mismatch =
- * the plan was wrong), so no BKT update is applied for it — but the snapshot is
- * still written (the signal vector / retry count may have moved) so the audit
- * stream records the event.
+ * Apply one checkpoint's evidence to the journey profile and persist it,
+ * writing a new append-only snapshot. Pure folding is delegated to
+ * learnerProfile.ts; this only sequences read -> fold -> write-row ->
+ * write-snapshot in a single transaction. `adjust_plan` is NOT mastery
+ * evidence (Coverage Mismatch = the plan was wrong), so no BKT update is
+ * applied, but the snapshot is still written for the audit stream.
  */
 export async function applyCheckpointEvidence(
   intentId: string,
@@ -303,14 +291,10 @@ export async function recordRetry(
 }
 
 /**
- * L1 Slice 4 — record a learner marking a VISUAL as "not helpful".
- *
- * Increments the `visualNotHelpfulCount` signal in the profile signal vector and
- * writes a new append-only `visual_not_helpful` snapshot (consistent with Slice
- * 1: every update is a fresh snapshot, never an overwrite). This is a content +
- * feedback driven modality signal — NOT a VARK / learner-type label. L1 captures
- * it; the in-experience adaptation that consumes it lands per the roadmap.
- * Best-effort at the call site (feedback must never break the learner's flow).
+ * Record a learner marking a visual as "not helpful": increments
+ * `visualNotHelpfulCount` and writes a new append-only `visual_not_helpful`
+ * snapshot. A content/feedback-driven modality signal, not a VARK /
+ * learner-type label. Best-effort (feedback must never break the learner's flow).
  */
 export async function recordVisualNotHelpful(
   intentId: string,

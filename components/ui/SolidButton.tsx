@@ -1,29 +1,13 @@
 "use client";
 
-// KnowledgeCore — Solid (commit) button (Slice 1).
-//
-// The decisive, state-changing tier: Begin, Resume, Continue this goalpost,
-// Lock it in. A clean filled pill (ink by default, teal for the warmer Resume
-// tone), white label, a small lift (translateY(-1px) + soft shadow) on hover.
-// NO hand marks — commitment reads as a calm solid surface, not a sketch.
-//
-// The pill shape, lift, shadow and arrow-slide live in the theme MuiButton
-// `contained` override (lib/theme/theme.ts) so any plain
-// <Button variant="contained"> already gets the solid look. This wrapper only
-// adds the optional trailing Arrow that slides translateX(3px) on hover, which
-// is the one bit that needs an endIcon. Use it for the canonical commit CTAs;
-// reach for a bare MUI <Button variant="contained"> when no arrow is wanted.
-//
-// `tone="teal"` maps to MUI color="primary" (teal); the default ink tone uses a
-// dedicated `kcInk` color injected in the theme palette.
-//
-// Pending affordance: callers that drive their own busy flag (useTransition,
-// a manual async onClick) can pass `pending` to get the same 18px
-// CircularProgress + label-swap SubmitButton uses for <form action> submits.
-// Unlike SubmitButton this never reads useFormStatus — every existing
-// SolidButton call site drives its own onSubmit/onClick (no <form action=...>
-// in the codebase reaches a SolidButton), so an explicit prop is the honest
-// contract and existing call sites are untouched when `pending` is omitted.
+// Commit tier: pill shape, lift, shadow and arrow-slide come from the theme's
+// MuiButton `contained` override (lib/theme/theme.ts) — a plain
+// <Button variant="contained"> already looks right; this wrapper only adds the
+// optional trailing Arrow (endIcon).
+// tone="teal" maps to MUI color="primary"; default "ink" uses the theme's
+// `kcInk` color.
+// `pending` is an explicit prop (not useFormStatus): every call site drives its
+// own onSubmit/onClick rather than <form action>.
 
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";

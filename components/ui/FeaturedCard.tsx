@@ -1,17 +1,4 @@
-// KnowledgeCore — Featured card (Slice 1).
-//
-// The big "resume" card: a 1.25fr / .75fr two-column grid on a --surface fill
-// with a hand-drawn corner squiggle, the main pad on the left, and a recessed
-// --surface-2 side panel divided from the body by a hairline. The grid collapses
-// to a single column at 820px (side panel moves below). Radius 28 (feature),
-// soft directional shadow.
-//
-// Ported from design-system/preview/comp-featured.html. The standard (non-
-// featured) card is just the themed <Card> (MuiCard override), so it needs no
-// bespoke component; use MUI <Card> directly for those.
-//
-// This is structural/presentational only — content (eyebrow, headline, side
-// stat) is passed in as props/children, so screens in later slices fill it.
+// Ported from design-system/preview/comp-featured.html.
 
 import type { ReactNode } from "react";
 import Box from "@mui/material/Box";

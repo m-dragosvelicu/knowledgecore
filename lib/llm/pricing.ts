@@ -1,13 +1,9 @@
 /**
- * LLM cost estimation for telemetry (LlmCall.costMicroUsd).
- *
- * costMicroUsd is stored as integer microdollars (USD * 1_000_000) to avoid
- * float drift. Rates below are USD per 1,000,000 tokens, keyed by a lowercase
- * substring of the provider-reported model id. The first matching entry wins,
- * so order more specific keys before more general ones.
- *
- * If no entry matches, computeCostMicroUsd returns 0 (tokens are still recorded
- * as real); add the model to PRICE_TABLE to start costing it.
+ * LLM cost estimation for telemetry (LlmCall.costMicroUsd), stored as integer
+ * microdollars (USD * 1e6) to avoid float drift. Rates are USD per 1M tokens,
+ * keyed by a lowercase substring of the provider-reported model id -- first
+ * match wins, so order specific keys before general ones. Returns 0 (not an
+ * error) when no entry matches; add the model to PRICE_TABLE to cost it.
  */
 
 type Rate = {
@@ -19,15 +15,12 @@ type Rate = {
 
 // Substring -> rate. Keep keys lowercase. Rates are list prices per 1M tokens.
 const PRICE_TABLE: ReadonlyArray<readonly [string, Rate]> = [
-  // Google Gemini — the live default for L0 services.
-  // Flash-Lite tier: the cheapest structured-output-capable Gemini, used for the
-  // tiny intent-parse / subject-extraction call. List price ~$0.10 in / $0.40 out
-  // per 1M tokens. Keyed BEFORE the heavier "flash" entries so a "flash-lite" id
-  // matches its lite rate rather than the more general "flash" substring.
+  // Google Gemini — the live default for L0 services. Flash-Lite entries are
+  // keyed before the heavier "flash" entries so a "flash-lite" id matches its
+  // lite rate rather than the more general "flash" substring.
   ["gemini-3.1-flash-lite", { inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 }],
   ["gemini-2.5-flash-lite", { inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 }],
   ["flash-lite", { inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 }],
-  // gemini-3.5-flash list price (paid tier): $0.30 in / $2.50 out per 1M tokens.
   ["gemini-3.5-flash", { inputPerMillionUsd: 0.3, outputPerMillionUsd: 2.5 }],
   // Older Flash family kept for any fallback dispatch.
   ["gemini-2.5-flash", { inputPerMillionUsd: 0.3, outputPerMillionUsd: 2.5 }],
@@ -47,11 +40,7 @@ function lookupRate(model: string): Rate | null {
   return null;
 }
 
-/**
- * Compute the integer microdollar cost for a call. Returns 0 (not an error) when
- * the model is not in PRICE_TABLE so the row still carries real token counts.
- * // TODO: add new model ids to PRICE_TABLE as they go live so cost stops being 0.
- */
+/** Compute the integer microdollar cost for a call; 0 when model is unpriced. */
 export function computeCostMicroUsd(
   model: string,
   inputTokens: number,

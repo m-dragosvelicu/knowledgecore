@@ -1,17 +1,14 @@
 /**
  * kc_passages — the single shared production Qdrant collection for L2.
+ * Layout fixed by the ratified storage/search composition decision
+ * (decisions/2026-06-15-l2-library-storage-search-composition.html): one
+ * collection, vectors { size: 3072, distance: Cosine } (ADR-9 lock); point id
+ * = deterministic UUIDv5(SourceChunk.contentHash) so re-ingest is idempotent;
+ * payload joins back to Postgres (chunkId, sourceId) and carries bundle scope
+ * (bundleIds); keyword payload indexes on sourceId, bundleIds, sourceKind.
  *
- * Layout is fixed by the ratified storage/search composition decision
- * (decisions/2026-06-15-l2-library-storage-search-composition.html):
- *   - one collection, vectors { size: 3072, distance: Cosine } (ADR-9 lock),
- *   - point id = deterministic UUIDv5(SourceChunk.contentHash) so re-ingest is
- *     idempotent (same content -> same point, never a duplicate),
- *   - payload joins back to Postgres (chunkId, sourceId) and carries the bundle
- *     scope (bundleIds) used by all three access patterns,
- *   - keyword payload indexes on sourceId, bundleIds, sourceKind.
- *
- * Qdrant is a rebuildable derived index, never a source of truth. Changing the
- * name or dim requires a full re-ingestion.
+ * Qdrant is a rebuildable derived index, never source of truth. Changing
+ * name or dim requires full re-ingestion.
  */
 import { createHash } from "crypto";
 import { qdrant } from "./qdrant";

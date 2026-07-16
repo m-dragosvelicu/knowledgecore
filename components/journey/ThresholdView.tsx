@@ -7,14 +7,6 @@ import Button from "@mui/material/Button";
 import SolidButton from "@/components/ui/SolidButton";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 
-// B.6 §1.1 (Q10): the per-goalpost "threshold" screen. A single deliberate
-// moment shown BEFORE the information phase that names what is about to happen:
-// goalpost title, the restated objective/can-do, the experience type, an
-// advisory time estimate, and two actions -- Begin / Save for later.
-//
-// Slice 4 restyle: warm surface card, eyebrow meta, the title with its
-// self-drawing underline, a solid Begin, and a skip-tier "save for later".
-
 type Props = {
   order: number;
   totalGoalposts: number;
