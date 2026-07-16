@@ -23,6 +23,7 @@ import {
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
 import { isLessonContentReady } from "@/lib/journey/lessonGeneration";
+import { estimateReadMinutes } from "@/lib/journey/readTime";
 import { isLessonDoc } from "@/lib/services/lessonDoc";
 import type { LessonDoc } from "@/lib/services/lessonDoc";
 import LessonDocView from "@/components/journey/LessonDocView";
@@ -241,6 +242,7 @@ export default async function GoalpostPage({
             />
           }
           dwellSeconds={dwellSeconds}
+          readMinutes={estimateReadMinutes(lessonDoc)}
         />
         {/* §9.2 skip-with-confirm, available during the information phase. */}
         <SkipControl goalpostId={goalpost!.id} intentId={intent.id} action={skipGoalpostAction} />
