@@ -21,6 +21,7 @@ import MicButton from "@/components/journey/MicButton";
 import DialogueTurns from "@/components/journey/DialogueTurns";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import { Eyebrow } from "@/components/ui";
+import SolidButton from "@/components/ui/SolidButton";
 
 const MOTIVATIONS: Array<{ value: Motivation; label: string }> = [
   { value: "curiosity", label: "Curiosity" },
@@ -281,15 +282,16 @@ export default function OutcomeClient({
         </Box>
 
         <SaveAndLeaveRow>
-          <Button
-            variant="contained"
-            color="kcInk"
+          <SolidButton
+            tone="ink"
             size="large"
             onClick={finalize}
             disabled={isPending}
+            pending={isPending}
+            pendingLabel="Designing your knowledge probe…"
           >
-            {isPending ? "Designing your knowledge probe…" : "Continue to the knowledge probe"}
-          </Button>
+            Continue to the knowledge probe
+          </SolidButton>
         </SaveAndLeaveRow>
       </Stack>
     );
