@@ -143,7 +143,17 @@ export type RemainingGoalpost = {
   estimatedMinutes: number;
 };
 
+// Selects which caller context this adjustment is for, since the two call
+// sites need different insertion requirements: `remediation` is the
+// post-checkpoint adjust_plan branch (a goalpost was FAILED — the adjuster
+// MUST supply >=1 remediation goalpost, or the failed goalpost is never
+// honestly resolved). `confirmation_revision` is the pre-acceptance
+// path-confirmation flow (the learner objected to the DRAFT before starting —
+// zero insertions is valid, e.g. a pure "remove this goalpost" edit).
+export type PathAdjusterMode = "remediation" | "confirmation_revision";
+
 export type PathAdjusterInput = {
+  mode: PathAdjusterMode;
   subject: ParsedSubject;
   motivation: Motivation;
   outcome: CanDoStatement[];

@@ -791,6 +791,9 @@ export async function revisePathFromConfirmationAction(
 
   const services = getServices();
   const adjustment = await services.pathAdjuster.adjust({
+    // Pre-acceptance revision: no checkpoint ran, zero insertions is valid
+    // (e.g. a pure "drop this goalpost" edit) — see PathAdjusterMode.
+    mode: "confirmation_revision",
     subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
     motivation: goal!.motivation,
     outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
@@ -1200,6 +1203,9 @@ export async function adjustPlanAction(formData: FormData): Promise<void> {
 
   const services = getServices();
   const adjustment = await services.pathAdjuster.adjust({
+    // Post-checkpoint remediation: the failed goalpost is only ever marked
+    // complete alongside a queued remediation goalpost — >=1 insert required.
+    mode: "remediation",
     subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
     motivation: goal!.motivation,
     outcome: outcome!.canDoStatements as unknown as CanDoStatement[],

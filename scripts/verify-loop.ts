@@ -9,7 +9,10 @@
  */
 import { prisma } from "../lib/db";
 import { getCurrentGoalpost } from "../lib/journey/intent/queries";
-import { applyPathAdjustment } from "../lib/journey/path/revision";
+import {
+  applyPathAdjustment,
+  applyPreAcceptancePathAdjustment,
+} from "../lib/journey/path/revision";
 import type { PathAdjusterInput, PathAdjustment } from "../lib/services/types";
 import type { PathAdjuster } from "../lib/services/interfaces/pathAdjuster.interface";
 
@@ -114,6 +117,7 @@ async function main() {
   // Run the REAL adjuster + the REAL transaction helper the action uses.
   const adjuster = new FakePathAdjuster();
   const adjustment = await adjuster.adjust({
+    mode: "remediation",
     subject: { canonicalName: "Test Subject", scopeNote: "narrow" },
     motivation: "work",
     outcome: [{ text: "I can do X", bloomLevel: "apply" }],
@@ -189,9 +193,84 @@ async function main() {
   await prisma.user.delete({ where: { id: user.id } });
 
   await scenarioEmptyInsertRefused();
+  await scenarioPreAcceptanceZeroInsertAllowed();
 
   console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILED"}`);
   process.exit(failures ? 1 : 0);
+}
+
+// PM ruling 2026-07-17: the >=1-insert requirement is remediation-only.
+// applyPreAcceptancePathAdjustment (pre-acceptance path-confirmation revision)
+// must keep accepting a zero-insert PathAdjustment — e.g. a pure "drop this
+// goalpost" edit — without throwing, since there is no "current goalpost" to
+// complete in that flow.
+async function scenarioPreAcceptanceZeroInsertAllowed() {
+  const user = await prisma.user.create({
+    data: { email: `loop-verify-preaccept-${Date.now()}@example.test`, name: "Loop Verify Preaccept" },
+  });
+
+  const intent = await prisma.learningIntent.create({
+    data: {
+      userId: user.id,
+      rawText: "verify pre-acceptance zero-insert is allowed",
+      status: "in_progress",
+      subject: { create: { canonicalName: "Test Subject", scopeNote: "narrow" } },
+      goal: { create: { motivation: "work", elaboration: "testing" } },
+      outcome: { create: { canDoStatements: [{ text: "I can do X", bloomLevel: "apply" }] } },
+      assessment: { create: { competencies: [{ competency: "x", estimatedLevel: 1, confidence: 0.8 }] } },
+    },
+  });
+
+  const path = await prisma.learningPath.create({
+    data: {
+      intentId: intent.id,
+      status: "draft",
+      goalposts: {
+        create: [1, 2, 3].map((n) => ({
+          order: n,
+          title: `Goalpost ${n}`,
+          objective: `Objective ${n}.`,
+          estimatedMinutes: 45,
+          status: "pending",
+          steps: { create: [infoStep(1), expStep(2)] },
+        })),
+      },
+    },
+    include: { goalposts: { orderBy: { order: "asc" } } },
+  });
+
+  // Pure removal, no insertion: "I already know goalpost 3, drop it."
+  const zeroInsertAdjustment: PathAdjustment = {
+    insertedGoalposts: [],
+    removedOrders: [3],
+    modifiedGoalposts: [],
+    rationale: "I have removed the step you already know.",
+  };
+
+  let threw = false;
+  try {
+    await prisma.$transaction((tx) =>
+      applyPreAcceptancePathAdjustment(tx, { pathId: path.id, adjustment: zeroInsertAdjustment }),
+    );
+  } catch {
+    threw = true;
+  }
+  check("applyPreAcceptancePathAdjustment does NOT throw on insertedGoalposts=[]", !threw);
+
+  const after = await prisma.goalpost.findMany({
+    where: { pathId: path.id },
+    orderBy: { order: "asc" },
+  });
+  check("no goalpost was marked complete (pre-acceptance, nothing started)",
+    after.every((g) => g.status !== "complete"));
+  check("goalpost 3 is skipped (removed)", after.find((g) => g.title === "Goalpost 3")?.status === "skipped");
+  const orders = after.map((g) => g.order);
+  check("no duplicate orders after zero-insert removal", new Set(orders).size === orders.length);
+
+  const revisions = await prisma.pathRevision.findMany({ where: { pathId: path.id } });
+  check("one PathRevision recorded for the zero-insert round", revisions.length === 1);
+
+  await prisma.user.delete({ where: { id: user.id } });
 }
 
 // Regression coverage for the 2026-07-17 bug: an adjust_plan response with

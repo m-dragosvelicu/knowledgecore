@@ -4,7 +4,7 @@ import { computeCostMicroUsd } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type { PathAdjusterInput, PathAdjustment } from "@/lib/services/types";
 import type { PathAdjuster } from "@/lib/services/interfaces/pathAdjuster.interface";
-import { PATH_ADJUSTER_SYSTEM } from "@/lib/llm/prompts/pathAdjusterPrompts";
+import { buildPathAdjusterSystem } from "@/lib/llm/prompts/pathAdjusterPrompts";
 
 // Fallback model id for telemetry when a failure short-circuits before onUsage fires.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
@@ -78,19 +78,28 @@ const modifiedGoalpostSchema = z.object({
   estimatedMinutes: z.number().int().min(20).max(120).nullish(),
 });
 
+// Base contract: any number of inserts (including zero) is valid. Used as-is
+// for the confirmation_revision mode, where a pure removal/modification is a
+// legitimate response to a pre-acceptance concern.
 export const pathAdjustmentSchema = z.object({
-  // Empty inserts would let the failed goalpost get stamped complete downstream
-  // (applyPathAdjustment) instead of remediated — every adjust_plan response
-  // must supply at least one remediation goalpost. Schema violations here fail
-  // loudly with no retry, same as any other pathAdjustmentSchema violation (see
-  // completeStructured in lib/llm/gemini.ts: opts.schema.parse is not wrapped
-  // in the transient/truncation retry).
-  insertedGoalposts: z
-    .array(insertedGoalpostSchema)
-    .min(1, "adjust_plan must insert at least one remediation goalpost."),
+  insertedGoalposts: z.array(insertedGoalpostSchema),
   removedOrders: z.array(z.number().int()),
   modifiedGoalposts: z.array(modifiedGoalpostSchema),
   rationale: z.string().min(1),
+});
+
+// Remediation-only contract: empty inserts would let the failed goalpost get
+// stamped complete downstream (applyPathAdjustment) instead of remediated —
+// every post-checkpoint adjust_plan response must supply at least one
+// remediation goalpost. PM ruling 2026-07-17: this is scoped to remediation
+// only, NOT shared with the confirmation_revision mode. Schema violations
+// here fail loudly with no retry, same as any other pathAdjustmentSchema
+// violation (see completeStructured in lib/llm/gemini.ts: opts.schema.parse
+// is not wrapped in the transient/truncation retry).
+export const remediationPathAdjustmentSchema = pathAdjustmentSchema.extend({
+  insertedGoalposts: z
+    .array(insertedGoalpostSchema)
+    .min(1, "adjust_plan remediation must insert at least one goalpost."),
 });
 
 type ParsedPathAdjustment = z.infer<typeof pathAdjustmentSchema>;
@@ -178,9 +187,15 @@ export class GeminiPathAdjuster implements PathAdjuster {
           )
         : ["- (none remaining)"]),
       ``,
-      `Produce the MINIMAL adjustment. Insert the prerequisite at order ${
-        input.currentGoalpost.order + 1
-      }. Keep >=70% of the remaining goalposts intact.`,
+      input.mode === "remediation"
+        ? `Produce the MINIMAL adjustment. Insert the prerequisite at order ${
+            input.currentGoalpost.order + 1
+          }. Keep >=70% of the remaining goalposts intact.`
+        : `Produce the MINIMAL adjustment that resolves the learner's concern. Only ` +
+          `insert a new goalpost, at order ${
+            input.currentGoalpost.order + 1
+          }, if the concern genuinely requires one. Keep >=70% of the remaining ` +
+          `goalposts intact.`,
     ].join("\n");
     return [{ role: "user" as const, content }];
   }
@@ -237,13 +252,15 @@ export class GeminiPathAdjuster implements PathAdjuster {
     let usage: CompletionResult["usage"] | undefined;
     let usageModel: string | undefined;
     let parsed: ParsedPathAdjustment;
+    const schema =
+      input.mode === "remediation" ? remediationPathAdjustmentSchema : pathAdjustmentSchema;
     try {
       parsed = await this.llm.completeStructured({
-        system: PATH_ADJUSTER_SYSTEM,
+        system: buildPathAdjusterSystem(input.mode),
         messages: this.buildMessages(input),
         temperature: 0.4,
         maxTokens: 4096,
-        schema: pathAdjustmentSchema,
+        schema,
         schemaName: "PathAdjustment",
         onUsage: (u, m) => {
           usage = u;
