@@ -18,10 +18,15 @@ export function nextWizardRoute(intent: LearningIntent | null): string {
     case "path_outlined":
       return withId("/journey/path");
     case "in_progress":
-      return withId("/journey/goalpost");
     case "paused":
-      // §9.5: a resumed journey gets a warm-up recap before the goalpost.
-      return withId("/journey/resume");
+      // Founder ruling 2026-07-17: any journey with a confirmed path
+      // (goalposts exist once accepted -> in_progress/paused) lands on the
+      // full trail by default, not straight into the current goalpost.
+      // /journey/goalpost itself still redirects a `paused` journey to
+      // /journey/resume for the §9.5 warm-up recap once the learner taps
+      // into the current goalpost from the trail — that continuity feature
+      // is unchanged, just one tap further from this entry point.
+      return withId("/journey/path");
     case "complete":
       return "/journey/complete";
     case "abandoned":

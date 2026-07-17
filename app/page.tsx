@@ -330,7 +330,11 @@ export default async function HomePage() {
                   <Box component={Link} href={nextWizardRoute(active as never)} sx={{ textDecoration: "none" }}>
                     <SolidButton tone="teal">Resume</SolidButton>
                   </Box>
-                  <Box component={Link} href={nextWizardRoute(active as never)} sx={{ textDecoration: "none", display: "inline-flex" }}>
+                  {/* Always the trail view, regardless of wizard stage -- unlike
+                      Resume (which routes by intent.status), this button's job is
+                      literally "show me the whole path" so its href must not be
+                      the same status-derived route as Resume's. */}
+                  <Box component={Link} href={`/journey/path?j=${active.id}`} sx={{ textDecoration: "none", display: "inline-flex" }}>
                     <WobbleButton>See the full path</WobbleButton>
                   </Box>
                 </Stack>
