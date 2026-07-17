@@ -151,19 +151,22 @@ export default async function GoalpostPage({
   const isFresh =
     !!informationStep && !informationStep.completedAt && evaluationCount === 0;
   const begun = params.phase === "information" || params.begin === "1";
+
+  // "Goalpost N of M": M excludes skipped/superseded goalposts, and N is this
+  // goalpost's position among the on-path ones (not its raw `order`), so the
+  // numbers stay contiguous after a reshape. Shared by the threshold view and
+  // the header eyebrow below.
+  const pathGoalposts = await prisma.goalpost.findMany({
+    where: { pathId: goalpost!.pathId },
+    orderBy: { order: "asc" },
+    select: { id: true, status: true },
+  });
+  const { ordinal, total: totalGoalposts } = onPathOrdinal(
+    pathGoalposts,
+    goalpost!.id,
+  );
+
   if (isFresh && !begun) {
-    // "Goalpost N of M": M excludes skipped/superseded goalposts, and N is
-    // this goalpost's position among the on-path ones (not its raw `order`),
-    // so the numbers stay contiguous after a reshape.
-    const pathGoalposts = await prisma.goalpost.findMany({
-      where: { pathId: goalpost!.pathId },
-      orderBy: { order: "asc" },
-      select: { id: true, status: true },
-    });
-    const { ordinal, total: totalGoalposts } = onPathOrdinal(
-      pathGoalposts,
-      goalpost!.id,
-    );
     const expType = experienceStep?.type ?? StepType.information;
     return (
       <ThresholdView
@@ -189,7 +192,7 @@ export default async function GoalpostPage({
     <Stack spacing={1.5}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
         <Eyebrow>
-          Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
+          Goalpost {ordinal} of {totalGoalposts} &middot; ~{goalpost!.estimatedMinutes} min
           &middot;{" "}
           {phase === "information"
             ? "read"
