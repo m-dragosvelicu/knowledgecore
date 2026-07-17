@@ -4,6 +4,7 @@ import Stack from "@mui/material/Stack";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { isOnPath, sumOnPathMinutes } from "@/lib/journey/path/progress";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import BeginClient from "./BeginClient";
 
@@ -38,17 +39,18 @@ export default async function BeginPage({
     prisma.subject.findUnique({ where: { intentId: intent.id } }),
     prisma.learningPath.findUnique({
       where: { intentId: intent.id },
-      include: { goalposts: { select: { estimatedMinutes: true } } },
+      include: { goalposts: { select: { status: true, estimatedMinutes: true } } },
     }),
   ]);
   // The gate only makes sense once the path overview exists; otherwise send the
   // guest back to finish the public flow.
   if (!subject || !path) redirect(`/journey/path?j=${j}`);
 
-  const goalpostCount = path.goalposts.length;
-  const totalMinutes = path.goalposts.reduce(
-    (sum, g) => sum + (g.estimatedMinutes ?? 0),
-    0,
+  // A pre-acceptance confirmation revision may already have dropped a
+  // goalpost (skipped); exclude it from the commitment summary.
+  const goalpostCount = path.goalposts.filter((g) => isOnPath(g.status)).length;
+  const totalMinutes = sumOnPathMinutes(
+    path.goalposts.map((g) => ({ status: g.status, estimatedMinutes: g.estimatedMinutes ?? 0 })),
   );
 
   return (

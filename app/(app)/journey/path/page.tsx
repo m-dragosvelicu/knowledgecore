@@ -9,6 +9,7 @@ import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { isOnPath, sumOnPathMinutes } from "@/lib/journey/path/progress";
 import { generatePathAction } from "@/app/(app)/journey/_actions";
 import type {
   CanDoStatement,
@@ -80,10 +81,11 @@ export default async function PathPage({
 
   const accepted = path.acceptedAt != null;
 
-  const totalMinutes = path.goalposts.reduce(
-    (sum, gp) => sum + gp.estimatedMinutes,
-    0,
-  );
+  // Skipped/superseded goalposts are off the path - excluded from both the
+  // goalpost count and the time-to-finish estimate (founder ruling
+  // 2026-07-17). The trail visualization below still renders every node.
+  const onPathGoalposts = path.goalposts.filter((gp) => isOnPath(gp.status));
+  const totalMinutes = sumOnPathMinutes(path.goalposts);
   const competencies = assessment!.competencies as unknown as Competency[];
 
   // Titles of goalposts inserted by any adjust_plan revision -> "added for you".
@@ -106,8 +108,17 @@ export default async function PathPage({
 
   const nodes: TrailNode[] = path.goalposts.map((gp, i) => {
     let state: TrailNode["state"];
-    if (gp.status === GoalpostStatus.complete || gp.status === GoalpostStatus.skipped) {
+    let reshapedReason: TrailNode["reshapedReason"];
+    if (gp.status === GoalpostStatus.complete) {
       state = "completed";
+    } else if (
+      gp.status === GoalpostStatus.superseded ||
+      gp.status === GoalpostStatus.skipped
+    ) {
+      // Off the path (never actually passed) - hashed out, never "Cleared".
+      state = "reshaped";
+      reshapedReason =
+        gp.status === GoalpostStatus.superseded ? "superseded" : "skipped";
     } else if (i === firstActiveIndex) {
       state = accepted ? "current" : "locked";
     } else {
@@ -116,8 +127,8 @@ export default async function PathPage({
     const stepTypes = Array.from(new Set(gp.steps.map((s) => s.type)));
 
     // A cleared goalpost's score: the mean of its six rubric dimensions (0..4)
-    // from the latest checkpoint evaluation. Absent when the goalpost was
-    // skipped or never evaluated -- the trail then shows just the cleared node.
+    // from the latest checkpoint evaluation. Absent for reshaped-off or
+    // never-evaluated goalposts -- the trail then shows just the node.
     let score: number | undefined;
     if (state === "completed" && gp.evaluations.length > 0) {
       const s = gp.evaluations[0].scores as unknown as RubricScores;
@@ -141,6 +152,7 @@ export default async function PathPage({
       estimatedMinutes: gp.estimatedMinutes,
       state,
       added: addedTitles.has(gp.title),
+      reshapedReason,
       stepTypes: stepTypes as TrailNode["stepTypes"],
       score,
     };
@@ -156,7 +168,7 @@ export default async function PathPage({
           </Typography>
         </HeadlineUnderline>
         <Typography variant="body2" color="text.secondary">
-          {path.goalposts.length} goalposts &middot; ~{totalMinutes} min to the
+          {onPathGoalposts.length} goalposts &middot; ~{totalMinutes} min to the
           finish
         </Typography>
       </Stack>

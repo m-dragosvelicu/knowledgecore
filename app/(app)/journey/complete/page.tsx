@@ -8,6 +8,7 @@ import SubmitButton from "@/components/journey/SubmitButton";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma } from "@/lib/db";
+import { countGoalpostProgress } from "@/lib/journey/path/progress";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import type {
@@ -49,9 +50,7 @@ export default async function CompletePage() {
     (intent?.outcome?.canDoStatements as unknown as CanDoStatement[]) ??
     [];
 
-  const completedGoalposts = goalposts.filter(
-    (g) => g.status === GoalpostStatus.complete,
-  );
+  const goalpostProgress = countGoalpostProgress(goalposts);
 
   // Collect the strongest evidence quotes earned across the path: the latest
   // evaluation per goalpost, every dimension where the learner scored well
@@ -102,7 +101,7 @@ export default async function CompletePage() {
             </Typography>
           </HeadlineUnderline>
           <Typography variant="body2" color="text.secondary">
-            {completedGoalposts.length} of {goalposts.length} goalposts completed
+            {goalpostProgress.done} of {goalpostProgress.total} goalposts completed
             {revisions.length > 0
               ? ` · trail reshaped ${revisions.length} ${
                   revisions.length === 1 ? "time" : "times"
@@ -198,20 +197,33 @@ export default async function CompletePage() {
         <Stack spacing={1.25}>
           {goalposts.map((gp) => {
             const isSkipped = gp.status === GoalpostStatus.skipped;
+            const isSuperseded = gp.status === GoalpostStatus.superseded;
+            const isOffPath = isSkipped || isSuperseded;
+            const label = isSkipped
+              ? "Removed"
+              : isSuperseded
+                ? "Reshaped"
+                : "Done";
             return (
               <Stack
                 key={gp.id}
                 direction="row"
                 spacing={2}
                 alignItems="baseline"
-                sx={{ opacity: isSkipped ? 0.6 : 1 }}
+                sx={{ opacity: isOffPath ? 0.6 : 1 }}
               >
                 <Chip
-                  label={isSkipped ? "Skipped" : "Done"}
+                  label={label}
                   size="small"
-                  variant={isSkipped ? "outlined" : "filled"}
+                  variant={isOffPath ? "outlined" : "filled"}
                 />
-                <Typography variant="body1">
+                <Typography
+                  variant="body1"
+                  sx={{
+                    textDecoration: isOffPath ? "line-through" : "none",
+                    textDecorationColor: "var(--ink-3)",
+                  }}
+                >
                   {gp.order}. {gp.title}
                 </Typography>
               </Stack>

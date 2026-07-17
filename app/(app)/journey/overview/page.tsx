@@ -10,6 +10,7 @@ import Chip from "@mui/material/Chip";
 import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { isOnPath, sumOnPathMinutes } from "@/lib/journey/path/progress";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import type { CanDoStatement } from "@/lib/services/types";
 
@@ -41,8 +42,11 @@ export default async function OverviewPage({
 
   const canDoStatements =
     (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [];
-  const goalposts = path!.goalposts;
-  const totalMinutes = goalposts.reduce((sum, gp) => sum + gp.estimatedMinutes, 0);
+  // A pre-acceptance confirmation revision may have already dropped a
+  // goalpost (skipped) before this overview renders; it is no longer part of
+  // "what you'll do".
+  const goalposts = path!.goalposts.filter((gp) => isOnPath(gp.status));
+  const totalMinutes = sumOnPathMinutes(goalposts);
 
   return (
     <Stack spacing={4}>

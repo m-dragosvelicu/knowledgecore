@@ -112,6 +112,11 @@ enum GoalpostStatus {
   in_progress
   complete
   skipped
+  /// Stamped on the current goalpost by an adjust_plan reshape (L0.md §7):
+  /// the plan moved past it without a passing CheckpointEvaluation. Terminal
+  /// like `complete`/`skipped`, but excluded from progress counts - it was
+  /// never actually passed.
+  superseded
 }
 
 enum StepType {

@@ -9,6 +9,7 @@ import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma } from "@/lib/db";
 import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { onPathOrdinal } from "@/lib/journey/path/progress";
 import { getPresenter, applyPace } from "@/lib/journey/profile/presenter";
 import {
   adjustPlanAction,
@@ -152,14 +153,26 @@ export default async function GoalpostPage({
   const isFresh =
     !!informationStep && !informationStep.completedAt && evaluationCount === 0;
   const begun = params.phase === "information" || params.begin === "1";
+
+  // "Goalpost N of M": M excludes skipped/superseded goalposts, and N is this
+  // goalpost's position among the on-path ones (not its raw `order`), so the
+  // numbers stay contiguous after a reshape. Shared by the threshold view and
+  // the header eyebrow below.
+  const pathGoalposts = await prisma.goalpost.findMany({
+    where: { pathId: goalpost!.pathId },
+    orderBy: { order: "asc" },
+    select: { id: true, status: true },
+  });
+  const { ordinal, total: totalGoalposts } = onPathOrdinal(
+    pathGoalposts,
+    goalpost!.id,
+  );
+
   if (isFresh && !begun) {
-    const totalGoalposts = await prisma.goalpost.count({
-      where: { pathId: goalpost!.pathId },
-    });
     const expType = experienceStep?.type ?? StepType.information;
     return (
       <ThresholdView
-        order={goalpost!.order}
+        order={ordinal}
         totalGoalposts={totalGoalposts}
         title={goalpost!.title}
         objective={goalpost!.objective}
@@ -190,7 +203,7 @@ export default async function GoalpostPage({
       </Button>
       <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
         <Eyebrow>
-          Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
+          Goalpost {ordinal} of {totalGoalposts} &middot; ~{goalpost!.estimatedMinutes} min
           &middot;{" "}
           {phase === "information"
             ? "read"

@@ -164,12 +164,14 @@ export function ScoreBadge({
  *   completed -> hatched circle + teal check
  *   current   -> filled teal circle + planted flag
  *   locked    -> bone circle, muted stroke
+ *   reshaped  -> bone circle, muted stroke + muted X (off the path, not
+ *                merely not-yet-reached - never a check mark)
  */
 
 const MUTED = "#8C8B82"; // --ink-3 / silhouette family for future legs
 const BONE = "#F8F6F1"; // --surface, the warm fill of an undrawn node
 
-export type TrailNodeState = "completed" | "current" | "locked";
+export type TrailNodeState = "completed" | "current" | "locked" | "reshaped";
 
 export function CheckpointNode({ state }: { state: TrailNodeState }) {
   // A 44x60 box: the circle sits low (cy 44) leaving headroom for the flag.
@@ -212,6 +214,19 @@ export function CheckpointNode({ state }: { state: TrailNodeState }) {
 
         {state === "locked" && (
           <circle cx={22} cy={44} r={11} fill={BONE} stroke={MUTED} strokeWidth={2} />
+        )}
+
+        {state === "reshaped" && (
+          <>
+            <circle cx={22} cy={44} r={11} fill={BONE} stroke={MUTED} strokeWidth={2} />
+            <path
+              d="M18 40l8 8M26 40l-8 8"
+              fill="none"
+              stroke={MUTED}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </>
         )}
       </g>
     </svg>
