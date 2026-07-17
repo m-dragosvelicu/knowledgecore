@@ -8,6 +8,7 @@ import SubmitButton from "@/components/journey/SubmitButton";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma } from "@/lib/db";
+import { countGoalpostProgress } from "@/lib/journey/path/progress";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import type {
@@ -49,9 +50,7 @@ export default async function CompletePage() {
     (intent?.outcome?.canDoStatements as unknown as CanDoStatement[]) ??
     [];
 
-  const completedGoalposts = goalposts.filter(
-    (g) => g.status === GoalpostStatus.complete,
-  );
+  const goalpostProgress = countGoalpostProgress(goalposts);
 
   // Collect the strongest evidence quotes earned across the path: the latest
   // evaluation per goalpost, every dimension where the learner scored well
@@ -102,7 +101,7 @@ export default async function CompletePage() {
             </Typography>
           </HeadlineUnderline>
           <Typography variant="body2" color="text.secondary">
-            {completedGoalposts.length} of {goalposts.length} goalposts completed
+            {goalpostProgress.done} of {goalpostProgress.total} goalposts completed
             {revisions.length > 0
               ? ` · trail reshaped ${revisions.length} ${
                   revisions.length === 1 ? "time" : "times"

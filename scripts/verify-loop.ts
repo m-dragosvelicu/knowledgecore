@@ -147,7 +147,10 @@ async function main() {
   });
 
   const completedG1 = after.find((g) => g.id === g1.id)!;
-  check("current goalpost (order 1) is complete", completedG1.status === "complete");
+  check(
+    "current goalpost (order 1) is superseded, not complete (founder ruling 2026-07-17)",
+    completedG1.status === "superseded",
+  );
 
   const inserted = adjustment.insertedGoalposts.length;
   check("one remediation goalpost was inserted by the mock", inserted === 1);
