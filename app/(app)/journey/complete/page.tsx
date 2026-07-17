@@ -197,20 +197,33 @@ export default async function CompletePage() {
         <Stack spacing={1.25}>
           {goalposts.map((gp) => {
             const isSkipped = gp.status === GoalpostStatus.skipped;
+            const isSuperseded = gp.status === GoalpostStatus.superseded;
+            const isOffPath = isSkipped || isSuperseded;
+            const label = isSkipped
+              ? "Removed"
+              : isSuperseded
+                ? "Reshaped"
+                : "Done";
             return (
               <Stack
                 key={gp.id}
                 direction="row"
                 spacing={2}
                 alignItems="baseline"
-                sx={{ opacity: isSkipped ? 0.6 : 1 }}
+                sx={{ opacity: isOffPath ? 0.6 : 1 }}
               >
                 <Chip
-                  label={isSkipped ? "Skipped" : "Done"}
+                  label={label}
                   size="small"
-                  variant={isSkipped ? "outlined" : "filled"}
+                  variant={isOffPath ? "outlined" : "filled"}
                 />
-                <Typography variant="body1">
+                <Typography
+                  variant="body1"
+                  sx={{
+                    textDecoration: isOffPath ? "line-through" : "none",
+                    textDecorationColor: "var(--ink-3)",
+                  }}
+                >
                   {gp.order}. {gp.title}
                 </Typography>
               </Stack>

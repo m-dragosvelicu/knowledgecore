@@ -108,8 +108,17 @@ export default async function PathPage({
 
   const nodes: TrailNode[] = path.goalposts.map((gp, i) => {
     let state: TrailNode["state"];
-    if (gp.status === GoalpostStatus.complete || gp.status === GoalpostStatus.skipped) {
+    let reshapedReason: TrailNode["reshapedReason"];
+    if (gp.status === GoalpostStatus.complete) {
       state = "completed";
+    } else if (
+      gp.status === GoalpostStatus.superseded ||
+      gp.status === GoalpostStatus.skipped
+    ) {
+      // Off the path (never actually passed) - hashed out, never "Cleared".
+      state = "reshaped";
+      reshapedReason =
+        gp.status === GoalpostStatus.superseded ? "superseded" : "skipped";
     } else if (i === firstActiveIndex) {
       state = accepted ? "current" : "locked";
     } else {
@@ -118,8 +127,8 @@ export default async function PathPage({
     const stepTypes = Array.from(new Set(gp.steps.map((s) => s.type)));
 
     // A cleared goalpost's score: the mean of its six rubric dimensions (0..4)
-    // from the latest checkpoint evaluation. Absent when the goalpost was
-    // skipped or never evaluated -- the trail then shows just the cleared node.
+    // from the latest checkpoint evaluation. Absent for reshaped-off or
+    // never-evaluated goalposts -- the trail then shows just the node.
     let score: number | undefined;
     if (state === "completed" && gp.evaluations.length > 0) {
       const s = gp.evaluations[0].scores as unknown as RubricScores;
@@ -143,6 +152,7 @@ export default async function PathPage({
       estimatedMinutes: gp.estimatedMinutes,
       state,
       added: addedTitles.has(gp.title),
+      reshapedReason,
       stepTypes: stepTypes as TrailNode["stepTypes"],
       score,
     };
