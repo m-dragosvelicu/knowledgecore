@@ -32,6 +32,17 @@ export async function applyPathAdjustment(
 ): Promise<void> {
   const { pathId, currentGoalpostId, currentOrder, adjustment, triggerEvalId } = args;
 
+  // Defense-in-depth: the Zod schema (pathAdjuster.service.ts) already requires
+  // insertedGoalposts.length >= 1, but never trust a single layer with silently
+  // advancing a learner past a goalpost they never passed. Refuse and roll back
+  // rather than stamp complete with nothing to remediate the gap.
+  if (adjustment.insertedGoalposts.length === 0) {
+    throw new Error(
+      "applyPathAdjustment: adjustment has no insertedGoalposts; refusing to " +
+        "mark the current goalpost complete without a remediation goalpost.",
+    );
+  }
+
   await tx.goalpost.update({
     where: { id: currentGoalpostId },
     data: { status: GoalpostStatus.complete },

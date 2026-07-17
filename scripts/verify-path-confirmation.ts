@@ -191,6 +191,7 @@ async function main() {
   const remaining = path.goalposts.slice(1);
   const adjuster = new FakePathAdjuster();
   const adjustment = await adjuster.adjust({
+    mode: "confirmation_revision",
     subject: { canonicalName: "Linear Algebra", scopeNote: "for ML" },
     motivation: "work",
     outcome: [{ text: "I can do PCA", bloomLevel: "apply" }],
@@ -251,6 +252,7 @@ async function main() {
     });
     const a = gps[0];
     const adj = await adjuster.adjust({
+      mode: "confirmation_revision",
       subject: { canonicalName: "Linear Algebra", scopeNote: "for ML" },
       motivation: "work",
       outcome: [{ text: "I can do PCA", bloomLevel: "apply" }],
