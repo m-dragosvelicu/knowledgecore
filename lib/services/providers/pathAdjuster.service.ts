@@ -79,7 +79,15 @@ const modifiedGoalpostSchema = z.object({
 });
 
 export const pathAdjustmentSchema = z.object({
-  insertedGoalposts: z.array(insertedGoalpostSchema),
+  // Empty inserts would let the failed goalpost get stamped complete downstream
+  // (applyPathAdjustment) instead of remediated — every adjust_plan response
+  // must supply at least one remediation goalpost. Schema violations here fail
+  // loudly with no retry, same as any other pathAdjustmentSchema violation (see
+  // completeStructured in lib/llm/gemini.ts: opts.schema.parse is not wrapped
+  // in the transient/truncation retry).
+  insertedGoalposts: z
+    .array(insertedGoalpostSchema)
+    .min(1, "adjust_plan must insert at least one remediation goalpost."),
   removedOrders: z.array(z.number().int()),
   modifiedGoalposts: z.array(modifiedGoalpostSchema),
   rationale: z.string().min(1),

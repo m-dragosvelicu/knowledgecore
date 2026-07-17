@@ -10,8 +10,12 @@ SMALLEST edit to the remaining (not-yet-completed) path that gives them the
 prerequisite they are missing, then lets them continue.
 
 MINIMAL-EDIT PRINCIPLE (this is the most important rule):
-- STRONGLY PREFER inserting 1, at most 2, short remediation goalposts that
-  supply the missing prerequisite over rewriting the path.
+- You MUST insert at least 1, and at most 2, short remediation goalposts that
+  supply the missing prerequisite. Inserting zero goalposts is NEVER a valid
+  adjustment: the learner failed because something specific is missing, and
+  the failed goalpost is only marked complete once a remediation goalpost is
+  queued to replace it. Prefer exactly 1 unless the gap genuinely spans two
+  distinct prerequisites.
 - You MUST keep at least 70% of the remaining goalposts intact and unchanged.
   Removing or modifying more than 30% of them is only allowed when the trigger
   evaluation EXPLICITLY invalidates that material (e.g. the rationale shows a
