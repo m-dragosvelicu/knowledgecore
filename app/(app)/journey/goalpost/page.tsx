@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma } from "@/lib/db";
@@ -164,6 +166,7 @@ export default async function GoalpostPage({
         estimatedMinutes={goalpost!.estimatedMinutes}
         experienceLabel={EXPERIENCE_LABELS[expType]}
         beginHref={`/journey/goalpost?phase=information&j=${intent.id}`}
+        intentId={intent.id}
       />
     );
   }
@@ -177,6 +180,14 @@ export default async function GoalpostPage({
 
   const header = (
     <Stack spacing={1.5}>
+      <Button
+        component={Link}
+        href={`/journey/path?j=${intent.id}`}
+        variant="text"
+        sx={{ alignSelf: "flex-start", px: 0 }}
+      >
+        Back to your trail
+      </Button>
       <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
         <Eyebrow>
           Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
