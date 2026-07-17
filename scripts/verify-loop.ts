@@ -188,8 +188,99 @@ async function main() {
 
   await prisma.user.delete({ where: { id: user.id } });
 
+  await scenarioEmptyInsertRefused();
+
   console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILED"}`);
   process.exit(failures ? 1 : 0);
+}
+
+// Regression coverage for the 2026-07-17 bug: an adjust_plan response with
+// insertedGoalposts=[] must NOT silently stamp the current goalpost complete
+// (that would advance the learner past a goalpost they never passed). This
+// bypasses the LLM/schema layer and calls applyPathAdjustment directly with a
+// hand-built empty-insert PathAdjustment, exercising the defense-in-depth
+// guard in lib/journey/path/revision.ts on its own.
+async function scenarioEmptyInsertRefused() {
+  const user = await prisma.user.create({
+    data: { email: `loop-verify-empty-${Date.now()}@example.test`, name: "Loop Verify Empty" },
+  });
+
+  const intent = await prisma.learningIntent.create({
+    data: {
+      userId: user.id,
+      rawText: "verify the empty-insert guard",
+      status: "in_progress",
+      subject: { create: { canonicalName: "Test Subject", scopeNote: "narrow" } },
+      goal: { create: { motivation: "work", elaboration: "testing" } },
+      outcome: { create: { canDoStatements: [{ text: "I can do X", bloomLevel: "apply" }] } },
+      assessment: { create: { competencies: [{ competency: "x", estimatedLevel: 1, confidence: 0.8 }] } },
+    },
+  });
+
+  const path = await prisma.learningPath.create({
+    data: {
+      intentId: intent.id,
+      status: "accepted",
+      acceptedAt: new Date(),
+      goalposts: {
+        create: [1, 2].map((n) => ({
+          order: n,
+          title: `Goalpost ${n}`,
+          objective: `Objective ${n}.`,
+          estimatedMinutes: 45,
+          status: n === 1 ? "in_progress" : "pending",
+          steps: { create: [infoStep(1), expStep(2)] },
+        })),
+      },
+    },
+    include: { goalposts: { orderBy: { order: "asc" } } },
+  });
+  const g1 = path.goalposts.find((g) => g.order === 1)!;
+
+  const evaluation = await prisma.checkpointEvaluation.create({
+    data: {
+      goalpostId: g1.id,
+      attempt: 3,
+      scores: { recall: 1, application: 1, conceptual: 1, transfer: 1, communication: 2, coverage: 1 },
+      evidence: [],
+      decision: "adjust_plan",
+      rationale: "You are missing a prerequisite.",
+    },
+  });
+
+  const emptyInsertAdjustment: PathAdjustment = {
+    insertedGoalposts: [],
+    removedOrders: [],
+    modifiedGoalposts: [],
+    rationale: "Malformed adjustment: no remediation goalpost supplied.",
+  };
+
+  let threw = false;
+  try {
+    await prisma.$transaction((tx) =>
+      applyPathAdjustment(tx, {
+        pathId: path.id,
+        currentGoalpostId: g1.id,
+        currentOrder: 1,
+        adjustment: emptyInsertAdjustment,
+        triggerEvalId: evaluation.id,
+      }),
+    );
+  } catch {
+    threw = true;
+  }
+  check("applyPathAdjustment throws on insertedGoalposts=[]", threw);
+
+  const g1After = await prisma.goalpost.findUnique({ where: { id: g1.id } });
+  check(
+    "current goalpost is NOT marked complete (transaction rolled back)",
+    g1After?.status === "in_progress",
+  );
+
+  const revisions = await prisma.pathRevision.findMany({ where: { pathId: path.id } });
+  check("no PathRevision recorded (transaction rolled back)", revisions.length === 0);
+
+  await prisma.user.delete({ where: { id: user.id } });
 }
 
 main().catch(async (e) => {
