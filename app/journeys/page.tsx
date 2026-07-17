@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
-import type { JourneyStatus } from "@prisma/client";
+import type { GoalpostStatus, JourneyStatus } from "@prisma/client";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma } from "@/lib/db";
 import { nextWizardRoute } from "@/lib/journey/intent/routing";
+import { countGoalpostProgress } from "@/lib/journey/path/progress";
 import AppHeader from "@/components/AppHeader";
 import HomeHero from "@/components/HomeHero";
 import { Eyebrow, WobbleButton } from "@/components/ui";
@@ -53,7 +54,7 @@ type IntentRow = {
   status: JourneyStatus;
   updatedAt: Date;
   subject: { canonicalName: string } | null;
-  path: { goalposts: { status: string; estimatedMinutes: number | null }[] } | null;
+  path: { goalposts: { status: GoalpostStatus; estimatedMinutes: number | null }[] } | null;
 };
 
 // Section heading shared by both the active + set-aside groups.
@@ -80,8 +81,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // Map a journey row into the design-system row data the client component renders.
 function toRowData(intent: IntentRow, now: Date): JourneyListRowData {
   const goalposts = intent.path?.goalposts ?? [];
-  const total = goalposts.length;
-  const done = goalposts.filter((g) => g.status === "complete").length;
+  const { done, total } = countGoalpostProgress(goalposts);
   return {
     id: intent.id,
     title: journeyTitle(intent),

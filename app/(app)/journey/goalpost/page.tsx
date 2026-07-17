@@ -7,6 +7,7 @@ import { GATE_REDIRECT } from "@/lib/auth-guards";
 import { prisma } from "@/lib/db";
 import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { onPathOrdinal } from "@/lib/journey/path/progress";
 import { getPresenter, applyPace } from "@/lib/journey/profile/presenter";
 import {
   adjustPlanAction,
@@ -151,13 +152,22 @@ export default async function GoalpostPage({
     !!informationStep && !informationStep.completedAt && evaluationCount === 0;
   const begun = params.phase === "information" || params.begin === "1";
   if (isFresh && !begun) {
-    const totalGoalposts = await prisma.goalpost.count({
+    // "Goalpost N of M": M excludes skipped/superseded goalposts, and N is
+    // this goalpost's position among the on-path ones (not its raw `order`),
+    // so the numbers stay contiguous after a reshape.
+    const pathGoalposts = await prisma.goalpost.findMany({
       where: { pathId: goalpost!.pathId },
+      orderBy: { order: "asc" },
+      select: { id: true, status: true },
     });
+    const { ordinal, total: totalGoalposts } = onPathOrdinal(
+      pathGoalposts,
+      goalpost!.id,
+    );
     const expType = experienceStep?.type ?? StepType.information;
     return (
       <ThresholdView
-        order={goalpost!.order}
+        order={ordinal}
         totalGoalposts={totalGoalposts}
         title={goalpost!.title}
         objective={goalpost!.objective}

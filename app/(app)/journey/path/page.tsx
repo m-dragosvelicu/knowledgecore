@@ -9,6 +9,7 @@ import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { isOnPath, sumOnPathMinutes } from "@/lib/journey/path/progress";
 import { generatePathAction } from "@/app/(app)/journey/_actions";
 import type {
   CanDoStatement,
@@ -80,10 +81,11 @@ export default async function PathPage({
 
   const accepted = path.acceptedAt != null;
 
-  const totalMinutes = path.goalposts.reduce(
-    (sum, gp) => sum + gp.estimatedMinutes,
-    0,
-  );
+  // Skipped/superseded goalposts are off the path - excluded from both the
+  // goalpost count and the time-to-finish estimate (founder ruling
+  // 2026-07-17). The trail visualization below still renders every node.
+  const onPathGoalposts = path.goalposts.filter((gp) => isOnPath(gp.status));
+  const totalMinutes = sumOnPathMinutes(path.goalposts);
   const competencies = assessment!.competencies as unknown as Competency[];
 
   // Titles of goalposts inserted by any adjust_plan revision -> "added for you".
@@ -156,7 +158,7 @@ export default async function PathPage({
           </Typography>
         </HeadlineUnderline>
         <Typography variant="body2" color="text.secondary">
-          {path.goalposts.length} goalposts &middot; ~{totalMinutes} min to the
+          {onPathGoalposts.length} goalposts &middot; ~{totalMinutes} min to the
           finish
         </Typography>
       </Stack>

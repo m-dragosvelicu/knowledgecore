@@ -2,23 +2,27 @@ import type { Prisma } from "@prisma/client";
 import { GoalpostStatus } from "@prisma/client";
 import type { PathAdjustment } from "@/lib/services/types";
 
-// Goalpost statuses that mean "done, do not serve again".
+// Goalpost statuses that mean "done, do not serve again". `superseded` is a
+// reshape stamping the current goalpost never passed (founder ruling
+// 2026-07-17) - terminal like `complete`/`skipped`, just not genuine mastery.
 export const TERMINAL_GOALPOST_STATUSES = [
   GoalpostStatus.complete,
   GoalpostStatus.skipped,
+  GoalpostStatus.superseded,
 ];
 
 /**
  * Apply a minimal-edit PathAdjustment (L0.md §7 adjust_plan) inside a
  * transaction; same code path as scripts/verify-loop.ts.
  *
- * adjust_plan means the plan was wrong, not the learner: current goalpost is
- * completed, removed goalposts are marked `skipped` (history preserved),
- * modifications applied in place, inserts land right after the current
- * order. The @@unique([pathId, order]) constraint is respected by bumping
- * later goalposts out of the way (large offset), inserting contiguously,
- * then renumbering the bumped ones to follow. Records a PathRevision, bumps
- * revisionCount.
+ * adjust_plan means the plan was wrong, not the learner: the current goalpost
+ * is stamped `superseded` (the plan moved past it, but it was never actually
+ * passed - founder ruling 2026-07-17), removed goalposts are marked `skipped`
+ * (history preserved), modifications applied in place, inserts land right
+ * after the current order. The @@unique([pathId, order]) constraint is
+ * respected by bumping later goalposts out of the way (large offset),
+ * inserting contiguously, then renumbering the bumped ones to follow.
+ * Records a PathRevision, bumps revisionCount.
  */
 export async function applyPathAdjustment(
   tx: Prisma.TransactionClient,
@@ -35,17 +39,21 @@ export async function applyPathAdjustment(
   // Defense-in-depth: the Zod schema (pathAdjuster.service.ts) already requires
   // insertedGoalposts.length >= 1, but never trust a single layer with silently
   // advancing a learner past a goalpost they never passed. Refuse and roll back
-  // rather than stamp complete with nothing to remediate the gap.
+  // rather than supersede with nothing to remediate the gap.
   if (adjustment.insertedGoalposts.length === 0) {
     throw new Error(
       "applyPathAdjustment: adjustment has no insertedGoalposts; refusing to " +
-        "mark the current goalpost complete without a remediation goalpost.",
+        "mark the current goalpost superseded without a remediation goalpost.",
     );
   }
 
+  // Founder ruling 2026-07-17: only a passing CheckpointEvaluation means the
+  // learner actually mastered a goalpost. A reshape moves the plan past the
+  // current goalpost without one, so it is stamped `superseded`, not
+  // `complete` - progress counters must not read it as genuine mastery.
   await tx.goalpost.update({
     where: { id: currentGoalpostId },
-    data: { status: GoalpostStatus.complete },
+    data: { status: GoalpostStatus.superseded },
   });
 
   if (adjustment.removedOrders.length) {

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import type { JourneyStatus } from "@prisma/client";
+import type { GoalpostStatus, JourneyStatus } from "@prisma/client";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nextWizardRoute } from "@/lib/journey/intent/routing";
+import { countGoalpostProgress, isOnPath } from "@/lib/journey/path/progress";
 import { startNewJourneyAction } from "@/app/(app)/journey/_actions";
 import AppHeader from "@/components/AppHeader";
 import HomeHero from "@/components/HomeHero";
@@ -73,7 +74,7 @@ type IntentRow = {
   status: JourneyStatus;
   updatedAt: Date;
   subject: { canonicalName: string } | null;
-  path: { goalposts: { status: string; estimatedMinutes: number | null }[] } | null;
+  path: { goalposts: { status: GoalpostStatus; estimatedMinutes: number | null }[] } | null;
 };
 
 // A single journey row: title + middot metadata on the left, a roughened score
@@ -81,8 +82,7 @@ type IntentRow = {
 // Hover nudges the row right and warms the title to teal-deep (CSS only).
 function JourneyRow({ intent, now }: { intent: IntentRow; now: Date }) {
   const goalposts = intent.path?.goalposts ?? [];
-  const total = goalposts.length;
-  const done = goalposts.filter((g) => g.status === "complete").length;
+  const { done, total } = countGoalpostProgress(goalposts);
   const meta = `${STATUS_LABEL[intent.status]} · ${relativeWhen(intent.updatedAt, now)}`;
 
   return (
@@ -206,7 +206,10 @@ export default async function HomePage() {
   // Featured-card side stat: remaining goalposts + an estimated time to the next
   // checkpoint, derived from the path the active journey already has (if any).
   const activeGoalposts = active?.path?.goalposts ?? [];
-  const remaining = activeGoalposts.filter((g) => g.status !== "complete");
+  const activeProgress = countGoalpostProgress(activeGoalposts);
+  const remaining = activeGoalposts.filter(
+    (g) => isOnPath(g.status) && g.status !== "complete",
+  );
   const nextEtaMin = remaining[0]?.estimatedMinutes ?? null;
 
   return (
@@ -276,8 +279,8 @@ export default async function HomePage() {
                     <Box>
                       <SectionLabel sx={{ mb: "12px" }}>your trail so far</SectionLabel>
                       <Box sx={{ fontSize: 13, color: "var(--ink-2)" }}>
-                        {activeGoalposts.length > 0
-                          ? `${activeGoalposts.filter((g) => g.status === "complete").length} of ${activeGoalposts.length} goalposts cleared`
+                        {activeProgress.total > 0
+                          ? `${activeProgress.done} of ${activeProgress.total} goalposts cleared`
                           : "your path is still building"}
                       </Box>
                     </Box>
