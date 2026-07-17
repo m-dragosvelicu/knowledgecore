@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -50,6 +51,14 @@ export default function WarmUpRecap({
 }: Props) {
   return (
     <Stack spacing={3}>
+      <Button
+        component={Link}
+        href={`/journey/path?j=${intentId}`}
+        variant="text"
+        sx={{ alignSelf: "flex-start", px: 0 }}
+      >
+        Back to your trail
+      </Button>
       <Stack spacing={1.5}>
         <Eyebrow>Welcome back</Eyebrow>
         <HeadlineUnderline>
