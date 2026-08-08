@@ -5,16 +5,14 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import SolidButton from "@/components/ui/SolidButton";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 
 // L0.md §7 Q7: a must-acknowledge "we've adjusted your path" notice. No
 // auto-redirect -- the learner reads the rationale and explicitly continues.
-//
-// Slice 4 restyle: warm surface, eyebrow + headline underline, the rationale as
-// a teal-edged pull-quote, on the one-teal vocabulary (no info-blue accent).
 export default async function AdjustedPage({
   searchParams,
 }: {

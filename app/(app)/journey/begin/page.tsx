@@ -2,21 +2,17 @@ import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { isOnPath, sumOnPathMinutes } from "@/lib/journey/path/progress";
 import { Eyebrow, HeadlineUnderline } from "@/components/ui";
 import BeginClient from "./BeginClient";
 
-// THE ACCOUNT GATE — create-account step (landing-flow plan, section 3b).
-//
-// Reached when an anonymous guest clicks "Looks good, start" on the path
-// overview: acceptPathAction rejects the guest (requireRealUserId) and redirects
-// here. This is NOT a bounce to the stock /signin tabs; it is the next step of
-// the journey, framed as "save your path and begin". It restates what they are
-// about to start so the value is visible at the point of commitment, then offers
-// email+password create-account (primary) and "I already have an account" sign-in
-// (secondary). On success the onLinkAccount hook re-owns the journey atomically
-// and the client resumes the pending begin (acceptPathAction), landing the
-// learner in goalpost 1 with their journey intact.
+// Account gate (landing-flow plan 3b): reached when acceptPathAction rejects
+// an anonymous guest (requireRealUserId) and redirects here. Deliberately not
+// a bounce to the stock /signin tabs — it's the next step, framed as "save
+// your path and begin". On success onLinkAccount re-owns the journey and the
+// client resumes acceptPathAction, landing the learner in goalpost 1.
 export default async function BeginPage({
   searchParams,
 }: {
@@ -43,17 +39,18 @@ export default async function BeginPage({
     prisma.subject.findUnique({ where: { intentId: intent.id } }),
     prisma.learningPath.findUnique({
       where: { intentId: intent.id },
-      include: { goalposts: { select: { estimatedMinutes: true } } },
+      include: { goalposts: { select: { status: true, estimatedMinutes: true } } },
     }),
   ]);
   // The gate only makes sense once the path overview exists; otherwise send the
   // guest back to finish the public flow.
   if (!subject || !path) redirect(`/journey/path?j=${j}`);
 
-  const goalpostCount = path.goalposts.length;
-  const totalMinutes = path.goalposts.reduce(
-    (sum, g) => sum + (g.estimatedMinutes ?? 0),
-    0,
+  // A pre-acceptance confirmation revision may already have dropped a
+  // goalpost (skipped); exclude it from the commitment summary.
+  const goalpostCount = path.goalposts.filter((g) => isOnPath(g.status)).length;
+  const totalMinutes = sumOnPathMinutes(
+    path.goalposts.map((g) => ({ status: g.status, estimatedMinutes: g.estimatedMinutes ?? 0 })),
   );
 
   return (

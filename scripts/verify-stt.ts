@@ -1,37 +1,26 @@
 /**
  * L1 Slice 3 — deterministic proof of the speech-to-text path.
- * Run: `bun run scripts/verify-stt.ts`. No live audio, no live Gemini, no DB:
- * it exercises the MOCK transcription provider so the test is fully deterministic.
+ * Run: `bun run scripts/verify-stt.ts`. Deterministic: uses a mock
+ * transcription provider, no live audio/Gemini/DB.
  *
- * Proves the as-built contract:
- *   (a) audio bytes IN -> a transcript string OUT (the Transcriber contract);
- *   (b) the MockTranscriber never retains the audio (audio-not-persisted: the
- *       result carries ONLY the transcript, no audio field, and the input buffer
- *       is untouched);
- *   (c) a silent/empty recording yields an empty transcript (silent-audio rule);
- *   (d) the EDITABLE-FIELD contract: simulating the client, a transcript appended
- *       to an existing draft lands as plain editable text the learner can still
- *       correct (no black-box voice mode), and an empty transcript leaves the
- *       draft untouched;
- *   (e) the GeminiClient implements the TranscriptionClient interface (the audio
- *       method exists net-new on the otherwise text-only client) — checked by
- *       type + shape, WITHOUT making a network call;
- *   (f) the LlmCallPurpose telemetry value `stt_transcribe` exists (so the live
- *       transcriber can record the call).
+ * Covers: audio-in -> transcript-out, audio-not-persisted (result carries
+ * only the transcript, input buffer untouched), silent audio -> empty
+ * transcript, the editable-field append contract (appends, doesn't replace),
+ * GeminiClient implementing TranscriptionClient (shape check, no network
+ * call), and the stt_transcribe telemetry purpose existing.
  */
 import { GeminiClient } from "../lib/llm/gemini";
 import type { TranscriptionClient } from "../lib/llm";
 import type {
-  Transcriber,
   TranscribeInput,
   TranscribeResult,
 } from "../lib/services/transcription";
+import type { Transcriber } from "../lib/services/interfaces/transcriber.interface";
 import { LlmCallPurpose } from "@prisma/client";
 
-// Local deterministic transcriber double (mirroring the deleted MockTranscriber):
-// empty audio -> empty transcript; otherwise a canned transcript whose text scales
-// with the byte length so different recordings yield observably different text. The
-// result carries ONLY a transcript (audio-not-persisted) and never mutates the input.
+// Local deterministic transcriber double: empty audio -> empty transcript;
+// otherwise a canned transcript that scales with byte length (so different
+// recordings differ observably). Carries only a transcript, never mutates input.
 class FakeTranscriber implements Transcriber {
   async transcribe(input: TranscribeInput): Promise<TranscribeResult> {
     if (input.audio.byteLength === 0) {

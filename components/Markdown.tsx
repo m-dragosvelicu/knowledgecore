@@ -12,29 +12,27 @@ import "katex/dist/katex.min.css";
 import "highlight.js/styles/github.css";
 
 /**
- * Sanitization schema.
- *
- * The content rendered here is LLM-generated and therefore UNTRUSTED. The
- * canonical "do not trust the content, but do trust the plugins" pattern is:
- *
- *   remark-math (parse $...$)  ->  rehype-sanitize  ->  rehype-katex / rehype-highlight
- *
- * rehype-sanitize runs FIRST so any HTML smuggled into the markdown is removed
- * while the math is still inert text. rehype-katex and rehype-highlight then run
- * on the already-sanitized tree and emit their own trusted markup (spans with
- * KaTeX / hljs class names, inline styles), which sanitize never sees and so
- * cannot strip. We only widen the schema enough to let the math/code WRAPPER
- * nodes that remark-math/rehype produce survive sanitization.
+ * Content is LLM-generated and UNTRUSTED. Pipeline order matters:
+ * remark-math -> rehype-sanitize -> rehype-katex / rehype-highlight.
+ * Sanitize must run first (before math/code are expanded) so any HTML smuggled
+ * into the markdown is stripped while math is still inert text; katex/highlight
+ * then emit their own trusted markup after sanitization, which never sees it.
+ * The schema below only widens far enough to let their wrapper nodes survive.
  */
+const remarkMathOptions = {
+  // remark-math defaults singleDollarTextMath to true, so any lone "$3 ... $15"
+  // in prose (currency, not math) opens/closes an inline math span and everything
+  // between gets swallowed into KaTeX. Currency is common in lesson prose; real
+  // inline/display math never needs a single dollar. Require "$$...$$" for math.
+  singleDollarTextMath: false,
+};
 const schema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
-    // remark-math (v6) emits math as <code class="language-math math-inline">
-    // for inline ($..$) and <pre><code class="language-math math-display"> for
-    // block ($$ on their own lines). We must preserve those classes through
-    // sanitize so rehype-katex can find and expand them afterwards. We also
-    // allow the language-* classes rehype-highlight keys off, plus hljs.
+    // remark-math (v6) emits <code class="language-math math-inline|display">;
+    // these classes must survive sanitize so rehype-katex can find and expand
+    // them. Also allow language-* (rehype-highlight) and hljs.
     code: [
       ...(defaultSchema.attributes?.code ?? []),
       ["className", /^language-./, "math", "math-inline", "math-display", "hljs"],
@@ -73,7 +71,6 @@ const sx: SxProps<Theme> = {
     my: 2,
   },
   "& hr": { border: "none", borderTop: "1px solid", borderColor: "divider", my: 3 },
-  // inline code
   "& :not(pre) > code": {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
     fontSize: "0.875em",
@@ -82,7 +79,6 @@ const sx: SxProps<Theme> = {
     py: 0.25,
     borderRadius: 1,
   },
-  // fenced code blocks
   "& pre": {
     bgcolor: "grey.100",
     border: "1px solid",
@@ -99,7 +95,6 @@ const sx: SxProps<Theme> = {
     bgcolor: "transparent",
     p: 0,
   },
-  // GFM tables
   "& table": {
     borderCollapse: "collapse",
     width: "100%",
@@ -126,22 +121,15 @@ export interface MarkdownProps {
 }
 
 /**
- * Reusable renderer for LLM-generated markdown.
- *
- * Supports GitHub-Flavored Markdown (tables, task lists, strikethrough),
- * LaTeX math ($inline$ and $$block$$) via KaTeX, and syntax-highlighted fenced
- * code via highlight.js. Output is sanitized against XSS (see `schema`).
- *
- * This is a React Server Component: react-markdown builds a React element tree
- * (no dangerouslySetInnerHTML) and every plugin used here is synchronous, so no
- * "use client" boundary is required and nothing is shipped to the client bundle
- * beyond the KaTeX/hljs CSS.
+ * Server Component: react-markdown builds a React element tree (no
+ * dangerouslySetInnerHTML), and every plugin here is synchronous, so no
+ * "use client" boundary is needed. Adding an async plugin would break that.
  */
 export default function Markdown({ children }: MarkdownProps) {
   return (
     <Box sx={sx} className="kc-markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, [remarkMath, remarkMathOptions]]}
         rehypePlugins={[
           [rehypeSanitize, schema],
           rehypeKatex,

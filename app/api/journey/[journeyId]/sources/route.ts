@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { buildAttribution } from "@/lib/journey/sourceAttribution";
+import { buildAttribution } from "@/lib/research/attribution";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,6 @@ export async function GET(
 
   const { journeyId } = await params;
 
-  // Ownership check: the intent must belong to the authenticated user.
   const intent = await prisma.learningIntent.findUnique({
     where: { id: journeyId },
     select: { userId: true },

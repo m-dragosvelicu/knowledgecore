@@ -1,26 +1,6 @@
 import type { Decision } from "@prisma/client";
 import type { RubricScores } from "@/lib/services/types";
 
-// =====================================================================
-// Authoritative checkpoint decision (L0.md §8).
-//
-// The CheckpointEvaluator (LLM-as-judge) returns rubric scores, evidence
-// quotes, and a rationale. Its own `decision` field is treated as ADVISORY:
-// the authoritative branch is derived here, deterministically, from the
-// scores. This (1) fixes the audited spec violation where the model was
-// trusted to apply the threshold rule itself, (2) makes the decision
-// reproducible and thesis-defensible, and (3) lets us enforce the §9.6
-// repeat cap independently of model behaviour.
-//
-// §8 rule, verbatim: "advance if no dimension < 2 and at least four
-// dimensions >= 3; repeat if any dimension < 2; adjust_plan if Coverage
-// Mismatch fires (user demonstrates a gap the goalpost did not target)."
-// =====================================================================
-
-// §9.6 ("2 repeats then mandatory adjustment, to avoid grinding"): the initial
-// submission is attempt 1; two further repeats are attempts 2 and 3. So on the
-// 3rd attempt a still-failing checkpoint escalates to adjust_plan rather than
-// offering a third repeat.
 export const MAX_ATTEMPTS_BEFORE_ADJUST = 3;
 
 const ADVANCE_MIN_LEVEL = 2; // no dimension may sit below "proficient"
@@ -65,19 +45,14 @@ function meetsAdvanceBar(scores: RubricScores): boolean {
 }
 
 /**
- * Derive the authoritative decision from rubric scores and the attempt number.
+ * Derive the authoritative decision from rubric scores and the attempt
+ * number. `attempt` is 1-based; once MAX_ATTEMPTS_BEFORE_ADJUST is reached,
+ * a still-failing checkpoint escalates to adjust_plan instead of repeating.
  *
- * `attempt` is 1-based (first submission = 1). The §9.6 cap means: once a
- * learner has used up MAX_ATTEMPTS_BEFORE_ADJUST attempts, a still-failing
- * checkpoint escalates to adjust_plan (the honest escape — see
- * checkpoint_evaluator_design), and a borderline-proficient checkpoint is
- * allowed to advance rather than grind.
- *
- * Spec gap note (documented decision): §8 defines advance (no dim<2 AND >=4
- * dims>=3) and repeat (any dim<2) but is silent on the middle band — all
- * dimensions >=2 yet fewer than four >=3. We treat that band as "passing on
- * a clean run is not yet earned": it repeats while attempts remain, then
- * advances once the cap is hit (avoids grinding a proficient learner).
+ * Spec gap (documented decision): §8 defines advance and repeat but is
+ * silent on the middle band (all dims >=2, fewer than four >=3). We treat
+ * that as "not yet earned": repeat while attempts remain, then advance once
+ * the cap is hit, so a proficient learner isn't ground down.
  */
 export function deriveDecision(scores: RubricScores, attempt: number): Decision {
   // Coverage Mismatch takes precedence: the plan is wrong, fix the plan.

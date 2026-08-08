@@ -2,47 +2,38 @@
  * L1 Slice 4 — deterministic proof of the visual-media gate.
  * Run: `bun run scripts/verify-visual-media.ts`.
  *
- * The registry is now LIVE-ONLY, so this script uses LOCAL offline source doubles
- * (FakeImageSource / FakeVideoSource) for the gate + sourcing checks to stay
- * network-free, while asserting that the registry itself returns the LIVE source
- * types. The not-helpful proof uses the LOCAL docker Postgres (a throwaway journey
- * it creates and deletes).
+ * The registry's image/video sources require network access, so gate/sourcing
+ * checks use local offline doubles (FakeImageSource/FakeVideoSource) to stay
+ * network-free, while asserting the registry itself resolves to the real
+ * provider types. The not-helpful proof uses the local docker Postgres
+ * (throwaway journey, created and deleted).
  *
- * Proves the as-built contract:
- *   (1) THE GATE routes each visualKind to the correct medium (simple switch, not
- *       a classifier): diagram/structural/quantitative -> svg; photographic/
- *       real_world/human/situational -> image; process/motion -> video.
- *   (2) SVG SECURITY: the dedicated SVG sanitizer strips an injected <script>,
- *       on* event handlers, <foreignObject>, <image>/<use>, external href, and
- *       javascript: values — and the gate's svg route only ever yields sanitized
- *       markup. The markdown sanitizer is NOT involved.
- *   (3) IMAGE SOURCING: a sourced image carries REAL attribution and comes ONLY
- *       from the allowed source (Openverse); safe-search is requested.
- *   (4) VIDEO: a reference video resolves to a privacy-friendly embed URL.
- *   (5) NOT-HELPFUL: recordVisualNotHelpful increments visualNotHelpfulCount AND
- *       writes a NEW append-only `visual_not_helpful` snapshot.
- *   (6) ENUM DEBT: LlmCallPurpose.visual_generate exists.
+ * Covers: the visualKind->medium routing switch; SVG sanitization (strips
+ * script/handlers/foreignObject/external refs, markdown sanitizer untouched);
+ * image sourcing (real attribution, Openverse-only, safe-search); video
+ * resolving to a privacy-friendly embed; recordVisualNotHelpful incrementing
+ * the counter and appending a new snapshot; and the visual_generate enum value.
  */
 
 import { sanitizeSvg, DENIED_ELEMENTS } from "../lib/services/visual/svgSanitizer";
 import { mediumForKind, routeVisual } from "../lib/services/visual/gate";
 import { getImageSource, getVideoSource } from "../lib/services";
-import { LiveOpenverseImageSource } from "../lib/services/live/liveOpenverseImageSource";
-import { LiveYouTubeVideoSource } from "../lib/services/live/liveYouTubeVideoSource";
-import { incrementVisualNotHelpful, emptyProfileState } from "../lib/journey/learnerProfile";
-import { recordVisualNotHelpful } from "../lib/journey/profileStore";
+import { OpenverseImageSource } from "../lib/services/providers/openverseImageSource.service";
+import { YouTubeVideoSource } from "../lib/services/providers/youTubeVideoSource.service";
+import { incrementVisualNotHelpful, emptyProfileState } from "../lib/journey/profile/model";
+import { recordVisualNotHelpful } from "../lib/journey/profile/store";
 import { prisma } from "../lib/db";
 import { LlmCallPurpose } from "@prisma/client";
 import type {
   ImageSearchInput,
-  ImageSource,
   SourcedImage,
   SourcedVideo,
   VideoSearchInput,
-  VideoSource,
   VisualKind,
   VisualNeed,
 } from "../lib/services/visualMedia";
+import type { ImageSource } from "../lib/services/interfaces/imageSource.interface";
+import type { VideoSource } from "../lib/services/interfaces/videoSource.interface";
 
 let ok = 0;
 let fail = 0;
@@ -108,9 +99,9 @@ async function gateChecks() {
     check(`gate: ${kind} -> ${medium}`, mediumForKind(kind) === medium, mediumForKind(kind));
   }
 
-  // Live-only registry: the selectors now return the LIVE keyless source types.
-  check("registry image source is the live Openverse source", getImageSource() instanceof LiveOpenverseImageSource);
-  check("registry video source is the live YouTube source", getVideoSource() instanceof LiveYouTubeVideoSource);
+  // Registry check: the selectors return the real keyless source types.
+  check("registry image source is OpenverseImageSource", getImageSource() instanceof OpenverseImageSource);
+  check("registry video source is YouTubeVideoSource", getVideoSource() instanceof YouTubeVideoSource);
 
   // End-to-end route per medium through the real gate + mock sources.
   const svgNeed: VisualNeed = {

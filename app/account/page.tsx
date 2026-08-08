@@ -10,8 +10,6 @@ import { GATE_REDIRECT } from "@/lib/auth-guards";
 import AppHeader from "@/components/AppHeader";
 import { Eyebrow, WobbleButton } from "@/components/ui";
 
-// One detail row: an eyebrow label over the value. Hanken throughout; the label
-// is the teal-deep uppercase eyebrow, the value the calm ink body.
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <Box>

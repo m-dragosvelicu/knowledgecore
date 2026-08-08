@@ -1,11 +1,8 @@
 "use client";
 
-// KnowledgeCore — staged-wait presentational primitive (T3), extracted
-// verbatim from the original GettingReady screen (E04.S01 PRD sec. 5 move 1).
-// Draws the honest dot ladder + indeterminate sweep for a real, persisted
-// multi-stage pipeline, plus the shared failure/retry state. Purely
-// presentational: a caller (typically via usePolledStage) owns polling and
-// stage derivation; this component only renders what it is given.
+// Staged-wait presentational primitive (T3): draws the dot ladder +
+// indeterminate sweep, plus failure/retry state. Purely presentational — the
+// caller (typically usePolledStage) owns polling and stage derivation.
 
 import type { ReactNode } from "react";
 import Stack from "@mui/material/Stack";
@@ -103,30 +100,6 @@ export default function StagedWait({
     <Box className="kc-fade" sx={CARD_SX}>
       <Stack spacing={3} alignItems="flex-start" aria-live="polite">
         <Eyebrow>{eyebrow}</Eyebrow>
-
-        {/* One-time draw-in flourish; the live cues below carry the in-progress signal. */}
-        <Box
-          component="svg"
-          viewBox="0 0 200 24"
-          aria-hidden="true"
-          sx={{
-            width: 200,
-            height: 24,
-            overflow: "visible",
-            filter: "url(#rough)",
-          }}
-        >
-          <path
-            className="kc-draw"
-            pathLength={1}
-            d="M4 14 C 40 6, 70 20, 104 12 S 168 6, 196 13"
-            fill="none"
-            stroke="var(--teal)"
-            strokeWidth={2.4}
-            strokeLinecap="round"
-            style={{ animationDuration: "1.6s" }}
-          />
-        </Box>
 
         <HeadlineUnderline>
           <Box

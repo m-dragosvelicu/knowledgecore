@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
-import {
-  getCurrentGoalpost,
-  getOrCreateActiveIntent,
-  prisma,
-} from "@/lib/journey/state";
-import { getPresenter, applyPace } from "@/lib/journey/presenter";
+import { prisma } from "@/lib/db";
+import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { onPathOrdinal } from "@/lib/journey/path/progress";
+import { getPresenter, applyPace } from "@/lib/journey/profile/presenter";
 import {
   adjustPlanAction,
   advanceGoalpostAction,
@@ -19,29 +20,33 @@ import {
   prepareGoalpostContentAction,
   readGoalpostGenerationStateAction,
   repeatGoalpostAction,
-  skipGoalpostAction,
+  // skipGoalpostAction: import commented out with its only call sites below
+  // (founder-ordered temporary removal of the skip affordance, 2026-07-17).
   submitExperienceStepAction,
 } from "@/app/(app)/journey/_actions";
-import { isLessonContentReady } from "@/lib/journey/lessonGeneration";
+import { isLessonContentReady } from "@/lib/journey/lesson/generation";
+import { estimateReadMinutes } from "@/lib/journey/readTime";
 import { isLessonDoc } from "@/lib/services/lessonDoc";
 import type { LessonDoc } from "@/lib/services/lessonDoc";
-import LessonDocView from "@/components/journey/LessonDocView";
-import GettingReady from "@/components/journey/GettingReady";
-import RubricGrid from "@/app/(app)/journey/_components/RubricGrid";
+import LessonDocView from "@/app/(app)/journey/goalpost/_components/LessonDocView";
+import GettingReady from "@/app/(app)/journey/goalpost/_components/GettingReady";
+import RubricGrid from "@/app/(app)/journey/goalpost/_components/RubricGrid";
 import SubmitButton from "@/components/journey/SubmitButton";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
-import ExperienceForm from "@/components/journey/ExperienceForm";
-import InformationView from "@/components/journey/InformationView";
-import OverrideControl from "@/components/journey/OverrideControl";
-import SkipControl from "@/components/journey/SkipControl";
-import ThresholdView from "@/components/journey/ThresholdView";
-import ReviewView from "@/components/journey/ReviewView";
+import ExperienceForm from "@/app/(app)/journey/goalpost/_components/ExperienceForm";
+import InformationView from "@/app/(app)/journey/goalpost/_components/InformationView";
+import OverrideControl from "@/app/(app)/journey/goalpost/_components/OverrideControl";
+// SkipControl: import commented out with its only render sites below
+// (founder-ordered temporary removal of the skip affordance, 2026-07-17).
+// import SkipControl from "@/components/journey/SkipControl";
+import ThresholdView from "@/app/(app)/journey/goalpost/_components/ThresholdView";
+import ReviewView from "@/app/(app)/journey/goalpost/_components/ReviewView";
 import Markdown from "@/components/Markdown";
 import { Decision, StepType } from "@prisma/client";
 import type { EvidenceQuote, RubricScores } from "@/lib/services/types";
 import { Eyebrow, HeadlineUnderline, ScoreBadge } from "@/components/ui";
 import SolidButton from "@/components/ui/SolidButton";
-import SourcesPanel from "@/components/journey/SourcesPanel";
+import SourcesPanel from "@/app/(app)/journey/goalpost/_components/SourcesPanel";
 
 const DECISION_COLORS: Record<Decision, "success" | "warning" | "info"> = {
   advance: "success",
@@ -148,20 +153,33 @@ export default async function GoalpostPage({
   const isFresh =
     !!informationStep && !informationStep.completedAt && evaluationCount === 0;
   const begun = params.phase === "information" || params.begin === "1";
+
+  // "Goalpost N of M": M excludes skipped/superseded goalposts, and N is this
+  // goalpost's position among the on-path ones (not its raw `order`), so the
+  // numbers stay contiguous after a reshape. Shared by the threshold view and
+  // the header eyebrow below.
+  const pathGoalposts = await prisma.goalpost.findMany({
+    where: { pathId: goalpost!.pathId },
+    orderBy: { order: "asc" },
+    select: { id: true, status: true },
+  });
+  const { ordinal, total: totalGoalposts } = onPathOrdinal(
+    pathGoalposts,
+    goalpost!.id,
+  );
+
   if (isFresh && !begun) {
-    const totalGoalposts = await prisma.goalpost.count({
-      where: { pathId: goalpost!.pathId },
-    });
     const expType = experienceStep?.type ?? StepType.information;
     return (
       <ThresholdView
-        order={goalpost!.order}
+        order={ordinal}
         totalGoalposts={totalGoalposts}
         title={goalpost!.title}
         objective={goalpost!.objective}
         estimatedMinutes={goalpost!.estimatedMinutes}
         experienceLabel={EXPERIENCE_LABELS[expType]}
         beginHref={`/journey/goalpost?phase=information&j=${intent.id}`}
+        intentId={intent.id}
       />
     );
   }
@@ -175,9 +193,17 @@ export default async function GoalpostPage({
 
   const header = (
     <Stack spacing={1.5}>
+      <Button
+        component={Link}
+        href={`/journey/path?j=${intent.id}`}
+        variant="text"
+        sx={{ alignSelf: "flex-start", px: 0 }}
+      >
+        Back to your trail
+      </Button>
       <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
         <Eyebrow>
-          Goalpost {goalpost!.order} &middot; ~{goalpost!.estimatedMinutes} min
+          Goalpost {ordinal} of {totalGoalposts} &middot; ~{goalpost!.estimatedMinutes} min
           &middot;{" "}
           {phase === "information"
             ? "read"
@@ -198,7 +224,6 @@ export default async function GoalpostPage({
     </Stack>
   );
 
-  // Information sub-view
   if (phase === "information" && informationStep) {
     // Lazy generation: the lesson (Call B) is authored against the freshest
     // profile when the learner enters the goalpost. If not generated yet, the
@@ -241,14 +266,16 @@ export default async function GoalpostPage({
             />
           }
           dwellSeconds={dwellSeconds}
+          readMinutes={estimateReadMinutes(lessonDoc)}
         />
-        {/* §9.2 skip-with-confirm, available during the information phase. */}
+        {/* §9.2 skip-with-confirm, commented out: founder-ordered temporary
+            removal of the skip affordance, 2026-07-17 (hollow-completion bug).
         <SkipControl goalpostId={goalpost!.id} intentId={intent.id} action={skipGoalpostAction} />
+        */}
       </Stack>
     );
   }
 
-  // Experience sub-view
   if (phase === "experience" && experienceStep) {
     const prompt = (experienceStep.payload as { prompt?: string } | null)?.prompt ?? "";
     return (
@@ -270,8 +297,10 @@ export default async function GoalpostPage({
             prompt={<Markdown>{prompt}</Markdown>}
           />
         </Box>
-        {/* §9.2 skip-with-confirm, available during the experience phase. */}
+        {/* §9.2 skip-with-confirm, commented out: founder-ordered temporary
+            removal of the skip affordance, 2026-07-17 (hollow-completion bug).
         <SkipControl goalpostId={goalpost!.id} intentId={intent.id} action={skipGoalpostAction} />
+        */}
       </Stack>
     );
   }

@@ -4,9 +4,16 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { requireOwnerId, requireRealUserId } from "@/lib/auth-guards";
-import { assertGuestLlmBudget } from "@/lib/journey/guestRateLimit";
-import { prisma, getOrCreateActiveIntent, getCurrentGoalpost } from "@/lib/journey/state";
-import { getServices, getPathConfirmationInterviewer } from "@/lib/services";
+import { assertGuestLlmBudget } from "@/lib/llm/guestRateLimit";
+import { withLlmTelemetryContext } from "@/lib/llm";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
+import {
+  getServices,
+  getPathConfirmationInterviewer,
+  getOutcomeReviser,
+} from "@/lib/services";
 import type {
   CanDoStatement,
   Competency,
@@ -15,32 +22,39 @@ import type {
   ProbeAnswer,
   ProbeQuestion,
 } from "@/lib/services/types";
+import type { OutcomeRevisionResult } from "@/lib/services/outcomeRevision";
 import { Motivation, StepType, GoalpostStatus, JourneyStatus, Decision, Prisma } from "@prisma/client";
 import { deriveDecision } from "@/lib/journey/decision";
 import {
   applyPathAdjustment,
   applyPreAcceptancePathAdjustment,
   TERMINAL_GOALPOST_STATUSES,
-} from "@/lib/journey/pathRevision";
+} from "@/lib/journey/path/revision";
 import type { RubricScores } from "@/lib/services/types";
-import type { PathConfirmationStep } from "@/lib/services";
+import type { PathConfirmationStep } from "@/lib/services/pathConfirmation";
 import {
   applyCheckpointEvidence,
   recordRetry,
   recordVisualNotHelpful,
-} from "@/lib/journey/profileStore";
+} from "@/lib/journey/profile/store";
 import {
   ensureLessonContent,
   lessonContentText,
   readLessonGenerationState,
-} from "@/lib/journey/lessonGeneration";
-import type { LessonGenerationState } from "@/lib/journey/lessonGenerationState";
+} from "@/lib/journey/lesson/generation";
+import type { LessonGenerationState } from "@/lib/journey/lesson/generationState";
 import {
   bindJourneyBundle,
   readBundleProgressForIntent,
-} from "@/lib/journey/researchBundle";
-import type { ResearchProgressState } from "@/lib/journey/researchProgressState";
+} from "@/lib/journey/research/bundle";
+import type { ResearchProgressState } from "@/lib/journey/research/progressState";
 import { fingerprint, type OutcomeShape } from "@/lib/research/fingerprint";
+import {
+  ensureProbeQuestions,
+  readProbeState,
+  saveProbeAnswer,
+  type ProbeResumeState,
+} from "@/lib/journey/probe/state";
 
 // Pre-journey owner context: a real OR guest (anonymous) owner id plus whether
 // the owner is a guest, so the cost-bearing pre-journey stages can apply the D2
@@ -53,12 +67,10 @@ async function ownerContext(): Promise<{ userId: string; isAnonymous: boolean }>
   return { userId: session.user.id, isAnonymous: isAnonymousSession(session) };
 }
 
-// Resolve the journey the action must operate on. When the caller threads the
-// `?j=<id>` journey id (read from its form data / passed as an argument), load
-// THAT journey (ownership enforced inside getOrCreateActiveIntent); otherwise
-// fall back to the most-recently-updated non-terminal journey. Pinning the id
-// end to end is what stops an in-flight wizard from silently drifting onto the
-// most-recent journey when more than one is non-terminal.
+// Resolves the journey the action must operate on: uses the `?j=<id>` id when
+// present (ownership enforced in getOrCreateActiveIntent), else falls back to
+// the most-recently-updated non-terminal journey. Pinning `j` end to end stops
+// an in-flight wizard from drifting onto a different journey.
 async function requireActiveIntentId(
   userId: string,
   intentId?: string | null,
@@ -78,14 +90,10 @@ function readJourneyId(formData: FormData): string | undefined {
   return typeof j === "string" && j.length > 0 ? j : undefined;
 }
 
-// Recency touch (resume-card fix): the home "pick up where you left off" card and
-// getOrCreateActiveIntent both order non-terminal journeys by `updatedAt desc`.
-// During the long-lived `in_progress` phase, per-goalpost actions write Step /
-// Goalpost / CheckpointEvaluation rows but NOT the LearningIntent row, so
-// `updatedAt` froze at path-acceptance and stopped tracking real activity — the
-// resume target went stale when more than one journey reached in_progress. This
-// bumps the intent's `@updatedAt` so it reflects the genuinely most-recently
-// worked / left journey. Best-effort: a recency touch must never break the flow.
+// Resume-card fix: per-goalpost actions update Step/Goalpost/CheckpointEvaluation
+// rows but not LearningIntent, so `updatedAt` froze at path-acceptance and the
+// "pick up where you left off" ordering (by `updatedAt desc`) went stale. This
+// bumps it to reflect real activity. Best-effort: must never break the flow.
 async function touchIntentRecency(intentId: string): Promise<void> {
   try {
     await prisma.learningIntent.update({
@@ -127,11 +135,9 @@ async function appendRecalibrationFlag(intentId: string, flag: string): Promise<
 
 export async function startNewJourneyAction(): Promise<void> {
   const userId = await requireRealUserId();
-  // Journeys coexist: starting a new one must NOT touch any other journey. The
-  // new intent simply becomes the resume target because it has the newest
-  // `updatedAt` (getOrCreateActiveIntent orders non-terminal journeys by it).
-  // Carry the freshly created journey's id from step one so the wizard never
-  // drifts onto a different (most-recent) journey once intake begins.
+  // Journeys coexist: starting a new one must not touch any other. It becomes
+  // the resume target via its newest `updatedAt`; carrying its id from step one
+  // stops the wizard drifting onto a different journey once intake begins.
   const created = await prisma.learningIntent.create({
     data: {
       userId,
@@ -142,10 +148,9 @@ export async function startNewJourneyAction(): Promise<void> {
   redirect(`/journey/intent?j=${created.id}`);
 }
 
-// Start a new journey carrying the intent typed in the home hero pill. Mirrors
-// startNewJourneyAction (open a fresh journey alongside any others) but seeds the
-// rawText and runs the same intent-parsing path as submitIntentAction so the
-// learner lands straight in the flow instead of an empty intent box.
+// Starts a journey from the home hero pill's typed intent. Mirrors
+// startNewJourneyAction (opens a fresh journey alongside others) but seeds
+// rawText and runs submitIntentAction's parsing path.
 const heroIntentSchema = z.object({
   rawText: z.string().min(3, "Please describe what you want to learn."),
 });
@@ -159,7 +164,11 @@ export async function startJourneyWithIntentAction(formData: FormData): Promise<
   // new intent becomes the resume target via its newest `updatedAt`.
 
   const services = getServices();
-  const subject = await services.intentParser.parse(parsed.rawText);
+  // No LearningIntent row exists yet at parse time (it is created just below),
+  // so only userId is attributable here; intentId stays null.
+  const subject = await withLlmTelemetryContext({ userId }, () =>
+    services.intentParser.parse(parsed.rawText),
+  );
 
   const intent = await prisma.learningIntent.create({
     data: { userId, rawText: parsed.rawText, status: "goal_assessed" },
@@ -200,7 +209,11 @@ export async function submitIntentAction(formData: FormData): Promise<void> {
   await assertGuestLlmBudget(isAnonymous);
 
   const services = getServices();
-  const subject = await services.intentParser.parse(parsed.rawText);
+  // Same reasoning as startJourneyWithIntentAction: the intent this parse
+  // feeds may not exist yet (create path below), so only userId is attributed.
+  const subject = await withLlmTelemetryContext({ userId }, () =>
+    services.intentParser.parse(parsed.rawText),
+  );
 
   // Find or create the active intent (pinned by the submitted `j` when present).
   const existing = await getOrCreateActiveIntent(userId, j);
@@ -223,11 +236,9 @@ export async function submitIntentAction(formData: FormData): Promise<void> {
     },
   });
 
-  // L0.md §3 Stage 2: do NOT silently narrow an ambiguous intent. When the
-  // parser flagged the input as too vague / too broad / two-intents-in-one, send
-  // the learner back to the intent page in a confirm/refine sub-view (the
-  // clarification is transient, so it rides along on the query string). A clear,
-  // singular intent flows straight through to the outcome interview as before.
+  // L0.md §3 Stage 2: never silently narrow an ambiguous intent. If the parser
+  // flags it (too vague/broad/two-in-one), send the learner back to a
+  // confirm/refine sub-view (clarification rides on the query string, transient).
   if (subject.ambiguous) {
     const params = new URLSearchParams({ confirm: "1", j: intent.id });
     if (subject.clarification) params.set("note", subject.clarification);
@@ -252,12 +263,10 @@ export async function confirmIntentAction(formData: FormData): Promise<void> {
 // Stages 3+4 — submit goal + outcome
 // ---------------------------------------------------------------------------
 
-// --- Multi-turn goal interview (L0.md §3 Stage 3+4, §5 Goal Interview Agent) ---
-//
-// The interview is a turn loop driven by the client, which holds the running
-// transcript and re-sends it each turn (mirrors ProbeClient's stateless shape).
-// `advanceInterviewAction` returns the next InterviewStep; `finalizeOutcomeAction`
-// persists the synthesized outcome and moves the journey forward.
+// Multi-turn goal interview (L0.md §3 Stage 3+4, §5 Goal Interview Agent). Turn
+// loop driven by the client, which holds the transcript and re-sends it each
+// turn (mirrors ProbeClient's stateless shape). advanceInterviewAction returns
+// the next step; finalizeOutcomeAction persists the synthesized outcome.
 
 const interviewTurnSchema = z.object({
   role: z.enum(["assistant", "user"]),
@@ -310,18 +319,18 @@ export async function advanceInterviewAction(
   if (!subject) redirect(`/journey/intent?j=${intentId}`);
 
   const services = getServices();
-  const step = await services.goalInterviewer.interview({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    motivation: parsed.motivation,
-    transcript: parsed.transcript,
-  });
+  const step = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.goalInterviewer.interview({
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      motivation: parsed.motivation,
+      transcript: parsed.transcript,
+    }),
+  );
 
-  // RESUME SUPPORT — persist the outcome sub-state as it is produced so a learner
-  // who saves & leaves mid-outcome returns to their position (not the motivation
-  // question). The transcript we store is the conversation INCLUDING the question
-  // this turn just produced, so on re-hydration the outcome page can render the
-  // dialogue exactly where it left off. On completion we also stash the
-  // synthesized (not-yet-confirmed) outcome so resume lands on the confirm screen.
+  // Resume support: persists the outcome sub-state as produced, so a learner who
+  // leaves mid-outcome returns to their position, not the motivation question.
+  // Stored transcript includes the question this turn just produced (for
+  // re-hydration); on completion the draft outcome is stashed too, for resume.
   const nextTranscript: InterviewTurn[] =
     step.kind === "complete"
       ? parsed.transcript
@@ -428,6 +437,79 @@ export async function finalizeOutcomeAction(
   redirect(`/journey/probe?j=${intentId}`);
 }
 
+// --- Outcome revision (founder ruling 2026-07-16) ---
+//
+// On the "here's what success looks like for you" confirm screen, before the
+// learner proceeds to the knowledge probe, they can push back in free text and
+// get a revised outcome. A single-shot LLM call, not a turn-taking dialogue (see
+// lib/services/outcomeRevision.ts); repeatable so "revise a revision" works.
+
+const reviseOutcomeSchema = z.object({
+  feedback: z.string().min(1, "Tell us what you'd like changed."),
+});
+
+/**
+ * Revise the outcome from one piece of learner feedback. Reads the current
+ * subject + draft outcome from the DB (so each round revises the LATEST state,
+ * including a prior revision), calls the OutcomeReviser, persists the result
+ * back to Subject + LearningGoal.draftOutcome (the same pre-confirm slots
+ * intent-parsing and the interview write to), and returns the revised outcome
+ * plus a short acknowledgment for the client to render. Does not touch
+ * ExpectedOutcome — that is only written by finalizeOutcomeAction once the
+ * learner accepts and moves on.
+ */
+export async function reviseOutcomeAction(
+  intentId: string,
+  feedback: string,
+): Promise<OutcomeRevisionResult> {
+  const { userId, isAnonymous } = await ownerContext();
+  intentId = await requireActiveIntentId(userId, intentId);
+  const parsed = reviseOutcomeSchema.parse({ feedback });
+  await assertGuestLlmBudget(isAnonymous);
+
+  const [subject, goal] = await Promise.all([
+    prisma.subject.findUnique({ where: { intentId } }),
+    prisma.learningGoal.findUnique({ where: { intentId } }),
+  ]);
+  if (!subject) redirect(`/journey/intent?j=${intentId}`);
+  const draft = goal?.draftOutcome as unknown as {
+    canDoStatements: CanDoStatement[];
+    successCriterion: string;
+  } | null;
+  if (!draft) redirect(`/journey/outcome?j=${intentId}`);
+
+  const reviser = getOutcomeReviser();
+  const revised = await withLlmTelemetryContext({ userId, intentId }, () =>
+    reviser.revise({
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      canDoStatements: draft!.canDoStatements,
+      successCriterion: draft!.successCriterion,
+      feedback: parsed.feedback,
+    }),
+  );
+
+  await prisma.subject.update({
+    where: { intentId },
+    data: {
+      canonicalName: revised.subject.canonicalName,
+      scopeNote: revised.subject.scopeNote,
+    },
+  });
+  await prisma.learningGoal.update({
+    where: { intentId },
+    data: {
+      draftOutcome: {
+        canDoStatements: revised.canDoStatements,
+        successCriterion: revised.successCriterion,
+      } as unknown as object,
+    },
+  });
+
+  await touchIntentRecency(intentId);
+
+  return revised;
+}
+
 // ---------------------------------------------------------------------------
 // Stage 5 — submit probe answers
 // ---------------------------------------------------------------------------
@@ -463,9 +545,9 @@ export async function submitProbeAction(
   const services = getServices();
   // Stateless scoring: pass the exact questions the learner answered. No
   // regeneration (which previously produced mismatched questions and 0/4 scores).
-  const { competencies, transcript } = await services.knowledgeProbe.score(
-    parsed.questions,
-    parsed.answers,
+  const { competencies, transcript } = await withLlmTelemetryContext(
+    { userId, intentId },
+    () => services.knowledgeProbe.score(parsed.questions, parsed.answers),
   );
 
   await prisma.knowledgeAssessment.upsert({
@@ -512,12 +594,14 @@ export async function generatePathAction(intentId?: string | null): Promise<void
   }
 
   const services = getServices();
-  const goalposts = await services.pathOutliner.outline({
-    subject: { canonicalName: subject.canonicalName, scopeNote: subject.scopeNote },
-    motivation: goal.motivation,
-    outcome: outcome.canDoStatements as unknown as CanDoStatement[],
-    assessment: assessment.competencies as unknown as Competency[],
-  });
+  const goalposts = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.pathOutliner.outline({
+      subject: { canonicalName: subject.canonicalName, scopeNote: subject.scopeNote },
+      motivation: goal.motivation,
+      outcome: outcome.canDoStatements as unknown as CanDoStatement[],
+      assessment: assessment.competencies as unknown as Competency[],
+    }),
+  );
 
   await prisma.learningPath.create({
     data: {
@@ -547,15 +631,10 @@ export async function generatePathAction(intentId?: string | null): Promise<void
 }
 
 export async function acceptPathAction(j?: string | null): Promise<void> {
-  // THE ACCOUNT GATE (landing-flow plan, section 3a — primary, server-side).
-  // "Looks good, start" is the one transition from the public path overview into
-  // goalpost 1. requireRealUserId rejects an anonymous guest and redirects them
-  // to the create-account step (/journey/begin); only a real account proceeds
-  // into goalpost 1. After the guest creates an account / signs in there, the
-  // onLinkAccount claim re-owns the journey and /journey/begin re-invokes this
-  // action — which now sees a real user and proceeds.
-  // `j` pins the journey end to end so accept operates on (and lands the learner
-  // in) the journey they actually confirmed, not whichever is most-recent.
+  // Account gate: requireRealUserId redirects anonymous guests to
+  // /journey/begin; after sign-in, onLinkAccount re-owns the journey and
+  // /journey/begin re-invokes this action. `j` pins the journey so accept
+  // lands on the one the learner confirmed, not the most recent.
   const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId, j);
 
@@ -567,7 +646,6 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
     where: { id: intentId },
     data: { status: "in_progress" },
   });
-  // Activate the first goalpost.
   const path = await prisma.learningPath.findUnique({
     where: { intentId },
     include: { goalposts: { orderBy: { order: "asc" } } },
@@ -580,13 +658,10 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
     });
   }
 
-  // L2 — bind this journey to its research bundle at path-confirm (the founder's
-  // "after the learner confirms the path" trigger). Compute the topic
-  // fingerprint from the canonical subject + outcome shape and read-through the
-  // Library cache (HIT binds; MISS creates + fills via the live Research Agent,
-  // then embeds the chunks for Library search). Best-effort by contract: a
-  // failure leaves the journey ungrounded (downstream sourceIds stay []) but
-  // never breaks the spine.
+  // L2: bind this journey to its research bundle at path-confirm. Computes the
+  // topic fingerprint and reads through the Library cache (HIT binds; MISS
+  // creates + fills via the Research Agent, then embeds for Library search).
+  // Best-effort: failure leaves the journey ungrounded (sourceIds stay []).
   try {
     const [subject, outcome] = await Promise.all([
       prisma.subject.findUnique({ where: { intentId } }),
@@ -616,20 +691,13 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
 
 // ---------------------------------------------------------------------------
 // L1 Slice 2 — Path Confirmation gate + clarifying dialogue
-//
-// After the structure-only path overview (Call A) and BEFORE goalpost 1, the
-// learner always has a lightweight choice: "Looks good, start" (-> acceptPathAction
-// above, which proceeds into goalpost 1 and triggers lazy Call B) or "Not quite
-// right", which opens an OPT-IN clarifying dialogue.
-//
-// The dialogue REUSES the shared turn-taking primitive (the same InterviewTurn /
-// step shape the Goal Interview uses): the client holds the running transcript
-// and re-sends it each turn; `advancePathConfirmationAction` is stateless and
-// returns the next step. On completion the synthesized concern is fed to the
-// EXISTING Path Adjuster (`adjust_plan`) to revise the overview, which is then
-// re-presented for confirmation. A soft cap on correction ROUNDS is enforced in
-// the client (then it surfaces "you can adjust as you go").
 // ---------------------------------------------------------------------------
+// Before goalpost 1, the learner can accept the path overview or open an
+// opt-in clarifying dialogue. It reuses the InterviewTurn turn-taking shape
+// (client holds the transcript; advancePathConfirmationAction is stateless).
+// On completion the concern feeds the existing Path Adjuster (`adjust_plan`)
+// to revise the overview for re-confirmation. The client enforces a soft cap
+// on correction rounds.
 
 const confirmationTranscriptSchema = z.array(interviewTurnSchema);
 
@@ -664,17 +732,19 @@ export async function advancePathConfirmationAction(
   if (!path) redirect(`/journey/path?j=${intentId}`);
 
   const interviewer = getPathConfirmationInterviewer();
-  return interviewer.clarify({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    outcome: (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [],
-    overview: path!.goalposts.map((g) => ({
-      order: g.order,
-      title: g.title,
-      objective: g.objective,
-      estimatedMinutes: g.estimatedMinutes,
-    })),
-    transcript: parsedTranscript,
-  });
+  return withLlmTelemetryContext({ userId, intentId }, () =>
+    interviewer.clarify({
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      outcome: (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [],
+      overview: path!.goalposts.map((g) => ({
+        order: g.order,
+        title: g.title,
+        objective: g.objective,
+        estimatedMinutes: g.estimatedMinutes,
+      })),
+      transcript: parsedTranscript,
+    }),
+  );
 }
 
 const revisePathSchema = z.object({
@@ -694,11 +764,9 @@ const NEUTRAL_SCORES: RubricScores = {
 };
 
 /**
- * Revise the draft path from the clarifying dialogue's concern. REUSES the
- * existing Path Adjuster (`adjust_plan`) to produce a minimal-edit PathAdjustment,
- * then applies it with the pre-acceptance applier (no goalpost is completed; the
- * whole draft is revised and renumbered). The learner is bounced back to the path
- * page to re-confirm the revised overview.
+ * Revises the draft path from the clarifying dialogue's concern. Reuses the
+ * Path Adjuster (`adjust_plan`) for a minimal-edit PathAdjustment, applied via
+ * the pre-acceptance applier (no goalpost completes; the draft is renumbered).
  */
 export async function revisePathFromConfirmationAction(
   concern: string,
@@ -739,26 +807,31 @@ export async function revisePathFromConfirmationAction(
   const remaining = goalposts.slice(1);
 
   const services = getServices();
-  const adjustment = await services.pathAdjuster.adjust({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    motivation: goal!.motivation,
-    outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
-    assessment: assessment!.competencies as unknown as Competency[],
-    currentGoalpost: {
-      order: anchor.order,
-      title: anchor.title,
-      objective: anchor.objective,
-    },
-    triggerScores: NEUTRAL_SCORES,
-    // The learner's clarifying concern IS the rationale that drives the edit.
-    triggerRationale: `Before starting, the learner said the proposed path is not quite right. ${parsed.concern}`,
-    remainingGoalposts: remaining.map((g) => ({
-      order: g.order,
-      title: g.title,
-      objective: g.objective,
-      estimatedMinutes: g.estimatedMinutes,
-    })),
-  });
+  const adjustment = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.pathAdjuster.adjust({
+      // Pre-acceptance revision: no checkpoint ran, zero insertions is valid
+      // (e.g. a pure "drop this goalpost" edit) — see PathAdjusterMode.
+      mode: "confirmation_revision",
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      motivation: goal!.motivation,
+      outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
+      assessment: assessment!.competencies as unknown as Competency[],
+      currentGoalpost: {
+        order: anchor.order,
+        title: anchor.title,
+        objective: anchor.objective,
+      },
+      triggerScores: NEUTRAL_SCORES,
+      // The learner's clarifying concern IS the rationale that drives the edit.
+      triggerRationale: `Before starting, the learner said the proposed path is not quite right. ${parsed.concern}`,
+      remainingGoalposts: remaining.map((g) => ({
+        order: g.order,
+        title: g.title,
+        objective: g.objective,
+        estimatedMinutes: g.estimatedMinutes,
+      })),
+    }),
+  );
 
   await prisma.$transaction((tx) =>
     applyPreAcceptancePathAdjustment(tx, {
@@ -813,27 +886,27 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     include: { goalpost: { include: { steps: { orderBy: { order: "asc" } } } } },
   });
 
-  // Find sibling information step content + this experience prompt for the evaluator.
   const informationStep = step.goalpost.steps.find((s) => s.type === StepType.information);
   const informationContent = lessonContentText(informationStep?.payload ?? null);
   const experiencePrompt =
     (step.payload as { prompt?: string } | null)?.prompt ?? "";
 
-  // Determine attempt count (existing evaluations + 1).
   const previousAttempts = await prisma.checkpointEvaluation.count({
     where: { goalpostId: step.goalpostId },
   });
 
   const attempt = previousAttempts + 1;
   const services = getServices();
-  const evaluation = await services.checkpointEvaluator.evaluate({
-    goalpostTitle: step.goalpost.title,
-    goalpostObjective: step.goalpost.objective,
-    informationContent,
-    experiencePrompt,
-    userArtifact: parsed.userArtifact,
-    attempt,
-  });
+  const evaluation = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.checkpointEvaluator.evaluate({
+      goalpostTitle: step.goalpost.title,
+      goalpostObjective: step.goalpost.objective,
+      informationContent,
+      experiencePrompt,
+      userArtifact: parsed.userArtifact,
+      attempt,
+    }),
+  );
 
   // The evaluator's own `decision` is advisory. The authoritative branch is
   // derived deterministically from the rubric scores per L0.md §8, which also
@@ -851,12 +924,10 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
     },
   });
 
-  // L1 SIGNAL CAPTURE: fold this checkpoint into the journey learner profile via
-  // the pure BKT rule + an append-only snapshot. The goalpost id is the stable
-  // concept key. Time-on-task ≈ (experience submitted) − (information completed),
-  // a coarse but honest per-goalpost proxy. Best-effort: a profile write must
-  // never break the learner's flow, so it is wrapped — the evaluation is already
-  // persisted above regardless.
+  // Folds this checkpoint into the learner profile (BKT rule + append-only
+  // snapshot); goalpost id is the concept key. Time-on-task ≈ submit time minus
+  // information-step completion. Best-effort: wrapped so a failure here never
+  // blocks the flow (evaluation is already persisted above).
   try {
     const infoCompletedAt = informationStep?.completedAt ?? null;
     const timeOnTaskMs = infoCompletedAt
@@ -916,13 +987,13 @@ async function doAdvance(
       where: { id: next.id },
       data: { status: GoalpostStatus.in_progress },
     });
-    // L1 LAZY GENERATION: PRE-GENERATE the next goalpost's lesson content now,
-    // against the FRESHEST profile (the just-completed checkpoint already folded
-    // its evidence), so the learner does not wait on entry. Best-effort and
-    // idempotent — if it fails or is skipped, the goalpost page generates on
-    // entry (with the "getting things ready" screen) as the fallback.
+    // Pre-generates the next goalpost's lesson content against the freshest
+    // profile, so the learner doesn't wait on entry. Best-effort and idempotent
+    // — on failure/skip, the goalpost page generates on entry as fallback.
     try {
-      await ensureLessonContent(intentId, userId, next.id);
+      await withLlmTelemetryContext({ userId, intentId }, () =>
+        ensureLessonContent(intentId, userId, next.id),
+      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn(
@@ -941,11 +1012,9 @@ async function doAdvance(
   return `/journey/complete?j=${intentId}`;
 }
 
-// --- skip-with-confirm (L0.md §9.2; CEO override: allow skip with confirmation,
-// "you'll be assessed on prerequisites later"). Marks the current goalpost
-// `skipped` (NOT `complete`, unlike doAdvance) and then runs doAdvance's
-// "activate next or finish" tail. getCurrentGoalpost already excludes skipped
-// goalposts, so the next non-terminal goalpost becomes the active one.
+// Skip-with-confirm (L0.md §9.2): marks the goalpost `skipped` (not
+// `complete`), then runs doAdvance's "activate next or finish" tail.
+// getCurrentGoalpost already excludes skipped goalposts.
 export async function skipGoalpostAction(formData: FormData): Promise<void> {
   const userId = await requireRealUserId();
   const intentId = await requireActiveIntentId(userId, readJourneyId(formData));
@@ -1156,25 +1225,30 @@ export async function adjustPlanAction(formData: FormData): Promise<void> {
   }
 
   const services = getServices();
-  const adjustment = await services.pathAdjuster.adjust({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    motivation: goal!.motivation,
-    outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
-    assessment: assessment!.competencies as unknown as Competency[],
-    currentGoalpost: {
-      order: currentOrder,
-      title: goalpost!.title,
-      objective: goalpost!.objective,
-    },
-    triggerScores: latestEval!.scores as unknown as RubricScores,
-    triggerRationale: latestEval!.rationale,
-    remainingGoalposts: remaining.map((g) => ({
-      order: g.order,
-      title: g.title,
-      objective: g.objective,
-      estimatedMinutes: g.estimatedMinutes,
-    })),
-  });
+  const adjustment = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.pathAdjuster.adjust({
+      // Post-checkpoint remediation: the failed goalpost is only ever marked
+      // complete alongside a queued remediation goalpost — >=1 insert required.
+      mode: "remediation",
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      motivation: goal!.motivation,
+      outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
+      assessment: assessment!.competencies as unknown as Competency[],
+      currentGoalpost: {
+        order: currentOrder,
+        title: goalpost!.title,
+        objective: goalpost!.objective,
+      },
+      triggerScores: latestEval!.scores as unknown as RubricScores,
+      triggerRationale: latestEval!.rationale,
+      remainingGoalposts: remaining.map((g) => ({
+        order: g.order,
+        title: g.title,
+        objective: g.objective,
+        estimatedMinutes: g.estimatedMinutes,
+      })),
+    }),
+  );
 
   await prisma.$transaction((tx) =>
     applyPathAdjustment(tx, {
@@ -1241,10 +1315,9 @@ export async function overrideDecisionAction(formData: FormData): Promise<void> 
 }
 
 // ---------------------------------------------------------------------------
-// L1 LAZY GENERATION — prepare a goalpost's lesson content (Call B) on entry.
-// Called by the "getting things ready" client screen the moment a goalpost with
-// un-generated content is opened. Idempotent (ensureLessonContent no-ops if the
-// content is already marked generated, e.g. it was pre-generated on advance).
+// Prepares a goalpost's lesson content (Call B) on entry. Called by the
+// "getting things ready" screen when un-generated content is opened.
+// Idempotent: no-ops if content is already marked generated.
 // ---------------------------------------------------------------------------
 
 export async function prepareGoalpostContentAction(
@@ -1254,22 +1327,24 @@ export async function prepareGoalpostContentAction(
   const userId = await requireRealUserId();
   intentId = await requireActiveIntentId(userId, intentId);
   const parsed = goalpostIdSchema.parse({ goalpostId });
-  await ensureLessonContent(intentId, userId, parsed.goalpostId);
+  // Covers both LLM-backed purposes inside the two-phase pipeline
+  // (lesson_content = Author, visual_generate = the video worker's model-
+  // assisted candidate step) even though neither is a direct call here — the
+  // context propagates through ensureLessonContent -> runLessonPipeline.
+  await withLlmTelemetryContext({ userId, intentId }, () =>
+    ensureLessonContent(intentId, userId, parsed.goalpostId),
+  );
   // Entering a goalpost is a recency signal too, so a learner who opens a
   // journey and leaves still has it surface as the resume target.
   await touchIntentRecency(intentId);
 }
 
 // ---------------------------------------------------------------------------
-// L1 — Two-Phase Visual Lesson Pipeline (§8 progress channel).
-//
-// The GettingReady screen (Slice 4) POLLS this (~1s) while a goalpost generates.
-// It returns the orchestrator's current generation-state record (stage / label /
-// done / total / status). A server action cannot stream, so the orchestrator
-// writes the record onto the information step and this action reads it back.
-// `status: "ready"` -> the client refreshes into the lesson; `status: "failed"`
-// -> the client shows a real error + Try again instead of looping forever.
-// Ownership is enforced (only the journey's owner can poll its goalpost).
+// L1 Two-Phase Visual Lesson Pipeline (§8 progress channel). The GettingReady
+// screen polls this (~1s) while a goalpost generates; since a server action
+// can't stream, the orchestrator writes progress onto the information step and
+// this reads it back. `status: "ready"` -> refresh into the lesson;
+// `status: "failed"` -> real error + retry, not an infinite loop.
 // ---------------------------------------------------------------------------
 
 export async function readGoalpostGenerationStateAction(
@@ -1289,15 +1364,11 @@ export async function readGoalpostGenerationStateAction(
 }
 
 // ---------------------------------------------------------------------------
-// E04.S03 — research-fill progress channel (T3 ladder).
-//
-// The ResearchFillWait screen POLLS this (~1s) while acceptPathAction fills the
-// journey's research bundle on a cache MISS. Keyed by the journey id — the only
-// handle the client has (the bundle is created inside acceptPathAction) — and
-// resolved server-side by recomputing the topic fingerprint, the same key
-// ensureBundle uses. Same auth/ownership pattern as
-// readGoalpostGenerationStateAction: requireRealUserId + the resolved journey
-// must belong to the caller (enforced inside requireActiveIntentId).
+// E04.S03 research-fill progress channel (T3 ladder). ResearchFillWait polls
+// this (~1s) while acceptPathAction fills the research bundle on a cache MISS.
+// Keyed by journey id; resolved server-side by recomputing the topic
+// fingerprint (same key ensureBundle uses). Same auth/ownership pattern as
+// readGoalpostGenerationStateAction.
 // ---------------------------------------------------------------------------
 
 export async function readBundleProgressAction(
@@ -1309,14 +1380,53 @@ export async function readBundleProgressAction(
 }
 
 // ---------------------------------------------------------------------------
-// L1 Slice 4 — "not helpful" feedback on a visual.
-//
-// The lightweight feedback control on a VisualMedia calls this. It increments the
-// journey profile's `visualNotHelpfulCount` signal and writes an append-only
-// snapshot. Best-effort: feedback must never break the learner's flow, so a
-// failure is swallowed. It is a content+feedback modality signal, NOT a learner
-// "type". (The parked image-search escape hatch that rides on this signal is
-// explicitly deferred — out of L1.)
+// Knowledge-probe resume, mirrors the goalpost lazy-generation pair above.
+// prepareProbeQuestionsAction fires on mount (idempotent no-op if ready or
+// already generating); readProbeGenerationStateAction is polled until
+// `status: "ready"` or `"failed"`. saveProbeAnswerAction persists one answer
+// at a time so a refresh/resume never loses progress.
+// ---------------------------------------------------------------------------
+
+export async function prepareProbeQuestionsAction(
+  intentId?: string | null,
+): Promise<void> {
+  const userId = await requireOwnerId();
+  intentId = await requireActiveIntentId(userId, intentId);
+  await withLlmTelemetryContext({ userId, intentId }, () =>
+    ensureProbeQuestions(intentId!),
+  );
+  await touchIntentRecency(intentId);
+}
+
+export async function readProbeGenerationStateAction(
+  intentId?: string | null,
+): Promise<ProbeResumeState | null> {
+  const userId = await requireOwnerId();
+  intentId = await requireActiveIntentId(userId, intentId);
+  return readProbeState(intentId);
+}
+
+const probeAnswerSchema = z.object({
+  questionIndex: z.number().int().min(0),
+  answer: z.string(),
+});
+
+export async function saveProbeAnswerAction(
+  intentId: string | null | undefined,
+  questionIndex: number,
+  answer: string,
+): Promise<void> {
+  const userId = await requireOwnerId();
+  const resolvedIntentId = await requireActiveIntentId(userId, intentId);
+  const parsed = probeAnswerSchema.parse({ questionIndex, answer });
+  await saveProbeAnswer(resolvedIntentId, parsed.questionIndex, parsed.answer);
+}
+
+// ---------------------------------------------------------------------------
+// L1 Slice 4 "not helpful" feedback on a visual. Increments the profile's
+// `visualNotHelpfulCount` and writes an append-only snapshot; best-effort, a
+// failure is swallowed. A content/feedback signal, not a learner "type". (The
+// parked image-search escape hatch on this signal is deferred, out of L1.)
 // ---------------------------------------------------------------------------
 
 const visualFeedbackSchema = z.object({ visualId: z.string().min(1) });

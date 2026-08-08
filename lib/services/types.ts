@@ -1,12 +1,17 @@
 import type { Decision, Motivation, StepType } from "@prisma/client";
+import type { IntentParser } from "@/lib/services/interfaces/intentParser.interface";
+import type { GoalInterviewer } from "@/lib/services/interfaces/goalInterviewer.interface";
+import type { KnowledgeProbe } from "@/lib/services/interfaces/knowledgeProbe.interface";
+import type { PathOutliner } from "@/lib/services/interfaces/pathOutliner.interface";
+import type { CheckpointEvaluator } from "@/lib/services/interfaces/checkpointEvaluator.interface";
+import type { PathAdjuster } from "@/lib/services/interfaces/pathAdjuster.interface";
 
 export type ParsedSubject = {
   canonicalName: string;
   scopeNote: string;
-  // L0.md §3 Stage 2: the parser must surface ambiguity back to the learner
-  // rather than silently narrowing. Set when the raw input is too vague, too
-  // broad, or carries two intents in one. Transient (not persisted) — used to
-  // drive the confirm/refine step in the intent wizard.
+  // Surfaces ambiguity back to the learner instead of silently narrowing
+  // (L0.md §3 Stage 2). Transient — not persisted; drives the confirm/refine
+  // step in the intent wizard.
   ambiguous?: boolean;
   // A short clarification question/note shown to the learner when `ambiguous`.
   clarification?: string;
@@ -78,12 +83,8 @@ export type EvaluationResult = {
 };
 
 // =====================================================================
-// Service interfaces — see L0.md §5
+// Data types feeding the service interfaces (see lib/services/interfaces/)
 // =====================================================================
-
-export interface IntentParser {
-  parse(rawText: string): Promise<ParsedSubject>;
-}
 
 // One turn of the multi-turn goal interview. The client (outcome page) holds the
 // running transcript and re-sends it each turn so the interviewer stays stateless.
@@ -108,27 +109,10 @@ export type GoalInterviewInput = {
   transcript: InterviewTurn[];
 };
 
-export interface GoalInterviewer {
-  // Multi-turn (L0.md §5): given the subject, motivation, and the transcript so
-  // far, return the next InterviewStep. Terminates with kind="complete" once a
-  // time horizon and >=3 can-do statements have been gathered (capped at ~6
-  // assistant questions).
-  interview(input: GoalInterviewInput): Promise<InterviewStep>;
-}
-
 export type ProbeScoreResult = {
   competencies: Competency[];
   transcript: ProbeTranscriptEntry[];
 };
-
-export interface KnowledgeProbe {
-  questions(subject: ParsedSubject, outcome: CanDoStatement[]): Promise<ProbeQuestion[]>;
-  // Stateless scoring: the answered questions are passed in explicitly so scoring
-  // never depends on instance state surviving between requests (the root cause of
-  // the "all competencies 0/4" bug — a fresh service instance per request lost the
-  // questions and the action regenerated mismatched ones).
-  score(questions: ProbeQuestion[], answers: ProbeAnswer[]): Promise<ProbeScoreResult>;
-}
 
 export type PathOutlinerInput = {
   subject: ParsedSubject;
@@ -136,10 +120,6 @@ export type PathOutlinerInput = {
   outcome: CanDoStatement[];
   assessment: Competency[];
 };
-
-export interface PathOutliner {
-  outline(input: PathOutlinerInput): Promise<GoalpostPlan[]>;
-}
 
 export type EvaluatorInput = {
   goalpostTitle: string;
@@ -150,17 +130,11 @@ export type EvaluatorInput = {
   attempt: number;
 };
 
-export interface CheckpointEvaluator {
-  evaluate(input: EvaluatorInput): Promise<EvaluationResult>;
-}
-
-// =====================================================================
-// Path Adjuster — L0.md §5 / §7 decision branch `adjust_plan`.
-// Added to the locked boundary under CEO delegated authority (2026-05-31)
-// to close the M6 remediation loop; see DECISIONS-INDEX.
-// Minimal-edit principle: prefer inserting/replacing 1-2 goalposts over
-// rewriting the tail; keep >=70% of the original remaining path intact.
-// =====================================================================
+// Path Adjuster — L0.md §5/§7 decision branch `adjust_plan`. Added to the
+// locked boundary under CEO delegated authority (2026-05-31) to close the M6
+// remediation loop (see DECISIONS-INDEX). Minimal-edit principle: prefer
+// inserting/replacing 1-2 goalposts over rewriting the tail; keep >=70% of
+// the original remaining path intact.
 
 export type RemainingGoalpost = {
   order: number;
@@ -169,7 +143,17 @@ export type RemainingGoalpost = {
   estimatedMinutes: number;
 };
 
+// Selects which caller context this adjustment is for, since the two call
+// sites need different insertion requirements: `remediation` is the
+// post-checkpoint adjust_plan branch (a goalpost was FAILED — the adjuster
+// MUST supply >=1 remediation goalpost, or the failed goalpost is never
+// honestly resolved). `confirmation_revision` is the pre-acceptance
+// path-confirmation flow (the learner objected to the DRAFT before starting —
+// zero insertions is valid, e.g. a pure "remove this goalpost" edit).
+export type PathAdjusterMode = "remediation" | "confirmation_revision";
+
 export type PathAdjusterInput = {
+  mode: PathAdjusterMode;
   subject: ParsedSubject;
   motivation: Motivation;
   outcome: CanDoStatement[];
@@ -195,12 +179,8 @@ export type PathAdjustment = {
   rationale: string; // user-facing one-liner (L0.md §7 Q7 acknowledge notice)
 };
 
-export interface PathAdjuster {
-  adjust(input: PathAdjusterInput): Promise<PathAdjustment>;
-}
-
 // =====================================================================
-// Service registry — selects mock vs live based on env
+// Service registry — the typed contract bundle getServices() builds
 // =====================================================================
 
 export type Services = {
@@ -210,5 +190,4 @@ export type Services = {
   pathOutliner: PathOutliner;
   checkpointEvaluator: CheckpointEvaluator;
   pathAdjuster: PathAdjuster;
-  mode: "mock" | "live";
 };

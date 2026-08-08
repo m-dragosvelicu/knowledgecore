@@ -32,6 +32,7 @@ model User {
   sessions        Session[]
   accounts        Account[]
   learningIntents LearningIntent[]
+  llmCalls        LlmCall[]
 
   @@map("user")
 }
@@ -112,6 +113,11 @@ enum GoalpostStatus {
   in_progress
   complete
   skipped
+  /// Stamped on the current goalpost by an adjust_plan reshape (L0.md §7):
+  /// the plan moved past it without a passing CheckpointEvaluation. Terminal
+  /// like `complete`/`skipped`, but excluded from progress counts - it was
+  /// never actually passed.
+  superseded
 }
 
 enum StepType {
@@ -164,6 +170,11 @@ enum LlmCallPurpose {
   // Closes the documented enum debt; the SVG is sanitized on its own dedicated
   // render path before display (never the markdown sanitizer).
   visual_generate
+  // Outcome revision — the learner objects to the synthesized outcome (before
+  // finalize) and the OutcomeReviser revises subject/scopeNote/successCriterion/
+  // canDoStatements in place. A single-shot revise call, not a turn-taking
+  // dialogue; see lib/services/outcomeRevision.ts for why.
+  outcome_revision
   other
 }
 
@@ -180,12 +191,15 @@ model LearningIntent {
   goal       LearningGoal?
   outcome    ExpectedOutcome?
   assessment KnowledgeAssessment?
+  probeState ProbeState?
   path       LearningPath?
   profile    LearnerProfile?
 
   // L2 — the research bundle(s) this journey draws provenance from. M:N via
   // JourneyBundleLink so the SAME topic bundle is reused across users (Library reuse).
   bundles JourneyBundleLink[]
+
+  llmCalls LlmCall[]
 
   @@index([userId, status])
 }
@@ -245,6 +259,28 @@ model KnowledgeAssessment {
   probeTranscript Json?
   /// L0 §4 — `string[]` appended when §7 checkpoints reveal the initial estimate was off.
   recalibrationFlags Json?
+}
+
+/// Probe-resume support: generated questions + per-question learner answers +
+/// generation status, kept separate from KnowledgeAssessment. That model's mere
+/// EXISTENCE is already the "probe submitted" signal at several call sites
+/// (journey/path/page.tsx, generatePathAction, revisePathFromConfirmationAction,
+/// adjustPlan's pre-generation lookup); an early-created row here with
+/// placeholder competencies would falsely trip those gates. Additive, all
+/// generation-related fields nullable until a run completes.
+model ProbeState {
+  id       String         @id @default(cuid())
+  intentId String         @unique
+  intent   LearningIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  /// The generated ProbeQuestion[] payload, set together with `questionsGeneratedAt`.
+  questions Json?
+  /// Presence = ready (mirrors LessonDoc's `contentGeneratedAt` convention).
+  questionsGeneratedAt DateTime?
+  /// Per-question learner answers keyed by question id, `Record<string, string>`.
+  /// Updated incrementally as each question is answered.
+  answers Json?
+  /// The polled run-status record (ProbeGenerationState: status/label/error/updatedAt).
+  generationState Json?
 }
 
 model LearningPath {
@@ -360,9 +396,25 @@ model LlmCall {
   evaluationId String?
   evaluation   CheckpointEvaluation? @relation(fields: [evaluationId], references: [id], onDelete: SetNull)
 
+  /// Cost/usage attribution (reporting-only; read side lives in the
+  /// /api/admin/llm-costs aggregation route). Nullable because several call
+  /// sites genuinely predate a journey (e.g. intent parsing before the
+  /// LearningIntent row exists) or have no journey at all (e.g. the
+  /// pre-journey STT route) — never backfilled/guessed, left null.
+  userId   String?
+  user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// The journey this call served. Named `intentId` (not `journeyId`) to match
+  /// the existing FK convention onto LearningIntent used throughout the schema
+  /// (Subject.intentId, LearningGoal.intentId, JourneyBundleLink.intentId, ...).
+  /// "Journey" is the product-facing term for a LearningIntent.
+  intentId String?
+  intent   LearningIntent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
+
   @@index([createdAt])
   @@index([purpose, createdAt])
   @@index([evaluationId])
+  @@index([userId, createdAt])
+  @@index([intentId, createdAt])
 }
 
 // =====================================================================

@@ -1,21 +1,6 @@
-import { redirect } from "next/navigation";
-import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
+import { redirect } from 'next/navigation';
 
-// ---------------------------------------------------------------------------
-// Ownership guards (landing-flow plan, section 3a — defence in depth).
-//
-// A guest has a real Better Auth session (anonymous plugin), so the optimistic
-// middleware cookie check passes for them. The authoritative gate therefore
-// lives here, in the server components / actions:
-//
-//   requireOwnerId()    accepts anonymous + real — the PRE-JOURNEY surfaces
-//                       (intent -> outcome -> probe -> path overview). A guest
-//                       must be able to do the whole try-before-signup flow.
-//
-//   requireRealUserId() rejects anonymous (treats a guest like no session) —
-//                       the LEARNING surfaces (goalpost onward) + acceptPath.
-//                       Beginning to learn requires a real account.
-// ---------------------------------------------------------------------------
+import { getCurrentSession, isAnonymousSession } from '@/lib/auth';
 
 /** A signal the create-account gate / sign-in is needed for the current user. */
 export const GATE_REDIRECT = "/journey/begin";
@@ -49,4 +34,42 @@ export async function requireRealUserId(): Promise<string> {
     redirect(GATE_REDIRECT);
   }
   return session.user.id;
+}
+
+// ---------------------------------------------------------------------------
+// Ops/admin gate — no admin/role column exists in the schema yet. Gates on an
+// ADMIN_EMAILS allowlist env var (comma-separated, case-insensitive), mirroring
+// the app's existing env-var-gated feature pattern (the GOOGLE_GENAI_API_KEY /
+// TAVILY_API_KEY fail-fast checks in lib/services/index.ts). Fails CLOSED: an
+// unset/empty ADMIN_EMAILS means nobody can reach an admin surface, not everyone.
+// Used by the LLM cost aggregation route + dashboard (cost-sensitive: reveals
+// per-user/per-journey spend, not a product surface).
+// ---------------------------------------------------------------------------
+
+function parseAdminEmails(): Set<string> {
+  return new Set(
+    (process.env.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return parseAdminEmails().has(email.toLowerCase());
+}
+
+/**
+ * The current session iff it belongs to a real (non-guest), authenticated,
+ * allow-listed admin account; otherwise null. Returns null rather than
+ * redirecting so callers (API route vs. page) can each choose their own
+ * response (401/403 JSON vs. a redirect/message).
+ */
+export async function currentAdminSession() {
+  const session = await getCurrentSession();
+  if (!session?.user?.id) return null;
+  if (isAnonymousSession(session)) return null;
+  if (!isAdminEmail(session.user.email)) return null;
+  return session;
 }

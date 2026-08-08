@@ -17,11 +17,10 @@ import type {
 // from generateContent. Override via GEMINI_MODEL if needed.
 const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
-// L1 Slice 3 — model used for AUDIO transcription. A Flash-class multimodal model
-// handles inline audio (cheapest path, competitive English WER; see
-// CEO/stt-approach-2026.html). Defaults to the same Flash model as text so we
-// reuse one provider + key; override with GEMINI_STT_MODEL if a dedicated audio
-// model is preferred.
+// L1 Slice 3 — AUDIO transcription model. Flash-class multimodal handles inline
+// audio cheaply with competitive English WER (see CEO/stt-approach-2026.html).
+// Defaults to the text model to reuse one provider/key; override with
+// GEMINI_STT_MODEL for a dedicated audio model.
 const DEFAULT_STT_MODEL =
   process.env.GEMINI_STT_MODEL ?? process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
@@ -40,27 +39,15 @@ function buildTranscriptionPrompt(languageHint: string | undefined): string {
   ].join(" ");
 }
 
-// ---------------------------------------------------------------------
-// Thinking control + token floors
-//
-// gemini-3.5-flash is a THINKING model: reasoning ("thought") tokens are drawn
-// from the SAME maxOutputTokens budget as the visible answer. On large prompts
-// the thinking pass can consume most of the budget, truncating the JSON answer
-// (finishReason MAX_TOKENS) so JSON.parse fails. This was the intermittent
-// "did not return valid JSON" failure.
-//
-// The installed @google/genai is 0.7.0, whose `ThinkingConfig` type only
-// declares `includeThoughts` -- it has NO `thinkingBudget` field, which is why
-// the naive `thinkingConfig = { thinkingBudget: 512 }` failed to typecheck.
-// However, the LIVE v1beta API for gemini-3.5-flash DOES honor `thinkingBudget`
-// at the wire level (empirically verified: thinkingBudget:0 -> thoughtsTokenCount
-// becomes undefined, i.e. thinking is disabled). We therefore declare the field
-// in a local type that extends the SDK config so we can set it type-safely
-// without an `any`/`never` cast over the whole config object.
-//
-// For a schema-constrained JUDGE (completeStructured), free-form chain-of-thought
-// is unnecessary -- the model emits JSON conforming to responseSchema -- so we
-// disable thinking there. This both fixes the truncation and cuts cost/latency.
+// gemini-3.5-flash is a THINKING model: reasoning tokens share maxOutputTokens
+// with the visible answer, so large prompts can truncate the JSON (MAX_TOKENS)
+// mid-parse -- the intermittent "did not return valid JSON" failure.
+// @google/genai@0.7.0's ThinkingConfig type has no `thinkingBudget` field, but
+// the live v1beta API honors it at the wire level (thinkingBudget:0 disables
+// thinking, verified via thoughtsTokenCount) -- hence the local type extension
+// below instead of an any/never cast. completeStructured disables thinking
+// entirely: schema-constrained output needs no chain-of-thought, and it fixes
+// the truncation and cuts cost/latency.
 type ThinkingConfigWithBudget = {
   includeThoughts?: boolean;
   // tokens; 0 = thinking OFF, -1 = automatic. Honored by the live v1beta API
@@ -75,28 +62,15 @@ type GenerateContentConfigWithThinking = GenerateContentConfig & {
 // large EvaluationResult (rationale + 6 verbatim evidence quotes) needs room.
 const STRUCTURED_OUTPUT_TOKEN_FLOOR = 4096;
 
-// ---------------------------------------------------------------------
-// Prompt caching (L1 Slice 1 tracked task)
+// Prompt caching (L1 Slice 1): relies on Gemini's implicit prefix caching --
+// gemini-2.5/3.x Flash automatically caches a repeated request prefix (the
+// invariant systemInstruction + responseSchema) at a reduced rate, no API
+// plumbing needed. `cacheKey` (lib/llm/types.ts) just documents the caller's
+// invariant prefix so this stays true.
 //
-// AS-BUILT STRATEGY: this client relies on Gemini's IMPLICIT prefix caching.
-// gemini-2.5/3.x Flash automatically caches a repeated request prefix (here the
-// invariant `systemInstruction` + `responseSchema`) and bills the cached prefix
-// at a reduced rate on subsequent calls — with NO API plumbing required. Because
-// every structured call sends the SAME stable system prompt for a given service
-// (e.g. the lesson-content SYSTEM is a module constant), that prefix is already
-// in the implicit-cache path. The `cacheKey` option (lib/llm/types.ts) documents
-// the caller's invariant prefix so this remains true and is greppable.
-//
-// TRACKED TODO — EXPLICIT context-cache resources (`ai.caches.create`/`get`):
-// the @google/genai Caches API exists in this SDK, but explicit context caching
-// has a HARD MINIMUM cacheable token count (~1k–4k tokens depending on model).
-// Our stable prefixes (system instruction + schema) are BELOW that minimum, so
-// `caches.create` would be rejected for these prompts; it only pays off for very
-// large shared prefixes (e.g. a big shared document corpus in L2/L3). Wiring the
-// create/get/delete lifecycle + TTL management now would add cost and failure
-// surface for no benefit on L1's small prefixes. Deferred deliberately; revisit
-// when a large shared prefix appears (L2 Research/Library). Until then implicit
-// caching covers the L1 spine. `cacheKey` is forwarded as the cache hint.
+// Explicit context-cache resources (ai.caches.create/get) are NOT wired: they
+// have a hard minimum cacheable token count (~1k-4k) our small stable prefixes
+// don't meet. Revisit if a large shared prefix appears (e.g. L2 Research/Library).
 function noteCacheHint(_cacheKey: string | undefined): void {
   // Intentionally a no-op beyond documenting intent: implicit caching needs no
   // call-site action. Kept as an explicit seam so the explicit-cache TODO above
@@ -129,15 +103,11 @@ function reportUsage(
   }
 }
 
-// =====================================================================
-// Zod -> Gemini responseSchema converter
-//
-// The @google/genai SDK expects a Schema object with UPPERCASE type names
-// ("OBJECT", "ARRAY", "STRING", "NUMBER", "INTEGER", "BOOLEAN") plus
-// `properties`, `items`, `required`, `enum`, and `propertyOrdering`.
-// We convert the existing Zod schemas so service code only has to declare
-// its contract once (as Zod) and validate the result with the same schema.
-// =====================================================================
+// Zod -> Gemini responseSchema converter. The @google/genai SDK expects a
+// Schema object with UPPERCASE type names (OBJECT/ARRAY/STRING/NUMBER/
+// INTEGER/BOOLEAN) plus properties/items/required/enum/propertyOrdering.
+// Converting from Zod lets service code declare its contract once and
+// validate the result with the same schema.
 
 type GeminiSchema = {
   type: string;
@@ -150,7 +120,7 @@ type GeminiSchema = {
   nullable?: boolean;
 };
 
-function zodToGeminiSchema(schema: z.ZodTypeAny): GeminiSchema {
+export function zodToGeminiSchema(schema: z.ZodTypeAny): GeminiSchema {
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
     const inner = zodToGeminiSchema(schema.unwrap());
     return { ...inner, nullable: true };
@@ -423,15 +393,10 @@ export class GeminiClient implements LLMClient, TranscriptionClient {
     return opts.schema.parse(parsed);
   }
 
-  // -------------------------------------------------------------------
-  // L1 Slice 3 — AUDIO transcription (speech-to-text).
-  //
-  // Sends the recorded audio INLINE to Gemini as a multimodal part alongside a
-  // verbatim-transcription instruction, and returns the model's text. The audio
-  // is only held in memory for this call; the caller (the server route) does not
-  // persist it. Reuses the same usage-extraction + onUsage telemetry path as the
-  // text completions.
-  // -------------------------------------------------------------------
+  // L1 Slice 3 — AUDIO transcription. Sends the recorded audio inline to Gemini
+  // alongside a verbatim-transcription instruction. Audio is held in memory
+  // only for this call and never persisted; reuses the same usage-extraction +
+  // onUsage telemetry path as text completions.
   async transcribe(opts: TranscriptionOptions): Promise<TranscriptionResult> {
     const model = opts.model ?? DEFAULT_STT_MODEL;
 

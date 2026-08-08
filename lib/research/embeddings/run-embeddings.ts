@@ -1,11 +1,10 @@
 /**
- * L2 ingestion bench — embedding-model eval (D4, CEO plan §5).
- *
- * Reuses the extracted clean text from run-search.ts. For each topic it chunks
- * the topic's extracted sources, has the judge label which chunks answer each
- * query (ground truth), then for each candidate embedding model: embeds chunks +
- * queries, retrieves top-k by cosine, and computes Recall@5 / MRR / nDCG@10.
- * Also ingests each model's chunk vectors into Qdrant (Phase-2 path).
+ * L2 ingestion bench — embedding-model eval (D4, CEO plan §5). Reuses the
+ * extracted clean text from run-search.ts; per topic, chunks the extracted
+ * sources, has the judge label ground-truth relevant chunks per query, then
+ * for each candidate model: embeds chunks + queries, retrieves top-k by
+ * cosine, computes Recall@5/MRR/nDCG@10, and ingests chunk vectors into Qdrant
+ * (Phase-2 path).
  *
  * Prereq: run-search.ts has written out/extractions.json + out/raw-search.json.
  * Run: bun run lib/research/embeddings/run-embeddings.ts
@@ -133,7 +132,6 @@ async function main() {
     const dim = chunkVecs[0]?.length ?? 0;
     const vecById = new Map<string, number[]>(allChunks.map((c, i) => [c.id, chunkVecs[i]]));
 
-    // Embed each query, measure per-query latency.
     const queryLatencies: number[] = [];
     const perQuery: { queryId: string; recall5: number; mrr: number; ndcg10: number; relevant: number }[] = [];
 

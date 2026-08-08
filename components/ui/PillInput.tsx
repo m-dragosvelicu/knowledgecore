@@ -1,17 +1,10 @@
 "use client";
 
-// KnowledgeCore — pill inputs (Slice 1).
-//
-// Two pieces:
-//   - PillTextField: a thin wrapper over MUI TextField. Single-line fields get
-//     the full pill radius; multiline gets the 18px radius. The teal focus ring
-//     (0 0 0 4px var(--teal-soft) + teal border) comes from the themed
-//     MuiOutlinedInput override, so a bare <TextField> already focuses correctly;
-//     this wrapper just enforces the pill shape and forwards everything.
-//   - SearchPill: the bespoke hero search bar — a pill-shaped surface holding an
-//     editable input plus an inline solid Begin button. Mirrors the kit's .start
-//     field (preview/comp-input.html): surface fill, hairline border, focus adds
-//     the teal-soft ring + teal border to the whole bar.
+// PillTextField: pill radius + teal focus ring come from the themed
+// MuiOutlinedInput override (a bare TextField already focuses correctly); this
+// wrapper only enforces the pill shape.
+// SearchPill: the hero search bar, mirrors the kit's .start field
+// (preview/comp-input.html).
 
 import { useState } from "react";
 import type { FormEvent } from "react";
@@ -21,16 +14,10 @@ import InputBase from "@mui/material/InputBase";
 import Box from "@mui/material/Box";
 import SolidButton from "./SolidButton";
 
-/* ---------------------------------------------------------------------------
- * PillTextField — the general single-/multi-line themed field.
- * ------------------------------------------------------------------------- */
 export function PillTextField(props: TextFieldProps) {
   return <TextField {...props} />;
 }
 
-/* ---------------------------------------------------------------------------
- * SearchPill — input + inline Begin button, the hero "start" field.
- * ------------------------------------------------------------------------- */
 export type SearchPillProps = {
   value?: string;
   defaultValue?: string;

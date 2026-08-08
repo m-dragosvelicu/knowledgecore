@@ -1,12 +1,9 @@
 "use client";
 
-// KnowledgeCore — generic staged-poll hook (T3), extracted from the original
-// GettingReady effect (E04.S01 PRD sec. 5 move 1). Fires `start` once and
-// polls `poll` on an interval until a terminal state, exposing
-// {state, failed, retry}. Generic over any polled payload shaped like
-// { status: "running" | "ready" | "failed" } — the coarse contract
-// LessonGenerationState already uses — so future T3 callers (research-bundle
-// fill, pre-generation path) can reuse this unchanged.
+// Generic staged-poll hook (T3): fires `start` once, polls `poll` on an
+// interval until a terminal state, exposing {state, failed, retry}. Generic
+// over any payload shaped { status: "running" | "ready" | "failed" }, so
+// other T3 callers can reuse this unchanged.
 
 import { useEffect, useRef, useState } from "react";
 
@@ -31,12 +28,11 @@ export type UsePolledStageResult<T extends PolledStage> = {
 };
 
 /**
- * `start` runs the generation to completion (idempotent: resolves on success,
- * throws on failure). `poll` reads the live persisted state. Both take no
- * arguments — bind any ids via closure in the caller, and list every value
- * those closures depend on in `deps` (the same contract as useEffect's own
- * dependency list). `retry` bumps an internal counter to re-run the effect
- * without requiring a `deps` change.
+ * `start` runs to completion (idempotent: resolves on success, throws on
+ * failure); `poll` reads live persisted state. Both take no arguments — bind
+ * ids via closure and list every closed-over value in `deps` (same contract
+ * as useEffect's dependency list). `retry` bumps an internal counter to
+ * re-run the effect without a `deps` change.
  */
 export function usePolledStage<T extends PolledStage>(
   start: () => Promise<void>,

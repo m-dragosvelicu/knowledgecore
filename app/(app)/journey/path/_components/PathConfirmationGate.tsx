@@ -1,0 +1,295 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import type { InterviewTurn } from "@/lib/services/types";
+import {
+  advancePathConfirmationAction,
+  revisePathFromConfirmationAction,
+} from "@/app/(app)/journey/_actions";
+import MicButton from "@/components/journey/MicButton";
+import ResearchFillWait from "@/components/journey/wait/ResearchFillWait";
+import DialogueTurns from "@/components/journey/DialogueTurns";
+import SolidButton from "@/components/ui/SolidButton";
+import WobbleButton from "@/components/ui/WobbleButton";
+import { SaveAndLeaveLink } from "@/components/journey/SaveAndLeave";
+import { Eyebrow } from "@/components/ui";
+
+// Soft cap on CORRECTION ROUNDS (a round = one full clarifying dialogue that
+// revises the path). After this many rounds the gate stays usable but gently
+// surfaces "you can also adjust as you go", so a learner can neither loop forever
+// nor feel trapped. The Path Adjuster runs mid-journey too, so this is honest.
+const SOFT_CAP_ROUNDS = 3;
+
+type Props = {
+  /**
+   * How many times this path has already been revised via confirmation (server
+   * truth: LearningPath.revisionCount). Seeds the soft-cap counter so the gentle
+   * "adjust as you go" message persists across the re-presented overview.
+   */
+  revisionCount: number;
+  // The resolved journey id (from ?j), threaded into accept / clarify / revise
+  // so the gate operates on the journey the learner actually opened.
+  intentId: string;
+};
+
+type Mode = "gate" | "dialogue";
+
+function Surface({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      sx={{
+        bgcolor: "background.paper",
+        border: "1px solid var(--line)",
+        borderRadius: "var(--r-lg)",
+        boxShadow: "var(--shadow-sm)",
+        p: "22px 26px",
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+function AskHeadline({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      component="p"
+      sx={{
+        m: 0,
+        fontFamily: "var(--font-display)",
+        fontVariationSettings: "var(--soft-ui)",
+        fontWeight: 500,
+        fontSize: "clamp(20px, 2.6vw, 26px)",
+        lineHeight: 1.18,
+        letterSpacing: "-.01em",
+        color: "var(--ink)",
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+/**
+ * L1 Slice 2 -- Path Confirmation gate + opt-in clarifying dialogue.
+ * Platform rule: always a way to say "hold on" before committing to the path.
+ * The clarifying dialogue reuses the shared transcript-driven turn-taking
+ * primitive (client resends the whole transcript each turn; server is
+ * stateless), then hands the concern to the existing Path Adjuster.
+ */
+export default function PathConfirmationGate({ revisionCount, intentId }: Props) {
+  const [mode, setMode] = useState<Mode>("gate");
+  const [transcript, setTranscript] = useState<InterviewTurn[]>([]);
+  const [question, setQuestion] = useState<string>("");
+  const [draft, setDraft] = useState<string>("");
+  // Mounts ResearchFillWait, which fires acceptPathAction itself and swaps the
+  // gate for the T3 research ladder once a poll reports a running fill
+  // (E04.S03). A cache HIT never shows the ladder: accept redirects while the
+  // gate is still up with the button's own pending affordance.
+  const [accepted, setAccepted] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  // revisionCount already reflects rounds applied on the server before this
+  // render. atSoftCap gates the gentle nudge, never the ability to proceed.
+  const atSoftCap = revisionCount >= SOFT_CAP_ROUNDS;
+
+  function looksGood() {
+    setAccepted(true);
+  }
+
+  // One clarifying turn against the server, appending the optional new user turn
+  // first. The server is stateless; we re-send the whole transcript (mirrors the
+  // OutcomeClient / Goal Interview loop).
+  function runTurn(nextTranscript: InterviewTurn[]) {
+    startTransition(async () => {
+      const step = await advancePathConfirmationAction(nextTranscript, intentId);
+      if (step.kind === "complete") {
+        await revisePathFromConfirmationAction(step.concern, intentId);
+      } else {
+        setQuestion(step.question);
+        setTranscript([
+          ...nextTranscript,
+          { role: "assistant", content: step.question },
+        ]);
+      }
+    });
+  }
+
+  function openDialogue() {
+    setMode("dialogue");
+    setTranscript([]);
+    setQuestion("");
+    setDraft("");
+    runTurn([]);
+  }
+
+  function answer() {
+    const trimmed = draft.trim();
+    if (trimmed.length === 0) return;
+    setDraft("");
+    runTurn([...transcript, { role: "user", content: trimmed }]);
+  }
+
+  // The always-present gate
+  if (mode === "gate") {
+    const gate = (
+      <Stack spacing={2.5}>
+        <Divider />
+        <Stack spacing={1}>
+          <Eyebrow>Before you start</Eyebrow>
+          <AskHeadline>Does this trail look right?</AskHeadline>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: "60ch", lineHeight: 1.6 }}
+          >
+            Take a look at the goalposts above and what you&rsquo;ll be able to do
+            by the end. If it fits, let&rsquo;s begin. If something feels off, we
+            can talk it through before you start.
+          </Typography>
+        </Stack>
+
+        {revisionCount > 0 && (
+          <Box
+            sx={{
+              bgcolor: "var(--surface-2)",
+              border: "1px solid var(--line)",
+              borderLeft: "3px solid var(--teal)",
+              borderRadius: "var(--r-md)",
+              p: "14px 18px",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              We&rsquo;ve updated your trail. Take another look and start when
+              it&rsquo;s right for you.
+            </Typography>
+          </Box>
+        )}
+
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          sx={{ mt: "10px", pt: "18px", borderTop: "1px solid var(--line)" }}
+        >
+          <SaveAndLeaveLink />
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+          >
+            <WobbleButton onClick={openDialogue} disabled={isPending || accepted}>
+              Not quite right
+            </WobbleButton>
+            <SolidButton
+              tone="ink"
+              size="large"
+              onClick={looksGood}
+              disabled={isPending}
+              pending={accepted}
+              pendingLabel="Setting up your first goalpost…"
+            >
+              Looks good, start
+            </SolidButton>
+          </Stack>
+        </Stack>
+
+        {atSoftCap && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: "60ch", lineHeight: 1.6 }}
+          >
+            You can keep refining, but you can also just start. The trail
+            isn&rsquo;t locked. It adapts as you go, so you&rsquo;ll never be stuck
+            with a step that isn&rsquo;t working.
+          </Typography>
+        )}
+      </Stack>
+    );
+
+    if (!accepted) return gate;
+    return <ResearchFillWait intentId={intentId}>{gate}</ResearchFillWait>;
+  }
+
+  // The opt-in clarifying dialogue (reused turn-taking primitive)
+  return (
+    <Stack spacing={3}>
+      <Divider />
+      <Stack spacing={1}>
+        <Eyebrow>Let&rsquo;s get it right</Eyebrow>
+        <AskHeadline>Tell us what feels off</AskHeadline>
+        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: "60ch" }}>
+          We&rsquo;ll adjust the plan before you start.
+        </Typography>
+      </Stack>
+
+      {/* Earlier turns render above as a compact transcript. The ACTIVE question
+          is emitted exactly once -- as the input-card heading below -- so the
+          thread drops the trailing active question (no double-render). */}
+      <DialogueTurns transcript={transcript} dropActiveQuestion />
+
+      {question ? (
+        <Surface>
+          <Stack spacing={2}>
+            <Eyebrow>Your guide</Eyebrow>
+            <AskHeadline>{question}</AskHeadline>
+            <TextField
+              multiline
+              minRows={2}
+              fullWidth
+              placeholder="Type your answer…"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              disabled={isPending}
+            />
+            <Stack
+              direction="row"
+              spacing={2}
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <WobbleButton
+                  onClick={() => setMode("gate")}
+                  disabled={isPending}
+                  bare
+                >
+                  Never mind, it&rsquo;s fine
+                </WobbleButton>
+                <MicButton
+                  onTranscript={(t) =>
+                    setDraft((prev) =>
+                      prev.trim().length > 0
+                        ? `${prev.replace(/\s+$/, "")} ${t}`
+                        : t,
+                    )
+                  }
+                  disabled={isPending}
+                />
+              </Stack>
+              <SolidButton
+                tone="ink"
+                arrow={false}
+                onClick={answer}
+                disabled={draft.trim().length === 0 || isPending}
+              >
+                {isPending ? "Revising your trail…" : "Send"}
+              </SolidButton>
+            </Stack>
+          </Stack>
+        </Surface>
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          {isPending ? "Thinking about your trail…" : "Starting the conversation…"}
+        </Typography>
+      )}
+    </Stack>
+  );
+}

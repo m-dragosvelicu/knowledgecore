@@ -1,6 +1,3 @@
-// KnowledgeCore — design-system component barrel (Slice 1).
-// Screens in later slices import their building blocks from here.
-
 export { default as SolidButton } from "./SolidButton";
 export type { SolidButtonProps } from "./SolidButton";
 

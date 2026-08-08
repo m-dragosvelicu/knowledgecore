@@ -12,21 +12,10 @@ import {
   TrailScore,
 } from "@/components/marks/Marks";
 
-// B.6 Q3 (resolved 2026-05-30): a VERTICAL, Duolingo-style skill trail -- a
-// winding column of nodes with one obvious next step, a sticky "you are here"
-// marker, completed nodes tappable for review, and future nodes locked. We
-// adopt only the navigational affordance: NO streaks, XP, lives, or points.
-//
-// Slice 5 (design system): the trail is now drawn in the product's literal
-// hand-drawn language -- the connector legs are wobbly self-drawing teal strokes
-// for the walked path and quiet dotted legs for what is ahead; checkpoint nodes
-// are hatched circles (completed), a filled node with a planted flag (current),
-// or a bone circle (locked); completed goalposts carry a roughened score
-// ellipse. Marks live in components/marks/Marks.tsx and reference the shared
-// #rough / #hatchT defs; the draw-on resolves to its finished stroke under
-// prefers-reduced-motion (handled by .kc-draw in globals.css). This is
-// presentation only: states, ordering, scores, and every link/lock/aria
-// behavior are driven by the SAME real journey data as before.
+// Vertical skill trail (B.6 Q3): navigational affordance only, no
+// streaks/XP/points. Visual marks live in components/marks/Marks.tsx;
+// presentation only — states/ordering/scores/aria are driven by the same
+// journey data as before.
 
 export type TrailStepKind =
   | "information"
@@ -40,16 +29,19 @@ export type TrailNode = {
   title: string;
   objective: string;
   estimatedMinutes: number;
-  // Visual + interaction state derived on the server.
-  state: "completed" | "current" | "locked";
+  // Visual + interaction state derived on the server. "reshaped" = off the
+  // path (superseded or skipped by a reshape) - never a genuine "Cleared".
+  state: "completed" | "current" | "locked" | "reshaped";
   // Tagged when this goalpost was inserted by an adjust_plan revision.
   added: boolean;
+  // For state "reshaped" only: which off-path reason drives the chip label
+  // ("Reshaped" for superseded, "Removed" for skipped).
+  reshapedReason?: "superseded" | "skipped";
   // Step-type chips (information + experience) for the goalpost.
   stepTypes: TrailStepKind[];
-  // The cleared goalpost's score out of 4 (mean of the rubric dimensions),
-  // derived on the server from the latest checkpoint evaluation. Present only
-  // for completed goalposts that were actually evaluated; absent ones render
-  // the hatched node + check without a score ellipse.
+  // Score out of 4 (mean of rubric dims), present only for completed
+  // goalposts that were evaluated; absent renders the hatched node without
+  // an ellipse.
   score?: number;
 };
 
@@ -63,6 +55,12 @@ const STEP_TYPE_LABEL: Record<TrailStepKind, string> = {
 function NodeCard({ node }: { node: TrailNode }) {
   const isCurrent = node.state === "current";
   const isLocked = node.state === "locked";
+  const isReshaped = node.state === "reshaped";
+  // Reshaped shares locked's muted surface/opacity treatment (the existing
+  // dimmed/disabled node styling) rather than inventing a new muted palette.
+  const isMuted = isLocked || isReshaped;
+  const reshapedLabel =
+    node.reshapedReason === "skipped" ? "Removed" : "Reshaped";
 
   return (
     <Box
@@ -73,11 +71,11 @@ function NodeCard({ node }: { node: TrailNode }) {
         border: "1px solid var(--line)",
         borderColor: isCurrent ? "var(--teal)" : "var(--line)",
         borderWidth: isCurrent ? 2 : 1,
-        bgcolor: isLocked ? "var(--surface-2)" : "var(--surface)",
-        opacity: isLocked ? 0.78 : 1,
+        bgcolor: isMuted ? "var(--surface-2)" : "var(--surface)",
+        opacity: isMuted ? 0.78 : 1,
         p: 2,
         transition: "box-shadow 120ms ease, transform 120ms ease",
-        ...(!isLocked && {
+        ...(!isMuted && {
           "&:hover": { boxShadow: 2 },
         }),
       }}
@@ -95,7 +93,9 @@ function NodeCard({ node }: { node: TrailNode }) {
               fontFamily: "var(--font-display)",
               fontVariationSettings: "var(--soft-ui)",
               fontWeight: 500,
-              color: isLocked ? "var(--ink-2)" : "var(--ink)",
+              color: isMuted ? "var(--ink-2)" : "var(--ink)",
+              textDecoration: isReshaped ? "line-through" : "none",
+              textDecorationColor: "var(--ink-3)",
             }}
           >
             {node.title}
@@ -114,6 +114,9 @@ function NodeCard({ node }: { node: TrailNode }) {
           )}
           {isLocked && (
             <Chip label="Locked" size="small" variant="outlined" />
+          )}
+          {isReshaped && (
+            <Chip label={reshapedLabel} size="small" variant="outlined" />
           )}
           {node.added && (
             <Chip label="Added for you" size="small" />
@@ -151,8 +154,8 @@ function NodeCard({ node }: { node: TrailNode }) {
 
 // The card, wrapped in its interaction affordance. Completed goalposts are
 // tappable for read-only review; the current goalpost links into the live
-// execution loop; locked goalposts are inert (tooltip). Unchanged from before
-// the restyle -- only the surrounding marks moved to the hand-drawn language.
+// execution loop; locked and reshaped goalposts are inert (tooltip) - a
+// reshaped goalpost is off the path and was never clickable as "current".
 function NodeCardLink({
   node,
   intentId,
@@ -185,6 +188,26 @@ function NodeCardLink({
       >
         <NodeCard node={node} />
       </Box>
+    );
+  }
+  if (node.state === "reshaped") {
+    const reason =
+      node.reshapedReason === "skipped"
+        ? "removed from your path"
+        : "reshaped off your path without being passed";
+    return (
+      <Tooltip
+        title="No longer part of your path - the trail was reshaped."
+        placement="top"
+        arrow
+      >
+        <Box
+          sx={{ display: "flex", flex: 1, minWidth: 0, cursor: "not-allowed" }}
+          aria-label={`Goalpost ${node.order}: ${node.title}, ${reason}`}
+        >
+          <NodeCard node={node} />
+        </Box>
+      </Tooltip>
     );
   }
   return (

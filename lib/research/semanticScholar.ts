@@ -1,3 +1,5 @@
+import { clampQuery } from "./queryBuilder";
+
 const BASE_URL = "https://api.semanticscholar.org/graph/v1";
 const RECOMMENDATIONS_BASE_URL =
   "https://api.semanticscholar.org/recommendations/v1";
@@ -92,7 +94,7 @@ export async function searchPapers(
   opts: SearchPapersOptions = {},
 ): Promise<SemanticScholarPaper[]> {
   const url = new URL(`${BASE_URL}/paper/search`);
-  url.searchParams.set("query", query);
+  url.searchParams.set("query", clampQuery(query, "semantic-scholar"));
   url.searchParams.set("limit", String(opts.limit ?? 20));
   url.searchParams.set("fields", (opts.fields ?? DEFAULT_FIELDS).join(","));
   const data = await request<SearchResponse>(url.toString());

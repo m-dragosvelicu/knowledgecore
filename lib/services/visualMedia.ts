@@ -1,36 +1,19 @@
 /**
- * L1 Slice 4 — the visual-media contract (the visualKind gate + media sources).
- *
- * The content-generating LLM emits, per visual NEED, a structured `visualKind`
- * field. A SIMPLE SWITCH (NOT an ML classifier) routes each need to a concrete
- * medium:
- *
- *   diagram / structural / quantitative  -> AI-generated SVG (sanitized on its
- *                                            OWN dedicated render path)
- *   photographic / real-world / human /
- *   situational                          -> a license-clean SOURCED image
- *                                            (Openverse: CC / public-domain only,
- *                                             with real attribution + safe-search)
- *   process / motion                     -> a reference VIDEO embed (an
- *                                            unevaluated suggestion)
- *
- * This contract is ADDITIVE — it lives ALONGSIDE the LOCKED `lib/services/types.ts`
- * interface boundary (which must not change), mirroring lessonContent.ts /
- * pathConfirmation.ts / transcription.ts. The image + video sources are wired
- * through the registry with the same default-to-live + per-service opt-out +
- * graceful mock-fallback pattern, so the whole slice is testable WITHOUT network.
- *
- * SAFETY BOUNDARY: generated SVG is CODE. It is sanitized on its own dedicated
- * path (lib/services/visual/svgSanitizer.ts) and NEVER routed through the
- * lesson-text markdown sanitizer (components/Markdown.tsx). See routeVisual().
+ * Visual-media data types: the visualKind gate + media sources. The generator
+ * tags each need with a `visualKind`; a simple switch (gate.ts) routes it to
+ * SVG, a license-clean sourced image (Openverse, real attribution), or a
+ * reference video embed. Additive — lives alongside the locked
+ * `lib/services/types.ts` boundary. SAFETY: SVG is code — sanitized on its
+ * own dedicated path (svgSanitizer.ts), never through the markdown sanitizer.
+ * The `ImageSource`/`VideoSource` interfaces themselves live in
+ * `lib/services/interfaces/imageSource.interface.ts` and
+ * `lib/services/interfaces/videoSource.interface.ts`.
  */
 
 import type { Competency } from "@/lib/services/types";
 
-// =====================================================================
-// visualKind — the structured field the content generator emits per visual.
-// A closed set so the gate is an exhaustive switch, not a free-text guess.
-// =====================================================================
+// visualKind — closed set the content generator emits per visual, so the
+// gate can be an exhaustive switch rather than a free-text guess.
 export const VISUAL_KINDS = [
   "diagram", // structural / quantitative -> SVG
   "structural", // alias bucket for diagram-route concepts
@@ -150,19 +133,6 @@ export type SourcedImage = {
   attribution: ImageAttribution;
 };
 
-/**
- * A source of LICENSE-CLEAN images. The ONLY allowed source family in L1 is
- * Creative-Commons / public-domain (Openverse). An implementation MUST NOT pull
- * arbitrary web images and MUST return real attribution. Behind the registry
- * mock/live pattern so the gate is testable offline.
- */
-export interface ImageSource {
-  /** Stable identifier of the source, surfaced in attribution (e.g. "Openverse"). */
-  readonly sourceName: string;
-  /** Returns the best license-clean match, or null if none was found. */
-  search(input: ImageSearchInput): Promise<SourcedImage | null>;
-}
-
 // =====================================================================
 // Video sourcing — a reference embed for motion/process concepts.
 // =====================================================================
@@ -175,16 +145,6 @@ export type SourcedVideo = {
   embedUrl: string;
   provider: string;
 };
-
-/**
- * A source of reference videos (e.g. a YouTube oEmbed lookup). Behind the same
- * testable mock/live pattern. The result is labelled an UNEVALUATED suggestion
- * in the UI (we do not vouch for third-party video content).
- */
-export interface VideoSource {
-  readonly providerName: string;
-  resolve(input: VideoSearchInput): Promise<SourcedVideo | null>;
-}
 
 // =====================================================================
 // Lesson-content visual extension — additive to LessonContent.

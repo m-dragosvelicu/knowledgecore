@@ -1,15 +1,15 @@
 // KnowledgeCore design tokens — the single typed source of truth, ported from
-// design-system/colors_and_type.css. Warm paper, ink, one deep teal. No other
+// design-system/colors_and_type.css. Warm paper, ink, one deep teal; no other
 // hues, no gradients-as-decoration.
 //
-// THE RULE: Fraunces speaks, Hanken operates.
+// Rule: Fraunces speaks, Hanken operates.
 //   - Display/serif (Fraunces): wordmark, hero, headings, titles, numbers,
 //     expressive italic lines. The SOFT axis softens terminals.
 //   - Body/sans (Hanken Grotesk): body, inputs, labels, buttons, metadata,
-//     eyebrows AND the long-form reading font (decided: no reading serif).
-// Architects Daughter is annotation/presentation only and is intentionally NOT
-// shipped in the app bundle; --font-annotate is documented but referenced nowhere
-// in product code.
+//     eyebrows, and the long-form reading font (no reading serif).
+// Architects Daughter is annotation/presentation only, intentionally NOT
+// shipped in the app bundle; --font-annotate is referenced nowhere in
+// product code.
 
 export interface ColorTokens {
   // Neutrals (warm, paper-like)

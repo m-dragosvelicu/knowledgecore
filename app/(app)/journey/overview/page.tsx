@@ -8,16 +8,15 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import { getCurrentSession } from "@/lib/auth";
-import { getOrCreateActiveIntent, prisma } from "@/lib/journey/state";
+import { prisma } from "@/lib/db";
+import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
+import { isOnPath, sumOnPathMinutes } from "@/lib/journey/path/progress";
 import SaveAndLeaveRow from "@/components/journey/SaveAndLeave";
 import type { CanDoStatement } from "@/lib/services/types";
 
-// B.6 §1.0 (net-new): the Journey Overview -- the journey-level threshold shown
-// conceptually after path acceptance, before the first goalpost. It recouples
-// intent with plan: what we understood, what you'll do, the total time. The
-// "that's not quite right" correction is, per the design, a conversation rather
-// than hand-editing -- in L0 we keep it minimal: a link back to revisit the
-// intent/path with a one-line note. No path hand-editing is implemented.
+// B.6 §1.0: Journey Overview, shown after path acceptance, before goalpost 1.
+// The "not quite right" correction is a link back to revisit intent/path, not
+// hand-editing -- no path hand-editing is implemented in L0.
 export default async function OverviewPage({
   searchParams,
 }: {
@@ -43,8 +42,11 @@ export default async function OverviewPage({
 
   const canDoStatements =
     (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [];
-  const goalposts = path!.goalposts;
-  const totalMinutes = goalposts.reduce((sum, gp) => sum + gp.estimatedMinutes, 0);
+  // A pre-acceptance confirmation revision may have already dropped a
+  // goalpost (skipped) before this overview renders; it is no longer part of
+  // "what you'll do".
+  const goalposts = path!.goalposts.filter((gp) => isOnPath(gp.status));
+  const totalMinutes = sumOnPathMinutes(goalposts);
 
   return (
     <Stack spacing={4}>
@@ -60,7 +62,6 @@ export default async function OverviewPage({
         </Typography>
       </Stack>
 
-      {/* What we understood */}
       <Card variant="outlined">
         <CardContent sx={{ p: { xs: 3, md: 4 } }}>
           <Stack spacing={2}>
@@ -111,7 +112,6 @@ export default async function OverviewPage({
         </CardContent>
       </Card>
 
-      {/* What you'll do */}
       <Card variant="outlined">
         <CardContent sx={{ p: { xs: 3, md: 4 } }}>
           <Stack spacing={2}>

@@ -1,33 +1,23 @@
 /**
- * L1 Slice 4 — THE GATE.
- *
- * A SIMPLE SWITCH keyed on the structured `visualKind` field the content
- * generator emits. This is deliberately NOT an ML classifier: the model already
- * decided what the visual should show and tagged its TYPE; the gate just maps
- * that type to a concrete medium and resolves it through the safe paths.
- *
- *   diagram / structural / quantitative  -> SVG (sanitized on its own path)
- *   photographic / real_world / human /
- *   situational                          -> sourced license-clean image
- *   process / motion                     -> reference video embed
- *
- * Every route is safe-by-construction:
- *   - SVG goes through sanitizeSvg() (dedicated path), NEVER the markdown
- *     sanitizer.
- *   - Images come ONLY from the injected ImageSource (license-clean), with real
- *     attribution; a miss yields a `none` result rather than an arbitrary image.
- *   - Video is labelled an unevaluated suggestion downstream.
+ * The gate: a simple switch keyed on the `visualKind` the content generator
+ * emits (not an ML classifier — the model already decided the type). Routes:
+ *   diagram/structural/quantitative -> SVG (sanitized on its own path)
+ *   photographic/real_world/human/situational -> sourced license-clean image
+ *   process/motion -> reference video embed
+ * Every route is safe-by-construction: SVG goes through sanitizeSvg(), never
+ * the markdown sanitizer; images come only from the injected ImageSource
+ * (real attribution, or `none` on a miss); video is labelled unevaluated.
  */
 
 import { sanitizeSvg } from "./svgSanitizer";
 import type {
-  ImageSource,
   ResolvedVisual,
-  VideoSource,
   VisualKind,
   VisualMedium,
   VisualNeed,
 } from "@/lib/services/visualMedia";
+import type { ImageSource } from "@/lib/services/interfaces/imageSource.interface";
+import type { VideoSource } from "@/lib/services/interfaces/videoSource.interface";
 
 /**
  * The pure routing decision: visualKind -> medium. Exhaustive switch (no default

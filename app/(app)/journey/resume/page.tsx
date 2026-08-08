@@ -1,27 +1,26 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { GATE_REDIRECT } from "@/lib/auth-guards";
+import { prisma } from "@/lib/db";
+import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
 import {
-  getCurrentGoalpost,
   getOrCreateActiveIntent,
-  nextWizardRoute,
   daysSince,
   REFRESHER_OFFER_AFTER_DAYS,
-  prisma,
-} from "@/lib/journey/state";
+} from "@/lib/journey/intent/resolution";
+import { nextWizardRoute } from "@/lib/journey/intent/routing";
 import { StepType } from "@prisma/client";
-import WarmUpRecap from "@/components/journey/WarmUpRecap";
+import WarmUpRecap from "@/app/(app)/journey/resume/_components/WarmUpRecap";
 
-// L0 §9.5 multi-session continuity — the warm-up recap screen for a resumed
-// (paused) journey. Reached via nextWizardRoute (home) or the goalpost page
-// redirect for any journey the lazy §6 state machine moved to `paused`.
+// L0 §9.5 multi-session continuity — warm-up recap for a resumed (paused)
+// journey. Reached via nextWizardRoute (home) or the goalpost page redirect
+// for any journey the lazy §6 state machine moved to `paused`.
 //
-// Status mutations on resume are implemented as INLINE "use server" actions in
-// this file (not in app/(app)/journey/_actions.ts, which is owned by the PM) so
-// this feature owns its own writes end-to-end. Both actions flip the journey
-// back to `in_progress`; the opt-in refresher additionally re-opens the
-// information phase by clearing the current goalpost's information step
-// completedAt, so the read surface shows again.
+// Status mutations are inline "use server" actions in this file (not
+// app/(app)/journey/_actions.ts) so this feature owns its writes end-to-end.
+// Both flip the journey back to `in_progress`; the opt-in refresher also
+// re-opens the information phase by clearing the goalpost's information step
+// completedAt.
 
 // Resolve the active intent id and its current goalpost, enforcing the journey
 // is genuinely resumable. Shared by the page and both server actions so the
@@ -30,11 +29,9 @@ async function loadResumeContext(intentId?: string | null) {
   const session = await getCurrentSession();
   if (!session?.user?.id) redirect("/signin");
   if (isAnonymousSession(session)) redirect(GATE_REDIRECT);
-  // Addressable resume: honor the `?j=<id>` param (passed by the page) / the
-  // hidden form field (on the action submit) so the warm-up recap and its
-  // continue/refresher writes target the journey the learner actually clicked,
-  // not whichever was touched most recently. getOrCreateActiveIntent enforces
-  // ownership (userId match) on the explicit id and falls back safely.
+  // Addressable resume: honors `?j=<id>` / the hidden form field so writes
+  // target the journey the learner actually clicked, not the most recent.
+  // getOrCreateActiveIntent enforces ownership on the explicit id.
   const intent = await getOrCreateActiveIntent(session.user.id, intentId);
   if (!intent) redirect("/journey/intent");
   return { intent };

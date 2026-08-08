@@ -1,28 +1,13 @@
 "use client";
 
-// KnowledgeCore — the research-fill T3 ladder (E04.S03, PRD sec. 3a/3e).
+// Research-fill T3 ladder (E04.S03): fills a ResearchBundle on cache MISS
+// inside acceptPathAction. Mounted by both commit surfaces
+// (PathConfirmationGate, BeginClient) so it exists exactly once.
 //
-// The one staged-wait consumer for the longest wait in the app: filling a
-// ResearchBundle on a cache MISS inside acceptPathAction. Mounted by BOTH
-// commit surfaces — PathConfirmationGate ("Looks good, start") and the account
-// gate (BeginClient) — so the ladder exists exactly once.
-//
-// On mount it fires acceptPathAction (which runs the fill and redirects into
-// goalpost 1 when done) and polls the persisted ResearchBundle.progress record
-// every second via readBundleProgressAction.
-//
-// Cache-HIT short-circuit (approved PRD rule): the ladder is only shown once a
-// poll actually reports a RUNNING fill. Until then `children` (the caller's own
-// pending UI) stays up, so a near-instant HIT never flashes a four-stage ladder
-// for a sub-second operation. Once running has been observed the ladder stays
-// through "Ready" until the action's redirect unmounts us.
-//
-// Failure semantics mirror the backend contract, not the lesson ladder's:
-//   - a fill failure is BEST-EFFORT (the journey proceeds ungrounded and
-//     acceptPathAction still redirects), so it surfaces as a soft
-//     continue-forward state, never a dead-end retry;
-//   - only a failure of the accept action itself (nothing persisted a terminal
-//     bundle state) gets the hard Try-again branch.
+// Cache-HIT short-circuit: only shown once a poll reports a RUNNING fill;
+// until then `children` (caller's pending UI) stays up so a near-instant HIT
+// never flashes the ladder. A fill failure is best-effort (journey proceeds
+// ungrounded); only a failed accept action itself gets the hard Try-again branch.
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -35,7 +20,7 @@ import {
 import type {
   ResearchProgressState,
   ResearchStage,
-} from "@/lib/journey/researchProgressState";
+} from "@/lib/journey/research/progressState";
 
 // Visible stage ladder (failed branches to the failure card instead).
 const STAGE_LADDER: ResearchStage[] = [

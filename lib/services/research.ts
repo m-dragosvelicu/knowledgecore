@@ -1,26 +1,19 @@
 /**
- * L2 Phase 0 — the Research Agent service contract (additive).
- *
- * The Research Agent goes online (later phases), finds credible sources, and
- * assembles a "core source material bundle" the grounded-generation seams read.
- * In Phase 0 the agent is a deterministic MOCK returning a canned bundle (zero
- * network, zero keys, zero embeddings) so the whole spine
- * `path-confirm -> bundle -> grounded generation -> real sourceIds` is provable
- * offline / in CI.
- *
- * This contract is ADDITIVE — it does NOT touch the LOCKED `lib/services/types.ts`
- * interface boundary. It lives alongside it (L1 precedent: `lessonContent.ts`,
- * `pathConfirmation.ts`, `transcription.ts`, `visualMedia.ts`) and is wired
+ * Research Agent data types (additive). Finds credible sources and
+ * assembles a "core source material bundle" that grounded-generation reads.
+ * Does not touch the locked `lib/services/types.ts` boundary — lives
+ * alongside it (same pattern as lessonContent.ts, pathConfirmation.ts,
+ * transcription.ts, visualMedia.ts). The `ResearchAgent` interface itself
+ * lives in `lib/services/interfaces/researchAgent.interface.ts`; it is wired
  * through `getServices()`'s separate-selector pattern.
  */
 
 import type { SourceKind } from "@prisma/client";
 
 /**
- * One embeddable passage of a source. The `sourceId` here is the Research Agent's
- * OWN stable id for the chunk's parent source within the bundle it returns; the
- * BundleStore maps it to the persisted `Source.id` it mints/dedupes. The chunk
- * `text` is what generation is conditioned on (the "content selection" half of
+ * One embeddable passage of a source. `contentHash` is the dedup key; the
+ * BundleStore maps chunks to a persisted `Source.id`. `text` is what
+ * generation is conditioned on (the "content selection" half of
  * attribute-first).
  */
 export type Chunk = {
@@ -68,11 +61,10 @@ export type Bundle = {
 export type GapQueries = string[];
 
 /**
- * Best-effort progress signal the agent may report as it works (E04.S03),
- * mirroring the lesson orchestrator's `ProgressSink` contract
- * (lib/journey/lessonOrchestration.ts): a sink that throws must not abort
- * research. `reading` reports genuine per-hit extraction progress, never a
- * fabricated count.
+ * Best-effort progress signal (E04.S03), mirroring the orchestrator's
+ * `ProgressSink` contract (lib/services/interfaces/lessonOrchestrator.interface.ts): a sink that
+ * throws must not abort research. `reading` reports genuine per-hit
+ * extraction progress, never a fabricated count.
  */
 export type ResearchProgressEvent =
   | { phase: "searching" }
@@ -81,28 +73,3 @@ export type ResearchProgressEvent =
 export type ResearchProgressSink = (
   event: ResearchProgressEvent,
 ) => Promise<void> | void;
-
-/**
- * The Research Agent service. Phase 0 ships the MOCK only; live retrieval +
- * `amend` real behaviour land in later phases.
- */
-export interface ResearchAgent {
-  /**
-   * Assemble (or, live, research) the bundle for a topic. `goalpostQueries` is
-   * the per-goalpost query set generation would ground against (ignored by the
-   * Phase 0 mock, which returns a fixed canned bundle). `onProgress` is
-   * optional and advisory only — omitting it changes nothing about the result.
-   */
-  research(
-    topicKey: string,
-    topicLabel: string,
-    goalpostQueries: string[],
-    onProgress?: ResearchProgressSink,
-  ): Promise<Bundle>;
-
-  /**
-   * Targeted amend of an existing bundle (later phase). Phase 0 mock returns a
-   * fixed canned bundle so the contract type-checks end to end.
-   */
-  amend(bundleId: string, gapQueries: GapQueries): Promise<Bundle>;
-}

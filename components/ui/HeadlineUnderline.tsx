@@ -1,35 +1,12 @@
 "use client";
 
-// KnowledgeCore — HeadlineUnderline (Slice 1, wrapped-line fix, variant B).
-//
-// Wraps an inline headline and draws the signature wobbly HandUnderline mark
-// beneath it. Use around a span/heading whose width should define the
-// underline.
-//
-//   <HeadlineUnderline>
-//     <Typography variant="h3" component="span">The ideas behind Art Nouveau</Typography>
-//   </HeadlineUnderline>
-//
-// Sizing: the wrapper shrink-wraps to the rendered TEXT width via
-// `width: fit-content` (with `maxWidth: 100%` so it still wraps inside narrow
-// columns). That is enough while the headline stays on one line, but CSS has
-// no notion of "the width of the longest RENDERED line" once a fit-content box
-// is forced to wrap: it resolves to the full available width instead, so a
-// two-line headline drew the mark at container width under the short final
-// line, floating past the actual text.
-//
-// Variant B: every rendered line gets its own swoosh, each hugging that
-// line's text. Line geometry comes from Range.getClientRects() over the
-// headline's text nodes (one rect per line fragment, grouped by vertical
-// band). The FINAL line keeps the variant A mechanism — an invisible
-// zero-size marker as the headline's last child, measured against the
-// wrapper — so a one-line headline renders exactly the variant A markup
-// (one swoosh, same width source, same delay semantics). Earlier lines are
-// extra HandUnderlines in zero-height positioned spans, vertically calibrated
-// so each sits at the same offset below its line as the final swoosh sits
-// below the wrapper. Draw-on stays alive on every line; lines stagger
-// top-to-bottom by 120ms each (animationDelay accepts calc(), so a
-// caller-supplied base delay composes with the stagger).
+// Draws a wobbly HandUnderline under wrapped headlines. `width: fit-content`
+// only shrink-wraps to the widest line; once a headline is forced onto multiple
+// lines it resolves to full container width instead, floating the mark past
+// short final lines. Fix: measure each rendered line via
+// Range.getClientRects() and draw one swoosh per line; the final line reuses
+// the original single-swoosh mechanism (zero-size end marker) so one-line
+// headlines are unchanged. Lines stagger their draw-on by 120ms top-to-bottom.
 
 import {
   cloneElement,

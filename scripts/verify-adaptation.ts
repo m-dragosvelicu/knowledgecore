@@ -1,18 +1,11 @@
 /**
- * L1 Slice 1 — deterministic proof of THE ONE VISIBLE ADAPTATION.
+ * L1 Slice 1 — deterministic proof of the one visible adaptation.
  * Run: `bun run scripts/verify-adaptation.ts`. No DB or LLM needed —
- * lib/journey/profileAdaptation.ts is pure. Exits non-zero on any failure.
+ * lib/journey/profile/adaptation.ts is pure. Exits non-zero on any failure.
  *
- * Proves, against the SAME concept key, that:
- *   (a) a LOW-mastery profile yields MORE worked examples and a HIGHER support
- *       level than a HIGH-mastery profile (the spine's observable adaptation);
- *   (b) the serialized Call B prompt block reflects that difference in plain text
- *       (low → "extended" + more worked examples; high → "minimal" + fewer);
- *   (c) the conservative-early guard holds: a high mastery on THIN evidence does
- *       NOT get the leanest plan (support is not prematurely withdrawn);
- *   (d) support is ADDED on poor performance, never below the low-mastery floor;
- *   (e) the MockLessonContentGenerator emits measurably more worked-example
- *       sections for a low- vs high-mastery profile (end-to-end through Call B).
+ * Checks low- vs high-mastery support plans (worked examples, support level),
+ * the serialized Call B prompt text, the conservative-early guard on thin
+ * signal, the low-mastery floor, and end-to-end Call B generation.
  */
 import {
   deriveSupportPlan,
@@ -20,18 +13,17 @@ import {
   WORKED_EXAMPLES_LOW,
   WORKED_EXAMPLES_HIGH,
   THIN_SIGNAL_OBSERVATIONS,
-} from "../lib/journey/profileAdaptation";
-import type { LearnerProfileState } from "../lib/journey/learnerProfile";
+} from "../lib/journey/profile/adaptation";
+import type { LearnerProfileState } from "../lib/journey/profile/model";
 import type {
   LessonContent,
-  LessonContentGenerator,
   LessonContentInput,
 } from "../lib/services/lessonContent";
+import type { LessonContentGenerator } from "../lib/services/interfaces/lessonContentGenerator.interface";
 
 // Local deterministic Call-B double. Mirrors the deleted MockLessonContentGenerator:
-// it honours the SAME derived support plan as the live generator, emitting one
-// "### Worked example" section per plan.workedExamples so section (e) can assert
-// the visible adaptation (low mastery -> more worked examples) without an LLM.
+// emits one "### Worked example" section per plan.workedExamples so section (e)
+// can assert low-mastery -> more worked examples without an LLM.
 class FakeLessonContentGenerator implements LessonContentGenerator {
   async generate(input: LessonContentInput): Promise<LessonContent> {
     const plan = deriveSupportPlan(input.profile, input.conceptKey);

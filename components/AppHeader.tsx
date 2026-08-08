@@ -6,15 +6,8 @@ import Stack from "@mui/material/Stack";
 import { auth, getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import AccountMenu from "@/components/AccountMenu";
 
-// Shared top chrome — the "silent plumbing" tier. Concrete, no hand marks on the
-// burger or avatar (those are reserved for the warm/expressive surfaces); a
-// quiet hover lift + soft shadow on the burger, a 2px teal ring on the avatar.
-// The wordmark is LIVE TYPE (Fraunces 600, SOFT 30, letter-spacing -.015em), not
-// an image. The avatar is now the ONLY top-right affordance: clicking it opens a
-// calm dropdown card (AccountMenu) with "Profile" and "Sign out". The inline
-// Account (wobble) + Sign out (skip) actions were removed from the nav bar.
-// Server component: it reads the session and owns the sign-out server action,
-// passing it into the client AccountMenu so callers do not thread handlers.
+// Shared top chrome — the "plumbing" tier: no hand marks (reserved for the
+// warm/expressive surfaces).
 //
 // Ported from design-system/ui_kits/web-app/Shell.jsx (.top / .burger / .word /
 // .avatar) and design-system/source/knowledgecore-home-v4.html.
@@ -26,7 +19,6 @@ export default async function AppHeader() {
   const hasRealAccount = !!session?.user?.id && !isAnonymousSession(session);
   const name = session?.user?.name?.trim() ?? "";
   const email = session?.user?.email ?? "";
-  // Avatar initial: first letter of the name, else the email, else a dot.
   const initial = (name || email || "·").slice(0, 1).toUpperCase();
 
   return (

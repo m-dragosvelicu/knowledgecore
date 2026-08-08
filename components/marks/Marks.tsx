@@ -1,26 +1,13 @@
-// KnowledgeCore — signature hand-drawn marks (Slice 1).
-//
-// Ported from design-system/ui_kits/web-app/Marks.jsx. These are bespoke SVG
-// illustrations (NOT a reusable icon system): the thin arrow that lives inside
-// solid buttons, the self-drawing headline underline, the roughened score
-// ellipse, and the featured-card corner squiggle.
-//
-// The underline / squiggle reference the shared #rough filter and the .kc-draw
-// keyframes mounted in Slice 0 (components/Backdrop.tsx + app/globals.css), so
-// they inherit the one inky-edge "hand" the whole product shares. Reduced
-// motion is handled by .kc-draw (it resolves to the finished stroke).
-//
-// These are server-safe (pure markup, no hooks/handlers).
+// Hand-drawn marks (bespoke SVG, not an icon system), ported from
+// design-system/ui_kits/web-app/Marks.jsx. The underline/squiggle rely on the
+// shared #rough filter and .kc-draw keyframes mounted in Backdrop.tsx /
+// globals.css; .kc-draw resolves to the finished stroke under reduced motion.
+// Server-safe: pure markup, no hooks/handlers.
 
 import type { CSSProperties } from "react";
 
 const TEAL = "#1F6E67";
 
-/* ---------------------------------------------------------------------------
- * Arrow — the only true "icon" in the system. A thin stroke that slides right
- * inside solid commit buttons. stroke-width 1.8, round caps, currentColor so it
- * takes the button's label color.
- * ------------------------------------------------------------------------- */
 export function Arrow({ size = 16 }: { size?: number }) {
   return (
     <svg
@@ -42,14 +29,12 @@ export function Arrow({ size = 16 }: { size?: number }) {
   );
 }
 
-/* ---------------------------------------------------------------------------
- * HandUnderline — the signature wobbly underline that draws itself in beneath a
- * headline. Designed to be absolutely positioned under inline text (see the
- * HeadlineUnderline wrapper). `play` toggles the draw-on; turn it off to render
- * the finished stroke immediately (e.g. for a re-render that should not redraw).
- * `width` lets a positioned ancestor hand down an explicit measured pixel
- * width instead of the default 100% (see HeadlineUnderline's wrapped-line fix).
- * ------------------------------------------------------------------------- */
+/**
+ * Self-drawing wobbly underline, positioned absolutely under inline text (see
+ * HeadlineUnderline). `play=false` renders the finished stroke immediately
+ * (skip redraw on a re-render). `width` overrides the default 100% with a
+ * measured pixel value (HeadlineUnderline's wrapped-line fix).
+ */
 export function HandUnderline({
   play = true,
   strokeWidth = 2.4,
@@ -95,18 +80,12 @@ export function HandUnderline({
   );
 }
 
-/* ---------------------------------------------------------------------------
- * ScoreBadge — a roughened ellipse (NOT a perfect circle) wrapping a Fraunces
- * figure and an uppercase sublabel. The ellipse path is run through the shared
- * #rough displacement filter for the inky edge.
- *
- * The roughened ellipse is the SCORE mark: it should only wrap a genuine score
- * (e.g. a checkpoint evaluation result). For un-scored values — like a plain
- * goalpost PROGRESS count in the journey lists — pass `ring={false}` to render
- * the same Fraunces figure + uppercase sublabel WITHOUT the circle, so progress
- * is never mistaken for a score. `ring` defaults to true to keep the genuine
- * score call sites (trail, complete page, specimens) visually unchanged.
- * ------------------------------------------------------------------------- */
+/**
+ * ScoreBadge — roughened ellipse (not a circle) around a score. `ring=false`
+ * renders the same figure un-circled for progress values, so progress is
+ * never mistaken for a genuine score (default true keeps score call sites
+ * unchanged).
+ */
 export function ScoreBadge({
   big,
   sub,
@@ -179,25 +158,20 @@ export function ScoreBadge({
   );
 }
 
-/* ---------------------------------------------------------------------------
- * Trail marks (Slice 5) — the literal hand-drawn journey trail vocabulary,
- * ported from design-system/ui_kits/web-app/Marks.jsx Trail() + assets/marks.svg.
- * The PathTrail composes these per-node; each mark references the shared #rough
- * filter / #hatchT pattern mounted globally (components/Backdrop.tsx), so the
- * whole trail belongs to the same inky hand.
- *
- *   completed  -> hatched circle (fill url(#hatchT)) + teal check
- *   current    -> filled teal circle + a planted flag rising out of it
- *   locked     -> bone circle, muted silhouette stroke (a future goalpost)
- *
- * These are pure markup (server-safe). The node circles each sit inside a fixed
- * viewBox so a flag can rise above the marker column without clipping.
- * ------------------------------------------------------------------------- */
+/**
+ * Journey trail marks (Slice 5), depend on the shared #rough filter / #hatchT
+ * pattern mounted in Backdrop.tsx. State mapping:
+ *   completed -> hatched circle + teal check
+ *   current   -> filled teal circle + planted flag
+ *   locked    -> bone circle, muted stroke
+ *   reshaped  -> bone circle, muted stroke + muted X (off the path, not
+ *                merely not-yet-reached - never a check mark)
+ */
 
 const MUTED = "#8C8B82"; // --ink-3 / silhouette family for future legs
 const BONE = "#F8F6F1"; // --surface, the warm fill of an undrawn node
 
-export type TrailNodeState = "completed" | "current" | "locked";
+export type TrailNodeState = "completed" | "current" | "locked" | "reshaped";
 
 export function CheckpointNode({ state }: { state: TrailNodeState }) {
   // A 44x60 box: the circle sits low (cy 44) leaving headroom for the flag.
@@ -241,17 +215,24 @@ export function CheckpointNode({ state }: { state: TrailNodeState }) {
         {state === "locked" && (
           <circle cx={22} cy={44} r={11} fill={BONE} stroke={MUTED} strokeWidth={2} />
         )}
+
+        {state === "reshaped" && (
+          <>
+            <circle cx={22} cy={44} r={11} fill={BONE} stroke={MUTED} strokeWidth={2} />
+            <path
+              d="M18 40l8 8M26 40l-8 8"
+              fill="none"
+              stroke={MUTED}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </>
+        )}
       </g>
     </svg>
   );
 }
 
-/* ---------------------------------------------------------------------------
- * TrailConnector — the wobbly vertical leg between two nodes. A completed leg is
- * a self-drawing teal stroke (pathLength + .kc-draw, retracts to finished under
- * reduced motion); an upcoming leg is a quiet muted dotted line. Run through
- * #rough so even the straight run reads as hand-laid.
- * ------------------------------------------------------------------------- */
 export function TrailConnector({
   drawn,
   play = true,
@@ -291,11 +272,7 @@ export function TrailConnector({
   );
 }
 
-/* ---------------------------------------------------------------------------
- * TrailScore — a compact roughened score ellipse for a cleared goalpost (the
- * "goalpost cleared" mark). Same ellipse hand as ScoreBadge, sized down to sit
- * beside a node. `value` is the goalpost score out of 4.
- * ------------------------------------------------------------------------- */
+/** Compact score ellipse for a cleared goalpost; same hand as ScoreBadge, value out of 4. */
 export function TrailScore({ value }: { value: number }) {
   const big = Number.isInteger(value) ? String(value) : value.toFixed(1);
   return (
@@ -344,10 +321,6 @@ export function TrailScore({ value }: { value: number }) {
   );
 }
 
-/* ---------------------------------------------------------------------------
- * CornerSquiggle — the small hand-drawn flourish that tucks into the corner of
- * the featured card. Run through #rough so it reads as the same hand.
- * ------------------------------------------------------------------------- */
 export function CornerSquiggle({
   color = TEAL,
   style,
