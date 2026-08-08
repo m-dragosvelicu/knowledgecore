@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { withLlmTelemetryContext } from "@/lib/llm";
 import {
   LEARNER_SEARCH_LIMIT,
   searchLibraryForLearner,
@@ -56,7 +57,14 @@ export async function POST(
     return NextResponse.json({ error: "query is required" }, { status: 400 });
   }
 
-  const result = await searchLibraryForLearner(journeyId, query, { limit, sourceKind });
+  // Cost telemetry (2026-08-08 cost-gap close): attribute the query-embed
+  // LlmCall row this triggers (searchLibraryForLearner -> embedPassages
+  // purpose=embed_query) to this user/journey via the ambient context, same
+  // as every other LLM-touching route/action.
+  const result = await withLlmTelemetryContext(
+    { userId: session.user.id, intentId: journeyId },
+    () => searchLibraryForLearner(journeyId, query, { limit, sourceKind }),
+  );
   return NextResponse.json(result satisfies LibrarySearchResponse);
 }
 

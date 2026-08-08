@@ -162,7 +162,7 @@ function ExperienceBody({
           <TextField
             name="userArtifact"
             multiline
-            minRows={8}
+            minRows={4}
             fullWidth
             required
             value={artifact}

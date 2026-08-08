@@ -26,7 +26,11 @@ export async function ingestChunks(
   }
   const dim = vectors[0]?.length ?? 0;
   const safe = modelId.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
-  const collection = `l2_eval_${safe}`;
+  // EVAL_COLLECTION_SUFFIX lets a re-run write to differently-named Qdrant
+  // collections so it never clobbers the archived l2_eval_* collections from
+  // the thesis run. Defaults to empty (existing collection names, unchanged).
+  const suffix = process.env.EVAL_COLLECTION_SUFFIX ?? "";
+  const collection = `l2_eval_${safe}${suffix}`;
 
   // Recreate so re-runs are idempotent and the dim always matches the model.
   try {

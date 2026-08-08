@@ -34,7 +34,8 @@
     "eval:embeddings": "bun run lib/research/embeddings/run-embeddings.ts",
     "eval:kappa-sheet": "bun run lib/research/eval/make-kappa-sheet.ts",
     "eval:summary": "bun run lib/research/eval/make-summary.ts",
-    "eval:kappa": "bun run scripts/compute-kappa.ts"
+    "eval:kappa": "bun run scripts/compute-kappa.ts",
+    "eval:layers-bench": "bun run lib/research/eval/layers/run-bench.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",

@@ -118,6 +118,13 @@ export async function searchPassages(args: {
   limit?: number;
   filter?: PassageQueryFilter;
   scoreThreshold?: number;
+  /** Collection to search. Defaults to the shared production KC_PASSAGES
+   *  collection, unchanged for every existing caller. Added so the E05
+   *  layered-eval bench (lib/research/eval/layers/run-bench.ts) can run the
+   *  exact same query-construction/scoring code path against an isolated
+   *  l2_eval_layers_* collection instead of the shared production index --
+   *  additive only, no behavior change for callers that omit it. */
+  collection?: string;
 }): Promise<PassageHit[]> {
   const must: Array<Record<string, unknown>> = [];
   if (args.filter?.bundleId) must.push({ key: "bundleIds", match: { value: args.filter.bundleId } });
@@ -126,7 +133,7 @@ export async function searchPassages(args: {
   if (args.filter?.sourceIds?.length) must.push({ key: "sourceId", match: { any: args.filter.sourceIds } });
   if (args.filter?.sourceKind) must.push({ key: "sourceKind", match: { value: args.filter.sourceKind } });
 
-  const res = await qdrant.search(KC_PASSAGES, {
+  const res = await qdrant.search(args.collection ?? KC_PASSAGES, {
     vector: args.vector,
     limit: args.limit ?? 10,
     with_payload: true,

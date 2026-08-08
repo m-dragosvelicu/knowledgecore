@@ -175,6 +175,26 @@ enum LlmCallPurpose {
   // canDoStatements in place. A single-shot revise call, not a turn-taking
   // dialogue; see lib/services/outcomeRevision.ts for why.
   outcome_revision
+  // L2 cost-gap close — production embedding calls (gemini-embedding-001), not
+  // an LLM completion but billed per input token the same way. embed_ingest is
+  // the bundle-ingestion path (lib/research/embeddings/bundleIngest.ts, one row
+  // per batchEmbedContent request); embed_query is the learner-search query
+  // embed (lib/library/learnerSearch.ts). Both logged from the shared
+  // lib/research/embeddings/embed.ts:embedPassages. See PROJECT DECISIONS.md
+  // 2026-08-08 (this role, cost-gap-close entry) for why these were previously
+  // unlogged: lib/research/embeddings/ is production code, not eval-only, even
+  // though it sits next to lib/research/eval/.
+  embed_ingest
+  embed_query
+  // L2 cost-gap close — non-LLM external API calls the production Research
+  // Agent makes per journey (lib/services/providers/researchAgent.service.ts).
+  // No token cost; zero tokens + a configured per-request cost constant (see
+  // lib/llm/pricing.ts, computeExternalCallCostMicroUsd). Split per vendor
+  // (not one generic "external_search") so the admin cost dashboard's
+  // byPurpose/byModel breakdowns can attribute request volume per vendor.
+  external_tavily_search
+  external_openalex_search
+  external_semantic_scholar_search
   other
 }
 

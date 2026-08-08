@@ -1,4 +1,5 @@
 import { clampQuery } from "./queryBuilder";
+import { recordExternalCall } from "@/lib/llm/externalCallTelemetry";
 
 const BASE_URL = "https://api.openalex.org";
 
@@ -100,14 +101,36 @@ function redactUrl(url: string): string {
   return u.toString();
 }
 
+// Cost telemetry (2026-08-08 cost-gap close): one OpenAlex HTTP request = one
+// LlmCall row (purpose=external_openalex_search, zero tokens, per-request
+// cost from lib/llm/pricing.ts). Logged here (the shared request() helper)
+// rather than per exported function so every OpenAlex call this module ever
+// makes is covered, not just today's callers (searchWorks).
 async function request<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(
-      `OpenAlex request failed: ${res.status} ${res.statusText} for ${redactUrl(url)}`,
-    );
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(
+        `OpenAlex request failed: ${res.status} ${res.statusText} for ${redactUrl(url)}`,
+      );
+    }
+    const json = (await res.json()) as T;
+    await recordExternalCall({
+      source: "openalex",
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
+    return json;
+  } catch (err) {
+    await recordExternalCall({
+      source: "openalex",
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: (err as Error).message,
+    });
+    throw err;
   }
-  return (await res.json()) as T;
 }
 
 export async function searchWorks(

@@ -7,7 +7,7 @@
  * raw-search.json, extractions.json (out/).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -21,9 +21,14 @@ import { webSearch } from "../tavily";
 import { extract } from "../extract";
 import { fetchPageRanks, hostOf, type PageRankMap } from "../openPageRank";
 import { GeminiClient } from "../../llm/gemini";
+import { computeCostMicroUsd } from "../../llm/pricing";
 import { scoreResult } from "./judge";
 
-const OUT_DIR = join(HERE, "out");
+// EVAL_OUT_DIR lets a re-run write into a fresh directory instead of the
+// archived out/ (thesis results, read-only). Resolved against the repo cwd
+// (bun run always launches from the repo root); defaults to the original
+// out/ path when unset so existing invocations are unaffected.
+const OUT_DIR = process.env.EVAL_OUT_DIR ? resolve(process.cwd(), process.env.EVAL_OUT_DIR) : join(HERE, "out");
 const TOP_N = 8;
 const SCORE_TOP_K = 5; // bands computed on top-5 per the rubric
 
@@ -151,6 +156,19 @@ async function main() {
   const scored: ScoredResult[] = [];
   const byQueryId = new Map(QUERIES.map((q) => [q.query, q]));
 
+  // Step 6 telemetry: total judge calls/tokens/latency for the journal
+  // article's cost table. onUsage is best-effort (see gemini.ts reportUsage),
+  // so this can only under-count, never fabricate.
+  let judgeCalls = 0;
+  let judgeInputTokens = 0;
+  let judgeOutputTokens = 0;
+  const judgeLatencies: number[] = [];
+  const onJudgeUsage = (usage: { inputTokens: number; outputTokens: number }) => {
+    judgeCalls++;
+    judgeInputTokens += usage.inputTokens;
+    judgeOutputTokens += usage.outputTokens;
+  };
+
   for (const r of rawResults) {
     if (!r.ok) continue;
     const q = byQueryId.get(r.query);
@@ -163,16 +181,22 @@ async function main() {
       const pr = pageRanks[domain] ?? null;
       const ground = groundabilityScore(ex);
       let judge;
+      const tJudge = Date.now();
       try {
-        judge = await scoreResult(client, {
-          topic: q.topic,
-          level: q.level,
-          query: q.query,
-          title: hit.title,
-          url: hit.url,
-          snippet: hit.snippet,
-          extractPreview: ex?.text ?? "",
-        });
+        judge = await scoreResult(
+          client,
+          {
+            topic: q.topic,
+            level: q.level,
+            query: q.query,
+            title: hit.title,
+            url: hit.url,
+            snippet: hit.snippet,
+            extractPreview: ex?.text ?? "",
+          },
+          onJudgeUsage,
+        );
+        judgeLatencies.push(Date.now() - tJudge);
       } catch (e) {
         console.log(`  ! judge failed ${r.engine} ${q.id} #${rank}: ${(e as Error).message}`);
         continue;
@@ -246,9 +270,23 @@ async function main() {
     .sort((a, b) => b.overallUsefulPct - a.overallUsefulPct)
     .map((e) => ({ engine: e.engine, usefulPct: e.overallUsefulPct, band: e.band, deltaVsTavily: Number((e.overallUsefulPct - tavilyPct).toFixed(1)), meanLatencyMs: e.meanLatencyMs }));
 
+  // Step 6: judge cost/latency table. USD computed via the repo's own
+  // pricing table (lib/llm/pricing.ts) so this stays traceable to one source
+  // of truth instead of a hand-typed rate.
+  const judgeModelId = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+  const judgeCostUsd = computeCostMicroUsd(judgeModelId, judgeInputTokens, judgeOutputTokens) / 1_000_000;
+  const judgeUsage = {
+    calls: judgeCalls,
+    totalInputTokens: judgeInputTokens,
+    totalOutputTokens: judgeOutputTokens,
+    totalUsd: Number(judgeCostUsd.toFixed(6)),
+    meanLatencyMs: Math.round(mean(judgeLatencies)),
+    note: "USD via lib/llm/pricing.ts PRICE_TABLE (gemini-3.5-flash: $0.30/1M in, $2.50/1M out). Token counts are best-effort from usageMetadata (see gemini.ts reportUsage); calls where the judge threw are not counted (see console log for failures).",
+  };
+
   const bundle = {
     generatedAt: new Date().toISOString(),
-    judgeModel: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
+    judgeModel: judgeModelId,
     topN: TOP_N,
     scoreTopK: SCORE_TOP_K,
     queries: QUERIES.length,
@@ -258,6 +296,7 @@ async function main() {
     bands: "Poor <40% | Mid 40-60% | Good 60-80% | Best >80% (of scored top-5 useful)",
     perEngine,
     rankingVsTavily: ranking,
+    judgeUsage,
     scored,
   };
   writeFileSync(join(OUT_DIR, "search-results.json"), JSON.stringify(bundle, null, 2));

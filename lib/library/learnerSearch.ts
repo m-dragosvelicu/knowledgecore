@@ -78,7 +78,7 @@ export async function searchLibraryForLearner(
 
   // Embed the query ONCE with the ingest-time model so query and passage vectors
   // live in the same space (dim-3072 enforced inside embedPassages).
-  const [vector] = await embedPassages([trimmed]);
+  const [vector] = await embedPassages([trimmed], { purpose: "embed_query" });
 
   const hits = await searchPassages({
     vector,

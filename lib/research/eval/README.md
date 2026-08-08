@@ -31,7 +31,11 @@ bun run eval:sidecars:down      # tear down
 ```
 
 ## Layout
-- `queries.ts` — frozen 3-topic x 5-query set.
+- `queries.ts` — V1: frozen 3-topic x 5-query set (`QUERIES`/`TOPICS`, do not edit).
+  V2: powered 9-topic x 7-query set (`QUERIES_V2`/`TOPICS_V2`, 78 total across STEM/
+  humanities/applied and intro/intermediate/advanced) for the retrieval-layer bench.
+- `qrels/` — synthetic query-relevance judgments for nDCG/Recall@k/MRR at the V2 scale
+  (retrieval layer of the layered bench, see `qrels/README.md`).
 - `../searxng.ts` `../braveSearch.ts` `../exa.ts` `../tavily.ts` — engine adapters.
 - `../extract.ts` — Trafilatura primary, public Jina Reader fallback.
 - `../openPageRank.ts` — domain-authority enrichment.
