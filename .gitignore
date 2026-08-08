@@ -44,3 +44,6 @@ prisma/*.db-journal
 
 # Keep prod builds out of the live dev .next cache (next build uses a separate distDir)
 /.next-build/
+
+# eval run output dumps (ad hoc result runs, not source)
+lib/research/eval/out-*/
