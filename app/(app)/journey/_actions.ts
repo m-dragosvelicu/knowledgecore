@@ -662,6 +662,10 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
   // topic fingerprint and reads through the Library cache (HIT binds; MISS
   // creates + fills via the Research Agent, then embeds for Library search).
   // Best-effort: failure leaves the journey ungrounded (sourceIds stay []).
+  // Wrapped in the LLM telemetry context (cost-gap close, 2026-08-08) so the
+  // Research Agent's Tavily/OpenAlex/Semantic Scholar calls and the ingest
+  // embed calls triggered inside bindJourneyBundle attribute to this
+  // user/journey, the same pattern every other LLM-touching action here uses.
   try {
     const [subject, outcome] = await Promise.all([
       prisma.subject.findUnique({ where: { intentId } }),
@@ -671,12 +675,14 @@ export async function acceptPathAction(j?: string | null): Promise<void> {
       const outcomeShape = (outcome?.canDoStatements ??
         []) as unknown as OutcomeShape;
       const fp = fingerprint(subject.canonicalName, outcomeShape);
-      await bindJourneyBundle({
-        intentId,
-        topicFingerprint: fp,
-        topicLabel: subject.canonicalName,
-        goalpostQueries: path?.goalposts.map((g) => g.objective) ?? [],
-      });
+      await withLlmTelemetryContext({ userId, intentId }, () =>
+        bindJourneyBundle({
+          intentId,
+          topicFingerprint: fp,
+          topicLabel: subject.canonicalName,
+          goalpostQueries: path?.goalposts.map((g) => g.objective) ?? [],
+        }),
+      );
     }
   } catch (err) {
     // eslint-disable-next-line no-console

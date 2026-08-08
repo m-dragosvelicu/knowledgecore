@@ -15,12 +15,17 @@ export type {
   TranscriptionResult,
 } from "./types";
 
-export { computeCostMicroUsd } from "./pricing";
+export {
+  computeCostMicroUsd,
+  computeExternalCallCostMicroUsd,
+  type ExternalCallSource,
+} from "./pricing";
 export {
   withLlmTelemetryContext,
   getLlmTelemetryContext,
   type LlmTelemetryContext,
 } from "./telemetryContext";
+export { recordExternalCall } from "./externalCallTelemetry";
 
 export { AnthropicClient } from "./anthropic";
 export { GeminiClient } from "./gemini";

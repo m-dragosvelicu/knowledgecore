@@ -1,4 +1,5 @@
 import { clampQuery } from "./queryBuilder";
+import { recordExternalCall } from "@/lib/llm/externalCallTelemetry";
 
 const BASE_URL = "https://api.tavily.com";
 
@@ -59,26 +60,47 @@ export async function webSearch(
     include_raw_content: opts.includeRawContent ?? false,
   };
 
-  const res = await fetch(`${BASE_URL}/search`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  // Cost telemetry (2026-08-08 cost-gap close): one Tavily request = one
+  // LlmCall row (purpose=external_tavily_search, zero tokens, per-request
+  // cost from lib/llm/pricing.ts). Logged for both the success and the
+  // request-failed path so failed requests still count against Tavily usage;
+  // best-effort, mirrors every other provider's recordLlmCall.
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(`${BASE_URL}/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new TavilyRequestError(
-      res.status,
-      `Tavily request failed: ${res.status} ${res.statusText} ${text} | query="${safeQuery.slice(0, 120)}"${safeQuery.length > 120 ? "..." : ""}`,
-    );
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new TavilyRequestError(
+        res.status,
+        `Tavily request failed: ${res.status} ${res.statusText} ${text} | query="${safeQuery.slice(0, 120)}"${safeQuery.length > 120 ? "..." : ""}`,
+      );
+    }
+
+    const data = (await res.json()) as SearchResponse;
+    await recordExternalCall({
+      source: "tavily",
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
+    return (data.results ?? []).map((r) => ({
+      url: r.url,
+      title: r.title,
+      content: r.content,
+      score: r.score,
+      rawContent: r.raw_content ?? null,
+    }));
+  } catch (err) {
+    await recordExternalCall({
+      source: "tavily",
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: (err as Error).message,
+    });
+    throw err;
   }
-
-  const data = (await res.json()) as SearchResponse;
-  return (data.results ?? []).map((r) => ({
-    url: r.url,
-    title: r.title,
-    content: r.content,
-    score: r.score,
-    rawContent: r.raw_content ?? null,
-  }));
 }

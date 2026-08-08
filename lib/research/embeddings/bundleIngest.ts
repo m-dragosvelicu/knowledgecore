@@ -89,7 +89,10 @@ export async function ingestBundle(bundleId: string): Promise<BundleIngestResult
     chunks.map((c) => c.contentHash),
   );
 
-  const vectors = await embedPassages(chunks.map((c) => c.text));
+  const vectors = await embedPassages(
+    chunks.map((c) => c.text),
+    { purpose: "embed_ingest" },
+  );
 
   const points = chunks.map((c, i) => {
     const payload: KcPassagePayload = {

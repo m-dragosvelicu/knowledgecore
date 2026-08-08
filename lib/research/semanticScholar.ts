@@ -1,4 +1,5 @@
 import { clampQuery } from "./queryBuilder";
+import { recordExternalCall } from "@/lib/llm/externalCallTelemetry";
 
 const BASE_URL = "https://api.semanticscholar.org/graph/v1";
 const RECOMMENDATIONS_BASE_URL =
@@ -79,14 +80,37 @@ function headers(): HeadersInit {
   return h;
 }
 
+// Cost telemetry (2026-08-08 cost-gap close): one Semantic Scholar HTTP
+// request = one LlmCall row (purpose=external_semantic_scholar_search, zero
+// tokens, per-request cost from lib/llm/pricing.ts). Logged here (the shared
+// request() helper) rather than per exported function so every Semantic
+// Scholar call this module ever makes is covered, not just today's callers
+// (searchPapers).
 async function request<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: headers() });
-  if (!res.ok) {
-    throw new Error(
-      `Semantic Scholar request failed: ${res.status} ${res.statusText} for ${url}`,
-    );
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(url, { headers: headers() });
+    if (!res.ok) {
+      throw new Error(
+        `Semantic Scholar request failed: ${res.status} ${res.statusText} for ${url}`,
+      );
+    }
+    const json = (await res.json()) as T;
+    await recordExternalCall({
+      source: "semantic_scholar",
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
+    return json;
+  } catch (err) {
+    await recordExternalCall({
+      source: "semantic_scholar",
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: (err as Error).message,
+    });
+    throw err;
   }
-  return (await res.json()) as T;
 }
 
 export async function searchPapers(
