@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { GeminiClient } from "../../llm/gemini";
+import type { UsageCallback } from "../../llm/types";
 
 export const RubricScoreSchema = z.object({
   relevance: z
@@ -40,6 +41,9 @@ export async function scoreResult(
     snippet: string;
     extractPreview: string;
   },
+  // Optional cost/token telemetry sink for the journal-article cost table
+  // (Step 6). Additive: omitted callers behave exactly as before.
+  onUsage?: UsageCallback,
 ): Promise<RubricScore> {
   const user = [
     `TOPIC: ${args.topic}`,
@@ -63,6 +67,7 @@ export async function scoreResult(
     system: SYSTEM,
     temperature: 0,
     messages: [{ role: "user", content: user }],
+    onUsage,
   });
 }
 
@@ -86,6 +91,7 @@ export async function labelRelevantChunks(
     query: string;
     chunks: { id: string; text: string }[];
   },
+  onUsage?: UsageCallback,
 ): Promise<RelevantChunks> {
   const candidateBlock = args.chunks
     .map((c) => `[${c.id}] ${c.text.slice(0, 350).replace(/\s+/g, " ")}`)
@@ -107,5 +113,6 @@ export async function labelRelevantChunks(
       "You label which text chunks answer a learner's query, to build retrieval ground truth. Be precise: include only chunks that genuinely answer it at the stated level.",
     temperature: 0,
     messages: [{ role: "user", content: user }],
+    onUsage,
   });
 }

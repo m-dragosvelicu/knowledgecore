@@ -10,7 +10,7 @@
  * Run: bun run lib/research/embeddings/run-embeddings.ts
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { QUERIES, TOPICS } from "../eval/queries";
@@ -18,10 +18,16 @@ import type { EngineResult, Extraction } from "../eval/types";
 import { GeminiClient } from "../../llm/gemini";
 import { labelRelevantChunks } from "../eval/judge";
 import { chunkText, cosine, CHUNK_SCHEME, type Chunk } from "./chunk";
-import { EMBED_MODELS } from "./clients";
+import { EMBED_MODELS, type EmbedModel, type EmbedUsage, type EmbedUsageCallback } from "./clients";
 import { ingestChunks } from "./ingest";
+import { computeCostMicroUsd } from "../../llm/pricing";
 
-const OUT_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "..", "eval", "out");
+// EVAL_OUT_DIR mirrors run-search.ts: lets a re-run read/write a fresh
+// directory instead of the archived out/ (thesis results, read-only).
+// Defaults to the original out/ path when unset.
+const OUT_DIR = process.env.EVAL_OUT_DIR
+  ? resolve(process.cwd(), process.env.EVAL_OUT_DIR)
+  : join(fileURLToPath(new URL(".", import.meta.url)), "..", "eval", "out");
 
 const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
 
@@ -89,18 +95,34 @@ async function main() {
   // 2. Ground truth: judge labels relevant chunks per query (within its topic).
   console.log("[ground-truth] labelling relevant chunks per query...");
   const groundTruth: Record<string, Set<string>> = {};
+  // Step 6 telemetry: mirrors run-search.ts's judgeUsage block.
+  let judgeCalls = 0;
+  let judgeInputTokens = 0;
+  let judgeOutputTokens = 0;
+  const judgeLatencies: number[] = [];
+  const onJudgeUsage = (usage: { inputTokens: number; outputTokens: number }) => {
+    judgeCalls++;
+    judgeInputTokens += usage.inputTokens;
+    judgeOutputTokens += usage.outputTokens;
+  };
   for (const q of QUERIES) {
     const chunks = topicChunks[q.topic];
     if (!chunks.length) {
       groundTruth[q.id] = new Set();
       continue;
     }
+    const tJudge = Date.now();
     try {
-      const labelled = await labelRelevantChunks(client, {
-        level: q.level,
-        query: q.query,
-        chunks: chunks.map((c) => ({ id: c.id, text: c.text })),
-      });
+      const labelled = await labelRelevantChunks(
+        client,
+        {
+          level: q.level,
+          query: q.query,
+          chunks: chunks.map((c) => ({ id: c.id, text: c.text })),
+        },
+        onJudgeUsage,
+      );
+      judgeLatencies.push(Date.now() - tJudge);
       groundTruth[q.id] = new Set(labelled.relevantChunkIds.filter((id) => chunks.some((c) => c.id === id)));
     } catch (e) {
       console.log(`  ! label failed ${q.id}: ${(e as Error).message}`);
@@ -120,9 +142,13 @@ async function main() {
   for (const model of EMBED_MODELS) {
     console.log(`\n[model] ${model.label} — embedding ${allChunks.length} chunks...`);
     const tEmbedStart = Date.now();
+    // Step 6 telemetry: accumulate tokens/cost across both the chunk-embed
+    // batches and the per-query embed calls for this model.
+    const usage: EmbedUsage[] = [];
+    const onEmbedUsage = (u: EmbedUsage) => usage.push(u);
     let chunkVecs: number[][];
     try {
-      chunkVecs = await embedInBatches(model, allChunks.map((c) => c.text));
+      chunkVecs = await embedInBatches(model, allChunks.map((c) => c.text), onEmbedUsage);
     } catch (e) {
       console.log(`  ! ${model.id} chunk embedding failed: ${(e as Error).message}`);
       modelResults[model.id] = { error: (e as Error).message };
@@ -142,7 +168,11 @@ async function main() {
       const tq = Date.now();
       let qvec: number[];
       try {
-        qvec = (await model.embed([q.query]))[0];
+        // Query-side: use the instruction-prefixed embedder when the model
+        // variant defines one (embedQuery), else fall back to the bare
+        // embed() -- keeps every pre-existing model's behaviour unchanged.
+        const embedQueryFn = model.embedQuery ?? model.embed;
+        qvec = (await embedQueryFn([q.query], onEmbedUsage))[0];
       } catch (e) {
         console.log(`  ! ${model.id} query embed failed ${q.id}: ${(e as Error).message}`);
         continue;
@@ -175,6 +205,16 @@ async function main() {
       console.log(`  ! ${model.id} Qdrant ingest failed: ${(e as Error).message}`);
     }
 
+    // Step 6: fold per-call usage into a model-level total. Prefer the sum of
+    // real provider-reported costUsd (OpenRouter); fall back to
+    // tokens * pricePerMTokensUsd when a provider doesn't report cost
+    // directly (Gemini -- tokens there are also an estimate, see clients.ts).
+    const totalTokens = usage.reduce((s, u) => s + u.tokens, 0);
+    const reportedCost = usage.reduce((s, u) => s + (u.costUsd ?? 0), 0);
+    const hasReportedCost = usage.some((u) => u.costUsd != null);
+    const tokensEstimated = usage.some((u) => u.tokensEstimated);
+    const estimatedUsdFromTokens = (totalTokens / 1_000_000) * model.pricePerMTokensUsd;
+
     modelResults[model.id] = {
       label: model.label,
       dim,
@@ -187,10 +227,29 @@ async function main() {
       chunkEmbedMs,
       meanQueryEmbedMs: Math.round(mean(queryLatencies)),
       qdrant: ingest ? { collection: ingest.collection, pointCount: ingest.pointCount } : null,
+      usage: {
+        totalTokens,
+        tokensEstimated,
+        usd: Number((hasReportedCost ? reportedCost : estimatedUsdFromTokens).toFixed(6)),
+        usdSource: hasReportedCost ? "provider-reported (OpenRouter usage.cost)" : "estimated: tokens * pricePerMTokensUsd",
+      },
       perQuery,
     };
     console.log(`  ${model.label}: R@5=${recall5.toFixed(3)} MRR=${mrrAvg.toFixed(3)} nDCG@10=${ndcg10.toFixed(3)} (n=${perQuery.length})`);
   }
+
+  // Step 6: ground-truth-labelling judge cost table, same shape/pricing
+  // source as run-search.ts's judgeUsage.
+  const judgeModelId = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+  const judgeCostUsd = computeCostMicroUsd(judgeModelId, judgeInputTokens, judgeOutputTokens) / 1_000_000;
+  const judgeUsage = {
+    calls: judgeCalls,
+    totalInputTokens: judgeInputTokens,
+    totalOutputTokens: judgeOutputTokens,
+    totalUsd: Number(judgeCostUsd.toFixed(6)),
+    meanLatencyMs: Math.round(mean(judgeLatencies)),
+    note: "USD via lib/llm/pricing.ts PRICE_TABLE (gemini-3.5-flash: $0.30/1M in, $2.50/1M out).",
+  };
 
   const bundle = {
     generatedAt: new Date().toISOString(),
@@ -198,9 +257,10 @@ async function main() {
     totalChunks: allChunks.length,
     chunksPerTopic: Object.fromEntries(TOPICS.map((t) => [t, topicChunks[t].length])),
     groundTruthLabelledQueries: labelledCount,
-    judgeModel: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
+    judgeModel: judgeModelId,
+    judgeUsage,
     note:
-      "Qwen3-Embedding-0.6B excluded: OpenRouter returns HTTP 404 'no endpoints' for qwen/qwen3-embedding-0.6b (verified 2026-06-03).",
+      "Qwen3-Embedding-0.6B excluded: OpenRouter returns HTTP 404 'no endpoints' for qwen/qwen3-embedding-0.6b (verified 2026-06-03). Instruction-prefixed Qwen query variants added 2026-07-30 (see clients.ts QWEN_INSTRUCT_QUERY_TEMPLATE); documents stay bare per Qwen3-Embedding convention.",
     models: modelResults,
     qdrantIngest: ingestSummary,
   };
@@ -209,12 +269,12 @@ async function main() {
 }
 
 /** OpenRouter accepts arrays; Gemini is sequential. Batch OpenRouter at 64. */
-async function embedInBatches(model: { provider: string; embed: (t: string[]) => Promise<number[][]> }, texts: string[]): Promise<number[][]> {
-  if (model.provider === "gemini") return model.embed(texts); // adapter loops internally
+async function embedInBatches(model: EmbedModel, texts: string[], onUsage?: EmbedUsageCallback): Promise<number[][]> {
+  if (model.provider === "gemini") return model.embed(texts, onUsage); // adapter loops internally
   const BATCH = 64;
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += BATCH) {
-    const part = await model.embed(texts.slice(i, i + BATCH));
+    const part = await model.embed(texts.slice(i, i + BATCH), onUsage);
     out.push(...part);
   }
   return out;

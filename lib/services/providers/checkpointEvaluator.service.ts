@@ -10,6 +10,9 @@ import type {
 import type { CheckpointEvaluator } from "@/lib/services/interfaces/checkpointEvaluator.interface";
 import { rubricLevelSchema } from "./shared.schemas";
 import { CHECKPOINT_EVALUATOR_SYSTEM } from "@/lib/llm/prompts/checkpointEvaluatorPrompts";
+// normalize/findVerbatim/NO_EVIDENCE live in verbatim.ts so offline analyses can
+// reuse the exact production matcher without importing this Prisma-backed module.
+import { findVerbatim, NO_EVIDENCE } from "./verbatim";
 
 const rubricScoresSchema = z.object({
   recall: rubricLevelSchema,
@@ -47,71 +50,6 @@ const evaluationResultSchema = z.object({
 // completeStructured via the onUsage callback (lib/llm/types.ts); this
 // constant is only the telemetry fallback when a failure fires before usage.
 const TELEMETRY_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
-
-const NO_EVIDENCE = "(no evidence in artifact)";
-
-/**
- * Normalize for substring comparison: lowercase, collapse whitespace, and fold
- * smart quotes / dashes to ASCII. We compare normalized forms but always RETURN
- * the original learner text span so the stored quote stays faithful.
- */
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[‘’‛′]/g, "'")
-    .replace(/[“”″]/g, '"')
-    .replace(/[–—]/g, "-")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/**
- * Returns the original-cased substring of `artifact` that matches `quote`
- * (after normalization), or null if it is not a verbatim substring.
- */
-function findVerbatim(artifact: string, quote: string): string | null {
-  const q = quote.trim();
-  if (q.length === 0) return null;
-
-  // Fast path: exact substring.
-  if (artifact.includes(q)) return q;
-
-  // Normalized substring search. We normalize the artifact while keeping an
-  // index map back to the original string so we can return the original span.
-  const normQuote = normalize(q);
-  if (normQuote.length === 0) return null;
-
-  const map: number[] = []; // normalized index -> original index
-  let norm = "";
-  let prevWasSpace = false;
-  for (let i = 0; i < artifact.length; i++) {
-    let ch = artifact[i].toLowerCase();
-    if ("‘’‛′".includes(ch)) ch = "'";
-    else if ("“”″".includes(ch)) ch = '"';
-    else if ("–—".includes(ch)) ch = "-";
-    if (/\s/.test(ch)) {
-      if (prevWasSpace) continue;
-      ch = " ";
-      prevWasSpace = true;
-    } else {
-      prevWasSpace = false;
-    }
-    norm += ch;
-    map.push(i);
-  }
-  const trimmedNorm = norm.trim();
-  const leadingTrim = norm.length - norm.trimStart().length;
-
-  const idx = trimmedNorm.indexOf(normQuote);
-  if (idx === -1) return null;
-
-  const startNormIdx = idx + leadingTrim;
-  const endNormIdx = startNormIdx + normQuote.length - 1;
-  if (endNormIdx >= map.length) return null;
-  const origStart = map[startNormIdx];
-  const origEnd = map[endNormIdx];
-  return artifact.slice(origStart, origEnd + 1);
-}
 
 type TelemetrySnapshot = {
   latencyMs: number;
