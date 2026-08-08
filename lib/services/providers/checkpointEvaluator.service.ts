@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
-import { computeCostMicroUsd } from "@/lib/llm";
+import { computeCostMicroUsd, getLlmTelemetryContext } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   EvaluationResult,
@@ -139,6 +139,7 @@ export class GeminiCheckpointEvaluator implements CheckpointEvaluator {
       const model = snapshot.model ?? TELEMETRY_MODEL;
       const inputTokens = snapshot.usage?.inputTokens ?? 0;
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
+      const ctx = getLlmTelemetryContext();
       await prisma.llmCall.create({
         data: {
           purpose: "checkpoint_evaluate",
@@ -151,6 +152,8 @@ export class GeminiCheckpointEvaluator implements CheckpointEvaluator {
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
           evaluationId: null,
+          userId: ctx?.userId ?? null,
+          intentId: ctx?.intentId ?? null,
         },
       });
     } catch (err) {

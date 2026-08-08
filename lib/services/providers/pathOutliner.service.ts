@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
-import { computeCostMicroUsd } from "@/lib/llm";
+import { computeCostMicroUsd, getLlmTelemetryContext } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type { GoalpostPlan, PathOutlinerInput } from "@/lib/services/types";
 import type { PathOutliner } from "@/lib/services/interfaces/pathOutliner.interface";
@@ -93,6 +93,7 @@ export class GeminiPathOutliner implements PathOutliner {
       const model = snapshot.model ?? TELEMETRY_MODEL;
       const inputTokens = snapshot.usage?.inputTokens ?? 0;
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
+      const ctx = getLlmTelemetryContext();
       await prisma.llmCall.create({
         data: {
           purpose: "path_outline",
@@ -104,6 +105,8 @@ export class GeminiPathOutliner implements PathOutliner {
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
           evaluationId: null,
+          userId: ctx?.userId ?? null,
+          intentId: ctx?.intentId ?? null,
         },
       });
     } catch (err) {

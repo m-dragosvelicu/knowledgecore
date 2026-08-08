@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
-import { computeCostMicroUsd } from "@/lib/llm";
+import { computeCostMicroUsd, getLlmTelemetryContext } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   CanDoStatement,
@@ -86,6 +86,7 @@ export class GeminiKnowledgeProbe implements KnowledgeProbe {
       const model = snapshot.model ?? TELEMETRY_MODEL;
       const inputTokens = snapshot.usage?.inputTokens ?? 0;
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
+      const ctx = getLlmTelemetryContext();
       await prisma.llmCall.create({
         data: {
           purpose: snapshot.purpose,
@@ -98,6 +99,8 @@ export class GeminiKnowledgeProbe implements KnowledgeProbe {
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
           evaluationId: null,
+          userId: ctx?.userId ?? null,
+          intentId: ctx?.intentId ?? null,
         },
       });
     } catch (err) {

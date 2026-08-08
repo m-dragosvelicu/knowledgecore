@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCurrentSession, isAnonymousSession } from "@/lib/auth";
 import { requireOwnerId, requireRealUserId } from "@/lib/auth-guards";
 import { assertGuestLlmBudget } from "@/lib/llm/guestRateLimit";
+import { withLlmTelemetryContext } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import { getOrCreateActiveIntent } from "@/lib/journey/intent/resolution";
 import { getCurrentGoalpost } from "@/lib/journey/intent/queries";
@@ -163,7 +164,11 @@ export async function startJourneyWithIntentAction(formData: FormData): Promise<
   // new intent becomes the resume target via its newest `updatedAt`.
 
   const services = getServices();
-  const subject = await services.intentParser.parse(parsed.rawText);
+  // No LearningIntent row exists yet at parse time (it is created just below),
+  // so only userId is attributable here; intentId stays null.
+  const subject = await withLlmTelemetryContext({ userId }, () =>
+    services.intentParser.parse(parsed.rawText),
+  );
 
   const intent = await prisma.learningIntent.create({
     data: { userId, rawText: parsed.rawText, status: "goal_assessed" },
@@ -204,7 +209,11 @@ export async function submitIntentAction(formData: FormData): Promise<void> {
   await assertGuestLlmBudget(isAnonymous);
 
   const services = getServices();
-  const subject = await services.intentParser.parse(parsed.rawText);
+  // Same reasoning as startJourneyWithIntentAction: the intent this parse
+  // feeds may not exist yet (create path below), so only userId is attributed.
+  const subject = await withLlmTelemetryContext({ userId }, () =>
+    services.intentParser.parse(parsed.rawText),
+  );
 
   // Find or create the active intent (pinned by the submitted `j` when present).
   const existing = await getOrCreateActiveIntent(userId, j);
@@ -310,11 +319,13 @@ export async function advanceInterviewAction(
   if (!subject) redirect(`/journey/intent?j=${intentId}`);
 
   const services = getServices();
-  const step = await services.goalInterviewer.interview({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    motivation: parsed.motivation,
-    transcript: parsed.transcript,
-  });
+  const step = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.goalInterviewer.interview({
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      motivation: parsed.motivation,
+      transcript: parsed.transcript,
+    }),
+  );
 
   // Resume support: persists the outcome sub-state as produced, so a learner who
   // leaves mid-outcome returns to their position, not the motivation question.
@@ -468,12 +479,14 @@ export async function reviseOutcomeAction(
   if (!draft) redirect(`/journey/outcome?j=${intentId}`);
 
   const reviser = getOutcomeReviser();
-  const revised = await reviser.revise({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    canDoStatements: draft!.canDoStatements,
-    successCriterion: draft!.successCriterion,
-    feedback: parsed.feedback,
-  });
+  const revised = await withLlmTelemetryContext({ userId, intentId }, () =>
+    reviser.revise({
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      canDoStatements: draft!.canDoStatements,
+      successCriterion: draft!.successCriterion,
+      feedback: parsed.feedback,
+    }),
+  );
 
   await prisma.subject.update({
     where: { intentId },
@@ -532,9 +545,9 @@ export async function submitProbeAction(
   const services = getServices();
   // Stateless scoring: pass the exact questions the learner answered. No
   // regeneration (which previously produced mismatched questions and 0/4 scores).
-  const { competencies, transcript } = await services.knowledgeProbe.score(
-    parsed.questions,
-    parsed.answers,
+  const { competencies, transcript } = await withLlmTelemetryContext(
+    { userId, intentId },
+    () => services.knowledgeProbe.score(parsed.questions, parsed.answers),
   );
 
   await prisma.knowledgeAssessment.upsert({
@@ -581,12 +594,14 @@ export async function generatePathAction(intentId?: string | null): Promise<void
   }
 
   const services = getServices();
-  const goalposts = await services.pathOutliner.outline({
-    subject: { canonicalName: subject.canonicalName, scopeNote: subject.scopeNote },
-    motivation: goal.motivation,
-    outcome: outcome.canDoStatements as unknown as CanDoStatement[],
-    assessment: assessment.competencies as unknown as Competency[],
-  });
+  const goalposts = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.pathOutliner.outline({
+      subject: { canonicalName: subject.canonicalName, scopeNote: subject.scopeNote },
+      motivation: goal.motivation,
+      outcome: outcome.canDoStatements as unknown as CanDoStatement[],
+      assessment: assessment.competencies as unknown as Competency[],
+    }),
+  );
 
   await prisma.learningPath.create({
     data: {
@@ -717,17 +732,19 @@ export async function advancePathConfirmationAction(
   if (!path) redirect(`/journey/path?j=${intentId}`);
 
   const interviewer = getPathConfirmationInterviewer();
-  return interviewer.clarify({
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    outcome: (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [],
-    overview: path!.goalposts.map((g) => ({
-      order: g.order,
-      title: g.title,
-      objective: g.objective,
-      estimatedMinutes: g.estimatedMinutes,
-    })),
-    transcript: parsedTranscript,
-  });
+  return withLlmTelemetryContext({ userId, intentId }, () =>
+    interviewer.clarify({
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      outcome: (outcome?.canDoStatements as unknown as CanDoStatement[]) ?? [],
+      overview: path!.goalposts.map((g) => ({
+        order: g.order,
+        title: g.title,
+        objective: g.objective,
+        estimatedMinutes: g.estimatedMinutes,
+      })),
+      transcript: parsedTranscript,
+    }),
+  );
 }
 
 const revisePathSchema = z.object({
@@ -790,29 +807,31 @@ export async function revisePathFromConfirmationAction(
   const remaining = goalposts.slice(1);
 
   const services = getServices();
-  const adjustment = await services.pathAdjuster.adjust({
-    // Pre-acceptance revision: no checkpoint ran, zero insertions is valid
-    // (e.g. a pure "drop this goalpost" edit) — see PathAdjusterMode.
-    mode: "confirmation_revision",
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    motivation: goal!.motivation,
-    outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
-    assessment: assessment!.competencies as unknown as Competency[],
-    currentGoalpost: {
-      order: anchor.order,
-      title: anchor.title,
-      objective: anchor.objective,
-    },
-    triggerScores: NEUTRAL_SCORES,
-    // The learner's clarifying concern IS the rationale that drives the edit.
-    triggerRationale: `Before starting, the learner said the proposed path is not quite right. ${parsed.concern}`,
-    remainingGoalposts: remaining.map((g) => ({
-      order: g.order,
-      title: g.title,
-      objective: g.objective,
-      estimatedMinutes: g.estimatedMinutes,
-    })),
-  });
+  const adjustment = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.pathAdjuster.adjust({
+      // Pre-acceptance revision: no checkpoint ran, zero insertions is valid
+      // (e.g. a pure "drop this goalpost" edit) — see PathAdjusterMode.
+      mode: "confirmation_revision",
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      motivation: goal!.motivation,
+      outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
+      assessment: assessment!.competencies as unknown as Competency[],
+      currentGoalpost: {
+        order: anchor.order,
+        title: anchor.title,
+        objective: anchor.objective,
+      },
+      triggerScores: NEUTRAL_SCORES,
+      // The learner's clarifying concern IS the rationale that drives the edit.
+      triggerRationale: `Before starting, the learner said the proposed path is not quite right. ${parsed.concern}`,
+      remainingGoalposts: remaining.map((g) => ({
+        order: g.order,
+        title: g.title,
+        objective: g.objective,
+        estimatedMinutes: g.estimatedMinutes,
+      })),
+    }),
+  );
 
   await prisma.$transaction((tx) =>
     applyPreAcceptancePathAdjustment(tx, {
@@ -878,14 +897,16 @@ export async function submitExperienceStepAction(formData: FormData): Promise<vo
 
   const attempt = previousAttempts + 1;
   const services = getServices();
-  const evaluation = await services.checkpointEvaluator.evaluate({
-    goalpostTitle: step.goalpost.title,
-    goalpostObjective: step.goalpost.objective,
-    informationContent,
-    experiencePrompt,
-    userArtifact: parsed.userArtifact,
-    attempt,
-  });
+  const evaluation = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.checkpointEvaluator.evaluate({
+      goalpostTitle: step.goalpost.title,
+      goalpostObjective: step.goalpost.objective,
+      informationContent,
+      experiencePrompt,
+      userArtifact: parsed.userArtifact,
+      attempt,
+    }),
+  );
 
   // The evaluator's own `decision` is advisory. The authoritative branch is
   // derived deterministically from the rubric scores per L0.md §8, which also
@@ -970,7 +991,9 @@ async function doAdvance(
     // profile, so the learner doesn't wait on entry. Best-effort and idempotent
     // — on failure/skip, the goalpost page generates on entry as fallback.
     try {
-      await ensureLessonContent(intentId, userId, next.id);
+      await withLlmTelemetryContext({ userId, intentId }, () =>
+        ensureLessonContent(intentId, userId, next.id),
+      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn(
@@ -1202,28 +1225,30 @@ export async function adjustPlanAction(formData: FormData): Promise<void> {
   }
 
   const services = getServices();
-  const adjustment = await services.pathAdjuster.adjust({
-    // Post-checkpoint remediation: the failed goalpost is only ever marked
-    // complete alongside a queued remediation goalpost — >=1 insert required.
-    mode: "remediation",
-    subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
-    motivation: goal!.motivation,
-    outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
-    assessment: assessment!.competencies as unknown as Competency[],
-    currentGoalpost: {
-      order: currentOrder,
-      title: goalpost!.title,
-      objective: goalpost!.objective,
-    },
-    triggerScores: latestEval!.scores as unknown as RubricScores,
-    triggerRationale: latestEval!.rationale,
-    remainingGoalposts: remaining.map((g) => ({
-      order: g.order,
-      title: g.title,
-      objective: g.objective,
-      estimatedMinutes: g.estimatedMinutes,
-    })),
-  });
+  const adjustment = await withLlmTelemetryContext({ userId, intentId }, () =>
+    services.pathAdjuster.adjust({
+      // Post-checkpoint remediation: the failed goalpost is only ever marked
+      // complete alongside a queued remediation goalpost — >=1 insert required.
+      mode: "remediation",
+      subject: { canonicalName: subject!.canonicalName, scopeNote: subject!.scopeNote },
+      motivation: goal!.motivation,
+      outcome: outcome!.canDoStatements as unknown as CanDoStatement[],
+      assessment: assessment!.competencies as unknown as Competency[],
+      currentGoalpost: {
+        order: currentOrder,
+        title: goalpost!.title,
+        objective: goalpost!.objective,
+      },
+      triggerScores: latestEval!.scores as unknown as RubricScores,
+      triggerRationale: latestEval!.rationale,
+      remainingGoalposts: remaining.map((g) => ({
+        order: g.order,
+        title: g.title,
+        objective: g.objective,
+        estimatedMinutes: g.estimatedMinutes,
+      })),
+    }),
+  );
 
   await prisma.$transaction((tx) =>
     applyPathAdjustment(tx, {
@@ -1302,7 +1327,13 @@ export async function prepareGoalpostContentAction(
   const userId = await requireRealUserId();
   intentId = await requireActiveIntentId(userId, intentId);
   const parsed = goalpostIdSchema.parse({ goalpostId });
-  await ensureLessonContent(intentId, userId, parsed.goalpostId);
+  // Covers both LLM-backed purposes inside the two-phase pipeline
+  // (lesson_content = Author, visual_generate = the video worker's model-
+  // assisted candidate step) even though neither is a direct call here — the
+  // context propagates through ensureLessonContent -> runLessonPipeline.
+  await withLlmTelemetryContext({ userId, intentId }, () =>
+    ensureLessonContent(intentId, userId, parsed.goalpostId),
+  );
   // Entering a goalpost is a recency signal too, so a learner who opens a
   // journey and leaves still has it surface as the resume target.
   await touchIntentRecency(intentId);
@@ -1361,7 +1392,9 @@ export async function prepareProbeQuestionsAction(
 ): Promise<void> {
   const userId = await requireOwnerId();
   intentId = await requireActiveIntentId(userId, intentId);
-  await ensureProbeQuestions(intentId);
+  await withLlmTelemetryContext({ userId, intentId }, () =>
+    ensureProbeQuestions(intentId!),
+  );
   await touchIntentRecency(intentId);
 }
 

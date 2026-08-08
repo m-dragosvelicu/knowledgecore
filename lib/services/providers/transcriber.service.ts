@@ -1,5 +1,5 @@
 import type { TranscriptionClient, TranscriptionResult } from "@/lib/llm";
-import { computeCostMicroUsd } from "@/lib/llm";
+import { computeCostMicroUsd, getLlmTelemetryContext } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   TranscribeInput,
@@ -35,6 +35,11 @@ export class GeminiTranscriber implements Transcriber {
       const model = snapshot.model ?? TELEMETRY_MODEL;
       const inputTokens = snapshot.usage?.inputTokens ?? 0;
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
+      // Attribution: userId is available (the route requires a session before
+      // calling transcribe); intentId is genuinely unavailable — the mic input
+      // is reachable on pre-journey outcome/probe steps and the route takes no
+      // journey id, so it is left null rather than invented.
+      const ctx = getLlmTelemetryContext();
       await prisma.llmCall.create({
         data: {
           purpose: "stt_transcribe",
@@ -46,6 +51,8 @@ export class GeminiTranscriber implements Transcriber {
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
           evaluationId: null,
+          userId: ctx?.userId ?? null,
+          intentId: ctx?.intentId ?? null,
         },
       });
     } catch (err) {

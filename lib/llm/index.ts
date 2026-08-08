@@ -16,6 +16,11 @@ export type {
 } from "./types";
 
 export { computeCostMicroUsd } from "./pricing";
+export {
+  withLlmTelemetryContext,
+  getLlmTelemetryContext,
+  type LlmTelemetryContext,
+} from "./telemetryContext";
 
 export { AnthropicClient } from "./anthropic";
 export { GeminiClient } from "./gemini";

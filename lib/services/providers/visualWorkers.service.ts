@@ -3,7 +3,7 @@
 // DROPPED. Never a broken/placeholder visual: dropped is acceptable, broken is not (§7).
 
 import type { CompletionResult, LLMClient } from "@/lib/llm";
-import { computeCostMicroUsd } from "@/lib/llm";
+import { computeCostMicroUsd, getLlmTelemetryContext } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type {
   VisualWorker,
@@ -332,6 +332,7 @@ export class VideoWorker implements VisualWorker {
       const model = snapshot.model ?? VIDEO_TELEMETRY_MODEL;
       const inputTokens = snapshot.usage?.inputTokens ?? 0;
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
+      const ctx = getLlmTelemetryContext();
       await prisma.llmCall.create({
         data: {
           purpose: "visual_generate",
@@ -343,6 +344,8 @@ export class VideoWorker implements VisualWorker {
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
           evaluationId: null,
+          userId: ctx?.userId ?? null,
+          intentId: ctx?.intentId ?? null,
         },
       });
     } catch (err) {

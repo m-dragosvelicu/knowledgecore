@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { CompletionResult, LLMClient } from "@/lib/llm";
-import { computeCostMicroUsd } from "@/lib/llm";
+import { computeCostMicroUsd, getLlmTelemetryContext } from "@/lib/llm";
 import { prisma } from "@/lib/db";
 import type { ParsedSubject } from "@/lib/services/types";
 import type { IntentParser } from "@/lib/services/interfaces/intentParser.interface";
@@ -45,6 +45,10 @@ export class GeminiIntentParser implements IntentParser {
       const model = snapshot.model ?? TELEMETRY_MODEL;
       const inputTokens = snapshot.usage?.inputTokens ?? 0;
       const outputTokens = snapshot.usage?.outputTokens ?? 0;
+      // Attribution: intent parsing runs before the LearningIntent row exists
+      // (both call sites parse first, then create/update the intent), so
+      // intentId is genuinely unavailable here and stays null.
+      const ctx = getLlmTelemetryContext();
       await prisma.llmCall.create({
         data: {
           purpose: "intent_parse",
@@ -55,6 +59,8 @@ export class GeminiIntentParser implements IntentParser {
           latencyMs: snapshot.latencyMs,
           success: snapshot.success,
           errorMessage: snapshot.errorMessage,
+          userId: ctx?.userId ?? null,
+          intentId: ctx?.intentId ?? null,
         },
       });
     } catch (err) {

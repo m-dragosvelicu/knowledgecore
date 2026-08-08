@@ -5,6 +5,7 @@ import {
   assertGuestLlmBudget,
   GuestRateLimitError,
 } from "@/lib/llm/guestRateLimit";
+import { withLlmTelemetryContext } from "@/lib/llm";
 
 /**
  * L1 Slice 3 speech-to-text route. Takes a recorded-audio Blob (`audio` form
@@ -91,11 +92,18 @@ export async function POST(request: Request): Promise<Response> {
   const bytes = new Uint8Array(await audio.arrayBuffer());
 
   try {
-    const { transcript } = await getTranscriber().transcribe({
-      audio: bytes,
-      mimeType,
-      languageHint,
-    });
+    // No journey id travels with this route (the mic is reachable on
+    // pre-journey outcome/probe steps); intentId stays null, only userId is
+    // attributed.
+    const { transcript } = await withLlmTelemetryContext(
+      { userId: session.user.id },
+      () =>
+        getTranscriber().transcribe({
+          audio: bytes,
+          mimeType,
+          languageHint,
+        }),
+    );
     return NextResponse.json({ transcript });
   } catch (err) {
     // eslint-disable-next-line no-console

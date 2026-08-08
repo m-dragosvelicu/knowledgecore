@@ -32,6 +32,7 @@ model User {
   sessions        Session[]
   accounts        Account[]
   learningIntents LearningIntent[]
+  llmCalls        LlmCall[]
 
   @@map("user")
 }
@@ -197,6 +198,8 @@ model LearningIntent {
   // L2 — the research bundle(s) this journey draws provenance from. M:N via
   // JourneyBundleLink so the SAME topic bundle is reused across users (Library reuse).
   bundles JourneyBundleLink[]
+
+  llmCalls LlmCall[]
 
   @@index([userId, status])
 }
@@ -393,9 +396,25 @@ model LlmCall {
   evaluationId String?
   evaluation   CheckpointEvaluation? @relation(fields: [evaluationId], references: [id], onDelete: SetNull)
 
+  /// Cost/usage attribution (reporting-only; read side lives in the
+  /// /api/admin/llm-costs aggregation route). Nullable because several call
+  /// sites genuinely predate a journey (e.g. intent parsing before the
+  /// LearningIntent row exists) or have no journey at all (e.g. the
+  /// pre-journey STT route) — never backfilled/guessed, left null.
+  userId   String?
+  user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// The journey this call served. Named `intentId` (not `journeyId`) to match
+  /// the existing FK convention onto LearningIntent used throughout the schema
+  /// (Subject.intentId, LearningGoal.intentId, JourneyBundleLink.intentId, ...).
+  /// "Journey" is the product-facing term for a LearningIntent.
+  intentId String?
+  intent   LearningIntent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
+
   @@index([createdAt])
   @@index([purpose, createdAt])
   @@index([evaluationId])
+  @@index([userId, createdAt])
+  @@index([intentId, createdAt])
 }
 
 // =====================================================================
